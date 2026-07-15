@@ -1,9 +1,6 @@
 package com.colegio.modelos
 
 import org.jetbrains.exposed.dao.id.IntIdTable
-import org.jetbrains.exposed.sql.SchemaUtils
-import org.jetbrains.exposed.sql.Table.Dual.foreignKeys
-import org.jetbrains.exposed.sql.transactions.transaction
 
 object ProfesoresTable : IntIdTable("profesor") {
     val nombre = varchar("nombre", 100)

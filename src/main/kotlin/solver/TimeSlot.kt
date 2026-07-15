@@ -1,6 +1,5 @@
 package com.colegio.solver
 
-import ai.timefold.solver.core.api.domain.variable.PlanningVariable
 import java.time.DayOfWeek
 import java.time.LocalTime
 

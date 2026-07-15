@@ -1,13 +1,13 @@
 package com.colegio.solver
 
 // IMPORTS VITALES
-import org.jetbrains.exposed.sql.transactions.transaction
-import org.jetbrains.exposed.sql.selectAll // <-- Soluciona el error de selectAll y MatchGroup
 import ai.timefold.solver.core.api.solver.SolverFactory
 import com.colegio.modelos.ProfesoresTable
-import java.time.DayOfWeek // <-- Para los días de la semana reales
-import java.time.LocalTime // <-- Para las horas reales
+import org.jetbrains.exposed.sql.selectAll
+import org.jetbrains.exposed.sql.transactions.transaction
 import org.slf4j.LoggerFactory
+import java.time.DayOfWeek
+import java.time.LocalTime
 
 private val logger = LoggerFactory.getLogger("SimuladorHorarios")
 fun Simulacion() {

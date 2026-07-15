@@ -1,16 +1,10 @@
 package com.colegio.solver
 
-import ai.timefold.solver.core.api.domain.solution.PlanningEntityCollectionProperty
-import ai.timefold.solver.core.api.domain.solution.PlanningScore
-import ai.timefold.solver.core.api.domain.solution.PlanningSolution
-import ai.timefold.solver.core.api.domain.solution.ProblemFactCollectionProperty
-import ai.timefold.solver.core.api.domain.valuerange.ValueRangeProvider
 import ai.timefold.solver.core.api.score.buildin.hardsoft.HardSoftScore
 import ai.timefold.solver.core.api.score.stream.Constraint
 import ai.timefold.solver.core.api.score.stream.ConstraintFactory
 import ai.timefold.solver.core.api.score.stream.ConstraintProvider
 import ai.timefold.solver.core.api.score.stream.Joiners
-import java.util.Collections.emptyList
 
 class HorarioConstraintProvider : ConstraintProvider {
 
@@ -22,6 +16,16 @@ class HorarioConstraintProvider : ConstraintProvider {
         )
     }
 
+    // Regla Soft: Se busca que haya 1 hora de cada asignatura
+//    private fun horasSeguidas(factory: ConstraintFactory): Constraint {
+//        return factory.forEachUniquePair<Leccion, Leccion>(
+//            Joiners.equal(Leccion::asignatura),
+//            Joiners.equal(Leccion::timeSlot)
+//        )
+//            .penalize(HardSoftScore.ONE_SOFT)
+//            .asConstraint("Horas seguidas")
+//    }
+
     // Regla HARD 1: Un profesor no puede dar dos clases distintas en la misma franja horaria.
     private fun profesorConflicto(factory: ConstraintFactory): Constraint {
         return factory.forEachUniquePair(
@@ -32,7 +36,7 @@ class HorarioConstraintProvider : ConstraintProvider {
             Joiners.equal(Leccion::profesor)
         )
             // ...entonces penalizamos duramente este horario.
-            .penalize( HardSoftScore.ONE_HARD)
+            .penalize(HardSoftScore.ONE_HARD)
             .asConstraint("Conflicto de profesor")
     }
 
@@ -43,7 +47,7 @@ class HorarioConstraintProvider : ConstraintProvider {
             Joiners.equal(Leccion::timeSlot),
             Joiners.equal(Leccion::grupo)
         )
-            .penalize( HardSoftScore.ONE_HARD)
+            .penalize(HardSoftScore.ONE_HARD)
             .asConstraint("Conflicto de grupo")
     }
 }

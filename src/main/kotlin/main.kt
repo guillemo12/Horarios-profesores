@@ -1,5 +1,6 @@
 package com.colegio
 
+import com.colegio.modelos.ConfiguracionTable
 import com.colegio.modelos.ProfesoresTable
 import io.ktor.server.engine.*
 import io.ktor.server.application.*
@@ -18,7 +19,14 @@ fun main(args: Array<String>) {
     // 2. PREPARAR LAS PÁGINAS: Crear las tablas si no existen en el archivo
     // Esto evita que te dé un error de "Table 'profesor' not found" la primera vez.
     transaction {
-        SchemaUtils.create(ProfesoresTable)
+        SchemaUtils.create(ProfesoresTable,ConfiguracionTable)
+        SchemaUtils.createMissingTablesAndColumns(ProfesoresTable,ConfiguracionTable)
+
+        val primero = ConfiguracionTable.selectAll().firstOrNull()
+
+        if (primero == null) {
+            ConfiguracionTable.insert {  }
+        }
 
         // ¡NUEVO! Metemos datos de prueba si la tabla está vacía
         val cantidadProfesores = ProfesoresTable.selectAll().count()
