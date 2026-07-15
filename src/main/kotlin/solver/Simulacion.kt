@@ -26,7 +26,6 @@ fun Simulacion() {
                     asignatura = "Matemáticas",
                     profesor = fila[ProfesoresTable.nombre],
                     grupo = "1ºA",
-                    duracionMinutos = 60 // <-- Añadido el parámetro que faltaba
                 )
             )
         }

@@ -21,7 +21,7 @@ class HorarioSolution(
     var lessonList: List<Leccion> = emptyList(),
 
     @ProblemFactProperty
-    var configuracion: Configuracion?
+    var configuracion: Configuracion? = null
 ) {
     // La puntuación se queda sola en el cuerpo de la clase
     @PlanningScore

@@ -9,7 +9,8 @@ class TimeSlot(
     val dayOfWeek: DayOfWeek,
     val startTime: LocalTime,
     val endTime: LocalTime,
-    var indiceDeFranja: Int = 0
+    var duracionMinutos: Int = 0,
+    var indiceDeFranja: Int = 0,
 ) {
     // Timefold requiere constructores vacíos para inicializar los objetos
     constructor() : this("", DayOfWeek.MONDAY, LocalTime.MIN, LocalTime.MAX)

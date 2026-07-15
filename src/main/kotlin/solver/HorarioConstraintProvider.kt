@@ -2,17 +2,23 @@ package com.colegio.solver
 
 import ai.timefold.solver.core.api.score.buildin.hardsoft.HardSoftScore
 import ai.timefold.solver.core.api.score.stream.Constraint
+import ai.timefold.solver.core.api.score.stream.ConstraintCollectors
 import ai.timefold.solver.core.api.score.stream.ConstraintFactory
 import ai.timefold.solver.core.api.score.stream.ConstraintProvider
 import ai.timefold.solver.core.api.score.stream.Joiners
+import com.colegio.DTO.AgrupacionDiaria
+import com.colegio.DTO.Configuracion
+import java.time.DayOfWeek
 
 class HorarioConstraintProvider : ConstraintProvider {
 
     override fun defineConstraints(factory: ConstraintFactory): Array<Constraint> {
         return arrayOf(
             profesorConflicto(factory),
-            grupoConflicto(factory)
+            grupoConflicto(factory),
             // Aquí irías añadiendo más reglas: horas máximas al día, guardias, etc.
+            fomentarBloquesDe60Minutos(factory),
+            limiteMaximoMinutosPorDia(factory),
         )
     }
 
@@ -36,31 +42,38 @@ class HorarioConstraintProvider : ConstraintProvider {
             .asConstraint("Fomentar bloques de 60 minutos")
     }
 
-    private fun prohibirBloquesDe90Minutos(factory: ConstraintFactory): Constraint {
-        return factory.forEach(Leccion::class.java)
-            // Buscamos la pareja (60 mins)
-            .join(Leccion::class.java,
-                Joiners.equal(Leccion::grupo),
-                Joiners.equal(Leccion::asignatura),
-                Joiners.equal { leccion -> leccion.timeSlot?.dayOfWeek }
-            )
-            .filter { l1, l2 -> l2.timeSlot!!.indiceDeFranja == l1.timeSlot!!.indiceDeFranja + 1 }
 
-            // ¡DOBLE CRUCE! Añadimos una tercera lección a la ecuación para buscar el "trío"
-            // ¡DOBLE CRUCE! Añadimos una tercera lección a la ecuación para buscar el "trío"
-            .join(Leccion::class.java,
-                // Compara el grupo de l1 con el grupo de la nueva lección (l3)
-                Joiners.equal({ l1, l2 -> l1.grupo }, Leccion::grupo),
-                // Compara la asignatura de l1 con la asignatura de la nueva lección (l3)
-                Joiners.equal({ l1, l2 -> l1.asignatura }, Leccion::asignatura),
-                // Compara el día de l1 con el día de la nueva lección (usamos lambda por el '?')
-                Joiners.equal({ l1, l2 -> l1.timeSlot?.dayOfWeek }, { l3 -> l3.timeSlot?.dayOfWeek })
+    private fun limiteMaximoMinutosPorDia(factory: ConstraintFactory): Constraint {
+        return factory.forEach(Leccion::class.java)
+            // 1. Filtramos las lecciones que ya tienen hora asignada
+            .filter { leccion -> leccion.timeSlot != null }
+
+            // 2. AGRUPACIÓN COMPACTA
+            // Creamos nuestro paquete "AgrupacionDiaria" sobre la marcha. Esto cuenta como 1 sola variable.
+            .groupBy(
+                { leccion -> AgrupacionDiaria(leccion.grupo, leccion.asignatura, leccion.timeSlot!!.dayOfWeek) },
+                // Sumamos los minutos. Esto cuenta como la 2ª variable.
+                ConstraintCollectors.sum { leccion -> leccion.timeSlot!!.duracionMinutos }
             )
-            // CONDICIÓN: La lección 3 va justo después de la lección 2 (90 minutos seguidos)
-            .filter { l1, l2, l3 -> l3.timeSlot!!.indiceDeFranja == l2.timeSlot!!.indiceDeFranja + 1 }
-            // CASTIGO SEVERO: Si haces esto, el horario es inválido.
-            .penalize(HardSoftScore.ONE_HARD)
-            .asConstraint("Prohibir 3 clases seguidas (90 minutos)")
+
+            // 3. CRUZAMOS con los ajustes.
+            // Se añade como la 3ª variable. ¡Estamos muy por debajo del límite de 4!
+            .join(Configuracion::class.java)
+
+            // 4. LA REGLA DINÁMICA
+            // Parámetros: (llave empaquetada, total de minutos, ajustes de SQLite)
+            .filter { llave, minutosTotales, ajustes ->
+                minutosTotales > ajustes.tiempoMaximo
+            }
+
+            // 5. PENALIZACIÓN
+            .penalize(
+                HardSoftScore.ONE_HARD,
+                { llave, minutosTotales, ajustes ->
+                    minutosTotales - ajustes.tiempoMaximo
+                }
+            )
+            .asConstraint("Exceso de minutos de una asignatura en un mismo día")
     }
 
     // Regla HARD 1: Un profesor no puede dar dos clases distintas en la misma franja horaria.
