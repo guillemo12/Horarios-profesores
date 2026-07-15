@@ -2,6 +2,7 @@ package com.colegio.solver
 
 // IMPORTS VITALES
 import ai.timefold.solver.core.api.solver.SolverFactory
+import com.colegio.DTO.Configuracion
 import com.colegio.modelos.ProfesoresTable
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.transaction
@@ -49,9 +50,12 @@ fun Simulacion() {
         )
     )
 
+    val configuracion = Configuracion(true, 30, 60)
+
     val problemaInicial = HorarioSolution(
         timeSlotList = franjasDisponibles,
-        lessonList = leccionesSinAsignar
+        lessonList = leccionesSinAsignar,
+        configuracion = configuracion
     )
 
     logger.info("3. Calculando el mejor horario...")

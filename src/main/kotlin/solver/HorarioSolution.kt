@@ -4,8 +4,10 @@ import ai.timefold.solver.core.api.domain.solution.PlanningEntityCollectionPrope
 import ai.timefold.solver.core.api.domain.solution.PlanningScore
 import ai.timefold.solver.core.api.domain.solution.PlanningSolution
 import ai.timefold.solver.core.api.domain.solution.ProblemFactCollectionProperty
+import ai.timefold.solver.core.api.domain.solution.ProblemFactProperty
 import ai.timefold.solver.core.api.domain.valuerange.ValueRangeProvider
 import ai.timefold.solver.core.api.score.buildin.hardsoft.HardSoftScore
+import com.colegio.DTO.Configuracion
 import java.util.Collections.emptyList
 
 @PlanningSolution
@@ -16,7 +18,10 @@ class HorarioSolution(
     var timeSlotList: List<TimeSlot> = emptyList(),
 
     @PlanningEntityCollectionProperty
-    var lessonList: List<Leccion> = emptyList()
+    var lessonList: List<Leccion> = emptyList(),
+
+    @ProblemFactProperty
+    var configuracion: Configuracion?
 ) {
     // La puntuación se queda sola en el cuerpo de la clase
     @PlanningScore
