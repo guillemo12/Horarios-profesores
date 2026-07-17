@@ -4,7 +4,7 @@ import ai.timefold.solver.core.api.solver.SolverFactory
 import com.colegio.DTO.Configuracion
 import com.colegio.modelos.AsignaturaTable
 import com.colegio.modelos.ProfesorAsignaturaTable
-import com.colegio.modelos.ProfesoresTable
+import com.colegio.modelos.ProfesorTable
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.slf4j.LoggerFactory
@@ -22,13 +22,13 @@ fun Simulacion() {
 
     transaction {
         // Hacemos un INNER JOIN triple para unir Profesores -> Relación -> Asignaturas
-        val query = (ProfesoresTable innerJoin ProfesorAsignaturaTable innerJoin AsignaturaTable)
+        val query = (ProfesorTable innerJoin ProfesorAsignaturaTable innerJoin AsignaturaTable)
             .selectAll()
 
         var idLeccion = 1
 
         for (fila in query) {
-            val profeNombre = fila[ProfesoresTable.nombre]
+            val profeNombre = fila[ProfesorTable.nombre]
             val asigNombre = fila[AsignaturaTable.nombre]
             val asigCurso = fila[AsignaturaTable.curso]
             val asigMinutos = fila[AsignaturaTable.minutos]

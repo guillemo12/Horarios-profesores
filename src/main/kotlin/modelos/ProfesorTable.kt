@@ -2,7 +2,7 @@ package com.colegio.modelos
 
 import org.jetbrains.exposed.dao.id.IntIdTable
 
-object ProfesoresTable : IntIdTable("profesor") {
+object ProfesorTable : IntIdTable("profesor") {
     val nombre = varchar("nombre", 100)
 
   //  val index = index("index_name", isUnique = false, nombre, especialidad)
