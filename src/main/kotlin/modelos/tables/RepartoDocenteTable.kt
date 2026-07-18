@@ -1,6 +1,5 @@
-package com.colegio.modelos
+package com.colegio.modelos.tables
 
-import com.colegio.modelos.tables.GruposTable
 import org.jetbrains.exposed.dao.id.IntIdTable
 import org.jetbrains.exposed.sql.ReferenceOption
 

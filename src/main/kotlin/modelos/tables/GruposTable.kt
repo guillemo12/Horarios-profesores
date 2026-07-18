@@ -1,6 +1,5 @@
 package com.colegio.modelos.tables
 
-import com.colegio.modelos.ProfesorTable
 import org.jetbrains.exposed.dao.id.IntIdTable
 
 object GruposTable : IntIdTable("grupos") {

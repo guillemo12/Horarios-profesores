@@ -1,10 +1,10 @@
 package com.colegio
 
 import com.colegio.DTO.AsignaturaDTO
-import com.colegio.modelos.*
 import com.colegio.modelos.entities.*
 import com.colegio.modelos.tables.CursoTable
 import com.colegio.modelos.tables.GruposTable
+import com.colegio.modelos.tables.*
 import org.jetbrains.exposed.sql.Database
 import org.jetbrains.exposed.sql.SchemaUtils
 import org.jetbrains.exposed.sql.SizedCollection

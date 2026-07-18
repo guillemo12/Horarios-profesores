@@ -1,6 +1,6 @@
 package com.colegio.modelos.entities
 
-import com.colegio.modelos.ConfiguracionTable
+import com.colegio.modelos.tables.ConfiguracionTable
 import org.jetbrains.exposed.dao.IntEntity
 import org.jetbrains.exposed.dao.IntEntityClass
 import org.jetbrains.exposed.dao.id.EntityID

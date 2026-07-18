@@ -1,7 +1,7 @@
 package com.colegio.modelos.entities
 
-import com.colegio.modelos.AsignaturaTable
-import com.colegio.modelos.ProfesorAsignaturaTable
+import com.colegio.modelos.tables.AsignaturaTable
+import com.colegio.modelos.tables.ProfesorAsignaturaTable
 import org.jetbrains.exposed.dao.IntEntity
 import org.jetbrains.exposed.dao.IntEntityClass
 import org.jetbrains.exposed.dao.id.EntityID

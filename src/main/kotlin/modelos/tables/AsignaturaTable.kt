@@ -1,6 +1,5 @@
-package com.colegio.modelos
+package com.colegio.modelos.tables
 
-import com.colegio.modelos.tables.CursoTable
 import org.jetbrains.exposed.dao.id.IntIdTable
 
 object AsignaturaTable : IntIdTable("asignatura") {

@@ -1,4 +1,4 @@
-package com.colegio.modelos
+package com.colegio.modelos.tables
 
 import org.jetbrains.exposed.sql.Table
 
