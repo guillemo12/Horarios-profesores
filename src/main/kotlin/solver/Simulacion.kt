@@ -1,7 +1,7 @@
 package com.colegio.solver
 
-import ai.timefold.solver.core.api.solver.SolutionManager
 import ai.timefold.solver.core.api.score.buildin.hardsoft.HardSoftScore
+import ai.timefold.solver.core.api.solver.SolutionManager
 import ai.timefold.solver.core.api.solver.SolverFactory
 import com.colegio.DTO.Configuracion
 import com.colegio.modelos.entities.AsignaturaEntity

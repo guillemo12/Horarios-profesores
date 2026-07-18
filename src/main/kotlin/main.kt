@@ -2,21 +2,15 @@ package com.colegio
 
 import com.colegio.DTO.AsignaturaDTO
 import com.colegio.modelos.*
-import com.colegio.modelos.entities.AsignaturaEntity
-import com.colegio.modelos.entities.ConfiguracionEntity
-import com.colegio.modelos.entities.CursosEntity
-import com.colegio.modelos.entities.GruposEntity
-import com.colegio.modelos.entities.ProfesorEntity
+import com.colegio.modelos.entities.*
 import com.colegio.modelos.tables.CursoTable
 import com.colegio.modelos.tables.GruposTable
-import org.jetbrains.exposed.dao.flushCache
 import org.jetbrains.exposed.sql.Database
 import org.jetbrains.exposed.sql.SchemaUtils
 import org.jetbrains.exposed.sql.SizedCollection
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.transaction
 import java.sql.DriverManager.println
-import kotlin.collections.listOf
 
 fun main(args: Array<String>) {
     // 1. ABRIR EL LIBRO: Conectar a la base de datos SQLite
@@ -127,36 +121,36 @@ fun main(args: Array<String>) {
         if (GruposEntity.count() == 0L) {
             val profes = ProfesorEntity.all().toList()
             GruposEntity.new {
-                nombre= "A"
+                nombre = "A"
                 curso = CursosEntity.find { CursoTable.nombre eq "1º" }.first()
-                tutor= profes[0]
+                tutor = profes[0]
             }
             GruposEntity.new {
                 nombre = "A"
                 curso = CursosEntity.find { CursoTable.nombre eq "2º" }.first()
-                tutor= profes[1]
+                tutor = profes[1]
             }
             GruposEntity.new {
                 nombre = "A"
                 curso = CursosEntity.find { CursoTable.nombre eq "3º" }.first()
-                tutor= profes[2]
+                tutor = profes[2]
             }
 
 
             GruposEntity.new {
-                nombre= "B"
+                nombre = "B"
                 curso = CursosEntity.find { CursoTable.nombre eq "1º" }.first()
-                tutor= profes[0]
+                tutor = profes[0]
             }
             GruposEntity.new {
                 nombre = "C"
                 curso = CursosEntity.find { CursoTable.nombre eq "2º" }.first()
-                tutor= profes[1]
+                tutor = profes[1]
             }
             GruposEntity.new {
                 nombre = "D"
                 curso = CursosEntity.find { CursoTable.nombre eq "3º" }.first()
-                tutor= profes[2]
+                tutor = profes[2]
             }
 
         }
