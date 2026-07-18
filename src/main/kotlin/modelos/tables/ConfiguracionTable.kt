@@ -10,5 +10,6 @@ object ConfiguracionTable : IntIdTable("tabla_configuracion") {
     // los tiempos están en minutos
     val tiempoMinimo = integer(name = "tiempo_minimo").default(30)
     val tiempoMaximo = integer("tiempo_maximo").default(60)
+    val minutosMaximosProfesor = integer("minutos_maximos_profesor").default(1500)
 
 }

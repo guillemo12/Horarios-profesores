@@ -11,5 +11,6 @@ class ConfiguracionEntity(id: EntityID<Int>) : IntEntity(id) {
     var tiempoMinimo by ConfiguracionTable.tiempoMinimo
     var tiempoMaximo by ConfiguracionTable.tiempoMaximo
     var priorizarTutor by ConfiguracionTable.priorizarTutor
+    var minutosMaximosProfesor by ConfiguracionTable.minutosMaximosProfesor
 
 }
