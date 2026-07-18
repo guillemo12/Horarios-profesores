@@ -11,15 +11,16 @@ class ProfesorEntity(id: EntityID<Int>) : IntEntity(id) {
     companion object : IntEntityClass<ProfesorEntity>(ProfesorTable)
 
     var nombre by ProfesorTable.nombre
-
     var asignaturas by AsignaturaEntity via ProfesorAsignaturaTable
+    var minutosMaximos by ProfesorTable.minutosMaximos
 
 
     fun toProfesor(): Profesor {
         return Profesor(
             nombre = nombre,
             asignaturas = asignaturas.map { it.nombre },
-            asignaturasPreferidas = listOf()
+            asignaturasPreferidas = listOf(),
+            minutosMaximos = minutosMaximos // Debería obtenerse desde la tabla de profesores
         )
     }
 }

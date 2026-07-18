@@ -52,6 +52,7 @@ fun main(args: Array<String>) {
             nombres.forEach { nombreProfe ->
                 ProfesorEntity.new {
                     nombre = nombreProfe
+                    minutosMaximos = 3000
                 }
             }
         }

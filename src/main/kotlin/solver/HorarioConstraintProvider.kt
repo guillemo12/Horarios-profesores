@@ -18,8 +18,31 @@ class HorarioConstraintProvider : ConstraintProvider {
             compactarTemprano(factory),
             priorizarTutorDelGrupo(factory),
             profesorMateriaIncorrecta(factory),
+            limiteHorasProfesor(factory),
         )
     }
+
+    // Regla HARD: Un profesor no puede exceder su límite de horas semanales
+    private fun limiteHorasProfesor(factory: ConstraintFactory): Constraint {
+        return factory.forEach(Leccion::class.java)
+            // 1. Filtramos las lecciones que ya tienen profesor y hora asignada
+            .filter { leccion -> leccion.profesor != null && leccion.timeSlot != null }
+            // 2. Agrupamos por profesor y sumamos la duración de todas sus clases en la semana
+            .groupBy(
+                { leccion -> leccion.profesor!! },
+                ConstraintCollectors.sum { leccion -> leccion.timeSlot!!.duracionMinutos }
+            )
+            // 3. Condición: ¿Los minutos totales superan el máximo permitido para este profe?
+            .filter { profesor, minutosTotales ->
+                minutosTotales > profesor.minutosMaximos
+            }
+            // 4. Penalizamos severamente restando los minutos exactos que se ha pasado
+            .penalize(HardSoftScore.ONE_HARD) { profesor, minutosTotales ->
+                minutosTotales - profesor.minutosMaximos
+            }
+            .asConstraint("Exceso de horas de trabajo del profesor")
+    }
+
 
     // Regla HARD: El profesor asignado TIENE que saber dar esa asignatura
     private fun profesorMateriaIncorrecta(factory: ConstraintFactory): Constraint {
