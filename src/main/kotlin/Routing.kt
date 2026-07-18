@@ -2,9 +2,9 @@ package com.colegio
 
 import com.colegio.solver.Simulacion
 import io.ktor.server.application.*
+import io.ktor.server.http.content.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
-import io.ktor.server.http.content.*
 
 fun Application.configureRouting() {
     routing {
@@ -15,7 +15,7 @@ fun Application.configureRouting() {
         get("/json/kotlinx-serialization") {
             call.respond(mapOf("hello" to "world"))
         }
-        get("/Hola"){
+        get("/Hola") {
             Simulacion()
             call.respondText("Hola")
         }

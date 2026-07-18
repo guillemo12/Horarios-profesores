@@ -1,10 +1,14 @@
 package com.colegio.solver
 
+import ai.timefold.solver.core.api.solver.SolutionManager
+import ai.timefold.solver.core.api.score.buildin.hardsoft.HardSoftScore
 import ai.timefold.solver.core.api.solver.SolverFactory
 import com.colegio.DTO.Configuracion
-import com.colegio.modelos.AsignaturaTable
-import com.colegio.modelos.ProfesorAsignaturaTable
-import com.colegio.modelos.ProfesorTable
+import com.colegio.modelos.entities.AsignaturaEntity
+import com.colegio.modelos.entities.GruposEntity
+import com.colegio.modelos.entities.ProfesorEntity
+import com.colegio.modelos.tables.CursoTable
+import com.colegio.modelos.tables.GruposTable
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.slf4j.LoggerFactory
@@ -14,6 +18,7 @@ import java.time.LocalTime
 private val logger = LoggerFactory.getLogger("SimuladorHorarios")
 
 fun Simulacion() {
+
     // Definimos nuestra franja base
     val configuracion = Configuracion(priorizarTutor = true, tiempoMinimo = 30, tiempoMaximo = 60)
 
@@ -21,30 +26,36 @@ fun Simulacion() {
     val leccionesSinAsignar = mutableListOf<Leccion>()
 
     transaction {
-        // Hacemos un INNER JOIN triple para unir Profesores -> Relación -> Asignaturas
-        val query = (ProfesorTable innerJoin ProfesorAsignaturaTable innerJoin AsignaturaTable)
-            .selectAll()
+        // LA MAGIA DEL DAO: Hacemos 1 sola consulta masiva para traer a los profesores
+        // y dejamos sus asignaturas "pre-cargadas" en memoria usando .with()
+        val todasLasAsignaturas = AsignaturaEntity.all()
 
         var idLeccion = 1
 
-        for (fila in query) {
-            val profeNombre = fila[ProfesorTable.nombre]
-            val asigNombre = fila[AsignaturaTable.nombre]
-            val asigCurso = fila[AsignaturaTable.curso]
-            val asigMinutos = fila[AsignaturaTable.minutos]
+        // 2. Iteramos sobre los objetos Asignatura que tiene asignados
+        for (asignatura in todasLasAsignaturas) {
+            val asigNombre = asignatura.nombre
+            val asigMinutos = asignatura.minutos
+            val query = (GruposTable innerJoin CursoTable)
+                .selectAll()
+                .where { CursoTable.nombre eq asignatura.curso.nombre }
 
-            // LA MAGIA: Dividimos los minutos totales entre 30 para saber cuántas fichas crear
+            // Convertimos el resultado de la consulta SQL pura a objetos Entidad
+            val grupos = GruposEntity.wrapRows(query).toList()
+
+            // LA MAGIA MATEMÁTICA: Dividimos los minutos totales entre 30 (tiempoMinimo)
             val cantidadDeFichas = asigMinutos / configuracion.tiempoMinimo
 
             for (i in 1..cantidadDeFichas) {
-                leccionesSinAsignar.add(
-                    Leccion(
-                        id = "Lec_${idLeccion++}",
-                        asignatura = asigNombre,
-                        profesor = profeNombre,
-                        grupo = asigCurso
+                for (grupo in grupos) {
+                    leccionesSinAsignar.add(
+                        Leccion(
+                            id = "Lec_${idLeccion++}",
+                            asignatura = asigNombre,
+                            grupo = grupo.toGrupo()
+                        )
                     )
-                )
+                }
             }
         }
     }
@@ -80,10 +91,29 @@ fun Simulacion() {
         }
     }
 
+    var profesorList = emptyList<Profesor>()
+    transaction {
+        profesorList = ProfesorEntity.all().map { profesor -> profesor.toProfesor() }
+    }
+
+    // --- NUEVO: AUDITORÍA DE PROFESORES DISPONIBLES ---
+    val asignaturasCubiertas = profesorList.flatMap { it.asignaturas }.toSet()
+
+    transaction {
+        val todasLasAsignaturas = AsignaturaEntity.all().toList()
+        for (asig in todasLasAsignaturas) {
+            if (!asignaturasCubiertas.contains(asig.nombre)) {
+                logger.error("⚠️ ¡ALERTA CRÍTICA! La asignatura '${asig.nombre}' de ${asig.curso.nombre} no tiene NINGÚN profesor capacitado en la base de datos.")
+            }
+        }
+    }
+    // --------------------------------------------------
+
     val problemaInicial = HorarioSolution(
         timeSlotList = franjasDisponibles,
         lessonList = leccionesSinAsignar,
-        configuracion = configuracion
+        configuracion = configuracion,
+        profesorList = profesorList
     )
 
     logger.info("3. Arrancando el motor matemático Timefold...")
@@ -93,28 +123,55 @@ fun Simulacion() {
     // El hilo se congela aquí durante los segundos que le hayas marcado en solverConfig.xml
     val solucionFinal = solver.solve(problemaInicial)
 
+    // --- NUEVO: AUDITORÍA DE REGLAS ROTAS ---
+    val solutionManager = SolutionManager.create(solverFactory)
+    val explicacion = solutionManager.explain(solucionFinal)
+
+    if (!solucionFinal.score!!.isFeasible) {
+        logger.error("❌ ¡ALERTA! El horario es INVÁLIDO porque rompe reglas DURAS. Desglose del fallo:")
+
+        explicacion.constraintMatchTotalMap.values.forEach { match ->
+            val scoreDeLaRegla = match.score as HardSoftScore
+
+            if (scoreDeLaRegla.hardScore() < 0) {
+                logger.error(" -> REGLA INCUMPLIDA: '${match.constraintName}'")
+                logger.error("    Impacto: ${scoreDeLaRegla.hardScore()} puntos Hard.")
+                logger.error("    Veces que se rompió: ${match.constraintMatchCount} veces.")
+            }
+        }
+    } else {
+        logger.info("✅ El horario es matemáticamente factible (0 reglas duras rotas).")
+    }
+    // ----------------------------------------
+
     logger.info("4. ¡Horario Resuelto! Imprimiendo resultados ordenados:")
 
     // Ordenamos la lista final por Día y por Hora para que la lectura en consola sea humana
     val leccionesOrdenadas = solucionFinal.lessonList.sortedWith(
         compareBy<Leccion> { it.timeSlot?.dayOfWeek }
             .thenBy { it.timeSlot?.startTime }
+            .thenBy { it.grupo.nombre }
+            .thenBy { it.grupo.curso }
     )
 
     var diaActual: DayOfWeek? = null
 
     for (leccion in leccionesOrdenadas) {
         val hueco = leccion.timeSlot
-        if (hueco != null) {
+        val profe = leccion.profesor
+
+        if (hueco == null) {
+            logger.error("❌ ALERTA: La lección ${leccion.id} de ${leccion.asignatura} se quedó SIN HORA.")
+        } else if (profe == null) {
+            logger.error("❌ ALERTA: La lección ${leccion.id} de ${leccion.asignatura} en ${leccion.grupo.curso}${leccion.grupo.nombre} se quedó SIN PROFESOR asignado.")
+        } else {
             // Imprimimos un separador cada vez que cambiamos de día
             if (diaActual != hueco.dayOfWeek) {
                 logger.info("--- ${hueco.dayOfWeek} ---")
                 diaActual = hueco.dayOfWeek
             }
 
-            logger.info("[${hueco.startTime} - ${hueco.endTime}] ${leccion.grupo} | ${leccion.asignatura} (Prof. ${leccion.profesor})")
-        } else {
-            logger.error("¡ALERTA! La lección ${leccion.id} de ${leccion.asignatura} se quedó sin asignar.")
+            logger.info("[${hueco.startTime} - ${hueco.endTime}] ${leccion.grupo.curso}${leccion.grupo.nombre} | ${leccion.asignatura} (Prof. ${profe.nombre})")
         }
     }
 }

@@ -4,13 +4,19 @@ import com.colegio.DTO.AsignaturaDTO
 import com.colegio.modelos.*
 import com.colegio.modelos.entities.AsignaturaEntity
 import com.colegio.modelos.entities.ConfiguracionEntity
+import com.colegio.modelos.entities.CursosEntity
+import com.colegio.modelos.entities.GruposEntity
 import com.colegio.modelos.entities.ProfesorEntity
+import com.colegio.modelos.tables.CursoTable
+import com.colegio.modelos.tables.GruposTable
+import org.jetbrains.exposed.dao.flushCache
 import org.jetbrains.exposed.sql.Database
 import org.jetbrains.exposed.sql.SchemaUtils
 import org.jetbrains.exposed.sql.SizedCollection
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.transaction
 import java.sql.DriverManager.println
+import kotlin.collections.listOf
 
 fun main(args: Array<String>) {
     // 1. ABRIR EL LIBRO: Conectar a la base de datos SQLite
@@ -24,14 +30,18 @@ fun main(args: Array<String>) {
             ConfiguracionTable,
             AsignaturaTable,
             ProfesorAsignaturaTable,
-            RepartoDocenteTable
+            RepartoDocenteTable,
+            GruposTable,
+            CursoTable
         )
         SchemaUtils.createMissingTablesAndColumns(
             ProfesorTable,
             ConfiguracionTable,
             AsignaturaTable,
             ProfesorAsignaturaTable,
-            RepartoDocenteTable
+            RepartoDocenteTable,
+            GruposTable,
+            CursoTable
         )
 
         // 2. CONFIGURACIÓN (Usamos la Entidad)
@@ -57,15 +67,26 @@ fun main(args: Array<String>) {
             val asignaturas = listOf(
                 AsignaturaDTO(nombre = "Matemáticas", curso = "1º", minutos = 60),
                 AsignaturaDTO(nombre = "Sistemas Operativos", curso = "1º", minutos = 90),
+                AsignaturaDTO(nombre = "Ciencias sociales", curso = "1º", minutos = 90),
+                AsignaturaDTO(nombre = "Cartografia", curso = "1º", minutos = 90),
                 AsignaturaDTO(nombre = "Ciencia de Datos", curso = "2º", minutos = 120),
                 AsignaturaDTO(nombre = "Arquitectura ARM", curso = "3º", minutos = 90),
-                AsignaturaDTO(nombre = "Programación en Kotlin", curso = "3º", minutos = 180)
+                AsignaturaDTO(nombre = "Programación en Kotlin", curso = "3º", minutos = 180),
+                AsignaturaDTO(nombre = "Física", curso = "2º", minutos = 90)
             )
 
             asignaturas.forEach { asig ->
+                // 1. Buscamos el curso si ya existe en la base de datos,
+                //    o lo creamos si es la primera vez que aparece.
+                //    (Asumo que tienes alguna propiedad como 'asig.nombreCurso' para identificarlo)
+                val cursoDeLaAsignatura = CursosEntity.find { CursoTable.nombre eq asig.curso }.firstOrNull()
+                    ?: CursosEntity.new {
+                        nombre = asig.curso
+                    }
+
                 AsignaturaEntity.new {
                     nombre = asig.nombre
-                    curso = asig.curso
+                    curso = cursoDeLaAsignatura
                     minutos = asig.minutos
                 }
             }
@@ -91,11 +112,53 @@ fun main(args: Array<String>) {
             profes[1].asignaturas = SizedCollection(listOf(asigs[1], asigs[4]))
 
             // Turing imparte Ciencia de Datos (2)
-            profes[2].asignaturas = SizedCollection(listOf(asigs[2]))
+            // Turing imparte Ciencias sociales (2) y Arquitectura ARM (5)
+            profes[2].asignaturas = SizedCollection(listOf(asigs[2], asigs[5]))
+
+            // Hopper imparte Programación en Kotlin (6)
+            profes[3].asignaturas = SizedCollection(listOf(asigs[6]))
 
             // Como ya vimos, al cerrar la transacción (}), Exposed hará automáticamente todos
             // los INSERTs necesarios en la tabla ProfesorAsignaturaTable.
             println("Datos de prueba cargados correctamente usando objetos DAO")
+        }
+
+
+        if (GruposEntity.count() == 0L) {
+            val profes = ProfesorEntity.all().toList()
+            GruposEntity.new {
+                nombre= "A"
+                curso = CursosEntity.find { CursoTable.nombre eq "1º" }.first()
+                tutor= profes[0]
+            }
+            GruposEntity.new {
+                nombre = "A"
+                curso = CursosEntity.find { CursoTable.nombre eq "2º" }.first()
+                tutor= profes[1]
+            }
+            GruposEntity.new {
+                nombre = "A"
+                curso = CursosEntity.find { CursoTable.nombre eq "3º" }.first()
+                tutor= profes[2]
+            }
+
+
+            GruposEntity.new {
+                nombre= "B"
+                curso = CursosEntity.find { CursoTable.nombre eq "1º" }.first()
+                tutor= profes[0]
+            }
+            GruposEntity.new {
+                nombre = "C"
+                curso = CursosEntity.find { CursoTable.nombre eq "2º" }.first()
+                tutor= profes[1]
+            }
+            GruposEntity.new {
+                nombre = "D"
+                curso = CursosEntity.find { CursoTable.nombre eq "3º" }.first()
+                tutor= profes[2]
+            }
+
         }
     }
     io.ktor.server.netty.EngineMain.main(args)

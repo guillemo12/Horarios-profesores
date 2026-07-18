@@ -10,10 +10,13 @@ class Leccion(
     @PlanningId
     var id: String = "",
     var asignatura: String = "",
-    var profesor: String = "",
-    var grupo: String = "",
+    var grupo: Grupo = Grupo(),
 ) {
     // La variable que Timefold va a mover se queda en el cuerpo de la clase
     @PlanningVariable(valueRangeProviderRefs = ["rangoDeHoras"])
     var timeSlot: TimeSlot? = null
+
+    @PlanningVariable(valueRangeProviderRefs = ["rangoDeProfesores"])
+    var profesor: Profesor? = null
+
 }

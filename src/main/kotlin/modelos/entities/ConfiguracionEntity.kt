@@ -1,7 +1,5 @@
 package com.colegio.modelos.entities
 
-import com.colegio.DTO.Configuracion
-import com.colegio.modelos.AsignaturaTable
 import com.colegio.modelos.ConfiguracionTable
 import org.jetbrains.exposed.dao.IntEntity
 import org.jetbrains.exposed.dao.IntEntityClass

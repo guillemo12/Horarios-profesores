@@ -1,7 +1,7 @@
 package com.colegio.solver
 
-class Profesor (
-    nombre: String,
-    asignaturas: List<String>,
-    asignatpurasPreferidas: List<String>,
+data class Profesor(
+    val nombre: String,
+    val asignaturas: List<String>,
+    val asignaturasPreferidas: List<String>
 )
