@@ -41,11 +41,21 @@ fun Simulacion() {
         for (asignatura in todasLasAsignaturas) {
             val query = (GruposTable innerJoin CursoTable).selectAll().where { CursoTable.nombre eq asignatura.curso.nombre }
             val grupos = GruposEntity.wrapRows(query).toList()
-            val cantidadDeFichas = asignatura.minutos / configuracion.tiempoMinimo
+
+
+            val asigMinutos = asignatura.minutos // <--- Asegúrate de tener esta variable
+            val cantidadDeFichas = asigMinutos / configuracion.tiempoMinimo
 
             for (i in 1..cantidadDeFichas) {
                 for (grupo in grupos) {
-                    leccionesSinAsignar.add(Leccion(id = "Lec_${idLeccion++}", asignatura = asignatura.nombre, grupo = grupo.toGrupo()))
+                    leccionesSinAsignar.add(
+                        Leccion(
+                            id = "Lec_${idLeccion++}",
+                            asignatura = asignatura.nombre,
+                            grupo = grupo.toGrupo(),
+                            minutosSemanales = asigMinutos // <--- AÑADIMOS EL DATO AQUÍ
+                        )
+                    )
                 }
             }
         }

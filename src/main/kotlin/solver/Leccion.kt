@@ -11,6 +11,7 @@ class Leccion(
     var id: String = "",
     var asignatura: String = "",
     var grupo: Grupo = Grupo(),
+    val minutosSemanales:Int = 0
 ) {
     // La variable que Timefold va a mover se queda en el cuerpo de la clase
     @PlanningVariable(valueRangeProviderRefs = ["rangoDeHoras"])

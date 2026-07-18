@@ -2,6 +2,9 @@
 <solver xmlns="https://timefold.ai/xsd/solver" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
         xsi:schemaLocation="https://timefold.ai/xsd/solver https://timefold.ai/xsd/solver/solver.xsd">
 
+    <!-- 1. ACELERADOR: Modo puro aleatorio, más rápido -->
+    <environmentMode>NON_REPRODUCIBLE</environmentMode>
+
     <solutionClass>com.colegio.solver.HorarioSolution</solutionClass>
     <entityClass>com.colegio.solver.Leccion</entityClass>
 
@@ -10,7 +13,17 @@
     </scoreDirectorFactory>
 
     <termination>
-        <secondsSpentLimit>30</secondsSpentLimit>
+        <spentLimit>10m</spentLimit>
+        <unimprovedSpentLimit>1m</unimprovedSpentLimit>
+        <bestScoreLimit>0hard/0soft</bestScoreLimit>
     </termination>
+
+    <!-- FASE 1: Construcción del borrador inicial -->
+    <constructionHeuristic />
+
+    <!-- FASE 2: ACELERADOR con el algoritmo Late Acceptance -->
+    <localSearch>
+        <localSearchType>LATE_ACCEPTANCE</localSearchType>
+    </localSearch>
 
 </solver>

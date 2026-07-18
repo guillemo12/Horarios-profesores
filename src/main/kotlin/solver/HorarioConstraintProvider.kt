@@ -141,36 +141,47 @@ class HorarioConstraintProvider : ConstraintProvider {
 
     private fun limiteMaximoMinutosPorDia(factory: ConstraintFactory): Constraint {
         return factory.forEach(Leccion::class.java)
-            // 1. Filtramos las lecciones que ya tienen hora asignada
             .filter { leccion -> leccion.timeSlot != null }
-
-            // 2. AGRUPACIÓN COMPACTA
-            // Creamos nuestro paquete "AgrupacionDiaria" sobre la marcha. Esto cuenta como 1 sola variable.
             .groupBy(
-                { leccion -> AgrupacionDiaria(leccion.grupo.nombre, leccion.asignatura, leccion.timeSlot!!.dayOfWeek) },
-                // Sumamos los minutos. Esto cuenta como la 2ª variable.
+                { leccion ->
+                    // AQUÍ ESTÁ LA MAGIA: Unimos el curso y la letra ("1º A", "Infantil 3 B")
+                    // para que la IA no fusione los grupos.
+                    val nombreUnicoGrupo = "${leccion.grupo.curso} ${leccion.grupo.nombre}"
+
+                    AgrupacionDiaria(
+                        nombreUnicoGrupo,
+                        leccion.asignatura,
+                        leccion.timeSlot!!.dayOfWeek,
+                        leccion.minutosSemanales
+                    )
+                },
                 ConstraintCollectors.sum { leccion -> leccion.timeSlot!!.duracionMinutos }
             )
-
-            // 3. CRUZAMOS con los ajustes.
-            // Se añade como la 3ª variable. ¡Estamos muy por debajo del límite de 4!
             .join(Configuracion::class.java)
+            .filter { llave, minutosTotalesDelDia, ajustes ->
 
-            // 4. LA REGLA DINÁMICA
-            // Parámetros: (llave empaquetada, total de minutos, ajustes de SQLite)
-            .filter { llave, minutosTotales, ajustes ->
-                minutosTotales > ajustes.tiempoMaximo
+                // Cálculo matemático dinámico
+                val promedioDiario = llave.minutosSemanales / 5.0
+                val bloquesNecesarios = Math.ceil(promedioDiario / ajustes.tiempoMinimo).toInt()
+                val limiteMatematico = bloquesNecesarios * ajustes.tiempoMinimo
+                val limiteDiarioReal = maxOf(ajustes.tiempoMaximo, limiteMatematico)
+
+                minutosTotalesDelDia > limiteDiarioReal
             }
-
-            // 5. PENALIZACIÓN
             .penalize(
                 HardSoftScore.ONE_HARD,
-                { llave, minutosTotales, ajustes ->
-                    minutosTotales - ajustes.tiempoMaximo
+                { llave, minutosTotalesDelDia, ajustes ->
+                    val promedioDiario = llave.minutosSemanales / 5.0
+                    val bloquesNecesarios = Math.ceil(promedioDiario / ajustes.tiempoMinimo).toInt()
+                    val limiteMatematico = bloquesNecesarios * ajustes.tiempoMinimo
+                    val limiteDiarioReal = maxOf(ajustes.tiempoMaximo, limiteMatematico)
+
+                    minutosTotalesDelDia - limiteDiarioReal
                 }
             )
             .asConstraint("Exceso de minutos de una asignatura en un mismo día")
     }
+
 
     // Regla HARD 1: Un profesor no puede dar dos clases distintas en la misma franja horaria.
     private fun profesorConflicto(factory: ConstraintFactory): Constraint {

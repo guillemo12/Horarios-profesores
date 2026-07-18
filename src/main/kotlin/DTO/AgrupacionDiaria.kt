@@ -6,5 +6,6 @@ import java.time.DayOfWeek
 data class AgrupacionDiaria(
     val grupo: String,
     val asignatura: String,
-    val dia: DayOfWeek
+    val dia: DayOfWeek,
+    val minutosSemanales: Int // <--- NUEVO
 )

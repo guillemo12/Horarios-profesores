@@ -24,306 +24,154 @@ fun main(args: Array<String>) {
                 tiempoMinimo = 30
                 tiempoMaximo = 60
                 priorizarTutor = true
-                minutosMaximosProfesor = 1500 // 25 horas semanales por profe
+                minutosMaximosProfesor = 1500 // 25 horas semanales
             }
         }
         val configActual = ConfiguracionEntity.all().first()
 
-        // 2. PROFESORES Y ESPECIALISTAS (Se crean primero)
+        // 2. PROFESORES (Solo los creamos, las materias se vinculan en el paso 5)
         if (ProfesorEntity.count() == 0L) {
-            val listaProfesores = listOf(
-                Pair(
-                    "Tutor Infantil 3A",
-                    listOf(
-                        "Crecimiento y armonia",
-                        "Descubrimiento y exploracion del entorno",
-                        "comunicacion y representacion de la realidad"
-                    )
-                ),
-                Pair(
-                    "Tutor Infantil 3B",
-                    listOf(
-                        "Crecimiento y armonia",
-                        "Descubrimiento y exploracion del entorno",
-                        "comunicacion y representacion de la realidad"
-                    )
-                ),
-                Pair(
-                    "Tutor Infantil 4A",
-                    listOf(
-                        "Crecimiento y armonia",
-                        "Descubrimiento y exploracion del entorno",
-                        "comunicacion y representacion de la realidad"
-                    )
-                ),
-                Pair(
-                    "Tutor Infantil 4C",
-                    listOf(
-                        "Crecimiento y armonia",
-                        "Descubrimiento y exploracion del entorno",
-                        "comunicacion y representacion de la realidad"
-                    )
-                ),
-                Pair(
-                    "Tutor Infantil 4B",
-                    listOf(
-                        "Crecimiento y armonia",
-                        "Descubrimiento y exploracion del entorno",
-                        "comunicacion y representacion de la realidad"
-                    )
-                ),
-                Pair(
-                    "Tutor Infantil 4C",
-                    listOf(
-                        "Crecimiento y armonia",
-                        "Descubrimiento y exploracion del entorno",
-                        "comunicacion y representacion de la realidad"
-                    )
-                ),
-                Pair(
-                    "Tutor Infantil 4C",
-                    listOf(
-                        "Crecimiento y armonia",
-                        "Descubrimiento y exploracion del entorno",
-                        "comunicacion y representacion de la realidad"
-                    )
-                ),
-                Pair(
-                    "Tutor Infantil 5A",
-                    listOf(
-                        "Crecimiento y armonia",
-                        "Descubrimiento y exploracion del entorno",
-                        "comunicacion y representacion de la realidad"
-                    )
-                ),
-                Pair(
-                    "Tutor Infantil 4C",
-                    listOf(
-                        "Crecimiento y armonia",
-                        "Descubrimiento y exploracion del entorno",
-                        "comunicacion y representacion de la realidad"
-                    )
-                ),
-                Pair(
-                    "Tutor Infantil 5B",
-                    listOf(
-                        "Crecimiento y armonia",
-                        "Descubrimiento y exploracion del entorno",
-                        "comunicacion y representacion de la realidad"
-                    )
-                ),
-                Pair(
-                    "Tutor Infantil 4C",
-                    listOf(
-                        "Crecimiento y armonia",
-                        "Descubrimiento y exploracion del entorno",
-                        "comunicacion y representacion de la realidad"
-                    )
-                ),
-                Pair(
-                    "Tutor Infantil 5C",
-                    listOf(
-                        "Crecimiento y armonia",
-                        "Descubrimiento y exploracion del entorno",
-                        "comunicacion y representacion de la realidad"
-                    )
-                ),
-                Pair("Tutor 1ºA", emptyList()),
-                Pair("Tutor 1ºB", emptyList()),
-                Pair("Tutor 1ºC", emptyList()),
-                Pair("Tutor 2ºA", emptyList()),
-                Pair("Tutor 2ºB", emptyList()),
-                Pair("Tutor 3ºA", emptyList()),
-                Pair("Tutor 3ºB", emptyList()),
-                Pair("Tutor 3ºC", emptyList()),
-                Pair("Tutor 4ºA", emptyList()),
-                Pair("Tutor 4ºB", emptyList()),
-                Pair("Tutor 4ºC", emptyList()), // 4A=EF, 4B=Ing, 4C=Fra
-                Pair("Tutor 5ºA", emptyList()),
-                Pair("Tutor 5ºB", emptyList()),
-                Pair("Tutor 5ºC", emptyList()), // 5A=EF, 5B=Ing, 5C=Mus
-                Pair("Tutor 6ºA", emptyList()),
-                Pair("Tutor 6ºB", emptyList()),              // 6A=EF, 6B=Ing
-                Pair("Apoyo 1", emptyList()),
-                Pair("Apoyo 2", emptyList()),
-                Pair("Director", emptyList()),
-                Pair("Jefa de Estudios", emptyList()),
-                Pair("Religión Primaria", emptyList()),
-                Pair("Religión Infantil", emptyList()),
+            val listaNombresProfesores = listOf(
+                "Tutor Infantil 3A", "Tutor Infantil 3B", "Tutor Infantil 4A", "Tutor Infantil 4B", "Tutor Infantil 4C",
+                "Tutor Infantil 5A", "Tutor Infantil 5B", "Tutor Infantil 5C",
+                "Tutor 1ºA", "Tutor 1ºB", "Tutor 1ºC", "Tutor 2ºA", "Tutor 2ºB",
+                "Tutor 3ºA", "Tutor 3ºB", "Tutor 3ºC", "Tutor 4ºA", "Tutor 4ºB", "Tutor 4ºC",
+                "Tutor 5ºA", "Tutor 5ºB", "Tutor 5ºC", "Tutor 6ºA", "Tutor 6ºB",
+                "Apoyo 1", "Apoyo 2", "Director", "Jefa de Estudios",
+                "Religión Primaria", "Religión Infantil", "Especialista Francés", "Especialista Música"
             )
 
-            listaProfesores.forEach { (nombreProfe, pair) ->
+            listaNombresProfesores.forEach { nombreProfe ->
                 ProfesorEntity.new {
                     this.nombre = nombreProfe
                     this.minutosMaximos = configActual.minutosMaximosProfesor
-                    this.asignaturas = pair.map { AsignaturaEntity.find { AsignaturaTable.nombre eq it }.firstOrNull()? }
                 }
             }
         }
 
-        // 3. CURSOS Y GRUPOS (Con sus tutores asignados)
+        // 3. CURSOS Y GRUPOS
         if (GruposEntity.count() == 0L) {
             val mapaCursos = mapOf(
-                "Infantil 3" to listOf("A", "B"),
-                "Infantil 4" to listOf("A", "B", "C"),
-                "Infantil 5" to listOf("A", "B", "C"),
-                "1º" to listOf("A", "B", "C"),
-                "2º" to listOf("A", "B"),
-                "3º" to listOf("A", "B", "C"),
-                "4º" to listOf("A", "B", "C"),
-                "5º" to listOf("A", "B", "C"),
-                "6º" to listOf("A", "B")
+                "Infantil 3" to listOf("A", "B"), "Infantil 4" to listOf("A", "B", "C"), "Infantil 5" to listOf("A", "B", "C"),
+                "1º" to listOf("A", "B", "C"), "2º" to listOf("A", "B"), "3º" to listOf("A", "B", "C"),
+                "4º" to listOf("A", "B", "C"), "5º" to listOf("A", "B", "C"), "6º" to listOf("A", "B")
             )
 
             mapaCursos.forEach { (nombreCurso, letras) ->
                 val cursoDb = CursosEntity.new { nombre = nombreCurso }
                 letras.forEach { letra ->
-                    val profeTutor =
-                        ProfesorEntity.find { ProfesorTable.nombre eq "Tutor $nombreCurso$letra" }.firstOrNull()
-                            ?: ProfesorEntity.all().first()
-
-                    GruposEntity.new {
-                        this.nombre = letra
-                        this.curso = cursoDb
-                        this.tutor = profeTutor
-                    }
+                    val profeTutor = ProfesorEntity.find { ProfesorTable.nombre eq "Tutor $nombreCurso$letra" }.firstOrNull()
+                        ?: ProfesorEntity.all().first()
+                    GruposEntity.new { this.nombre = letra; this.curso = cursoDb; this.tutor = profeTutor }
                 }
             }
         }
 
-        // 4. ASIGNATURAS Y CARGA HORARIA (Total estricto: 1350 mins a la semana)
+        // 4. ASIGNATURAS Y MATEMÁTICAS HORARIAS
         if (AsignaturaEntity.count() == 0L) {
             val cursosComunes = CursosEntity.all()
+            val totalMinutosSemanales = 1350
 
             for (curso in cursosComunes) {
-                if (!curso.nombre.contains("Infantil")) {
+                if (curso.nombre.contains("Infantil")) {
+                    val esInfantil3o4 = curso.nombre.contains("3") || curso.nombre.contains("4")
+                    val minIngles = if (esInfantil3o4) 60 else 90
+                    val minReligion = 90
 
-                    // Asignaturas base
-                    AsignaturaEntity.new { nombre = "Educación Física"; this.curso = curso; minutos = 180 }
-                    AsignaturaEntity.new { nombre = "Inglés"; this.curso = curso; minutos = 120 + 30 }
-                    AsignaturaEntity.new { nombre = "Religión"; this.curso = curso; minutos = 90 }
+                    AsignaturaEntity.new { nombre = "Inglés"; this.curso = curso; minutos = minIngles }
+                    AsignaturaEntity.new { nombre = "Religión"; this.curso = curso; minutos = minReligion }
 
+                    // Repartimos el tiempo sobrante exactamente en 3 para las troncales de infantil
+                    val tiempoSobrante = totalMinutosSemanales - minIngles - minReligion
+                    val tiempoPorTroncal = tiempoSobrante / 3
 
-                    if (curso.nombre == "1º") {
-                        AsignaturaEntity.new { nombre = "Matematicas"; this.curso = curso; minutos = 5 * 60 }
-                        AsignaturaEntity.new { nombre = "Lengua"; this.curso = curso; minutos = 6 * 60 }
-                        AsignaturaEntity.new {
-                            nombre = "Conocimientos del medio"; this.curso = curso; minutos = 2 * 60 + 30
-                        }
-                    }
-
-                    if (curso.nombre == "2º") {
-                        AsignaturaEntity.new { nombre = "Matematicas"; this.curso = curso; minutos = 5 * 60 }
-                        AsignaturaEntity.new { nombre = "Lengua"; this.curso = curso; minutos = 5 * 60 + 30 }
-                        AsignaturaEntity.new {
-                            nombre = "Conocimientos del medio"; this.curso = curso; minutos = 2 * 60 + 30
-                        }
-
-                    }
-
-                    if (curso.nombre == "3º") {
-                        AsignaturaEntity.new { nombre = "Matematicas"; this.curso = curso; minutos = 5 * 60 }
-                        AsignaturaEntity.new { nombre = "Lengua"; this.curso = curso; minutos = 6 * 60 }
-                        AsignaturaEntity.new {
-                            nombre = "Conocimientos del medio"; this.curso = curso; minutos = 2 * 60 + 30
-                        }
-
-                    }
-
-                    if (curso.nombre == "4º") {
-                        AsignaturaEntity.new { nombre = "Matematicas"; this.curso = curso; minutos = 5 * 60 }
-                        AsignaturaEntity.new { nombre = "Lengua"; this.curso = curso; minutos = 6 * 60 + 30 }
-                        AsignaturaEntity.new {
-                            nombre = "Conocimientos del medio"; this.curso = curso; minutos = 2 * 60 + 30
-                        }
-
-                    }
-
-                    if (curso.nombre == "5º") {
-                        AsignaturaEntity.new { nombre = "Matematicas"; this.curso = curso; minutos = 4 * 60 + 30 }
-                        AsignaturaEntity.new { nombre = "Lengua"; this.curso = curso; minutos = 5 * 60 + 30 }
-                        AsignaturaEntity.new {
-                            nombre = "Conocimientos del medio"; this.curso = curso; minutos = 2 * 60 + 30
-                        }
-
-                        // El director da Atención Educativa a 3 cursos (los 3 grupos de 5º)
-                        AsignaturaEntity.new { nombre = "Atención Educativa"; this.curso = curso; minutos = 90 }
-                        AsignaturaEntity.new { nombre = "Frances"; this.curso = curso; minutos = 60 }
-                    }
-
-                    // Casos especiales según tus reglas
-                    if (curso.nombre == "6º") {
-                        AsignaturaEntity.new { nombre = "Matematicas"; this.curso = curso; minutos = 4 * 60 }
-                        AsignaturaEntity.new { nombre = "Lengua"; this.curso = curso; minutos = 5 * 60 }
-                        AsignaturaEntity.new {
-                            nombre = "Conocimientos del medio"; this.curso = curso; minutos = 2 * 60 + 30
-                        }
-
-
-                        AsignaturaEntity.new { nombre = "Valores"; this.curso = curso; minutos = 90 }
-                        AsignaturaEntity.new { nombre = "Frances"; this.curso = curso; minutos = 60 }
-                    }
+                    AsignaturaEntity.new { nombre = "Crecimiento y armonia"; this.curso = curso; minutos = tiempoPorTroncal }
+                    AsignaturaEntity.new { nombre = "Descubrimiento y exploracion del entorno"; this.curso = curso; minutos = tiempoPorTroncal }
+                    AsignaturaEntity.new { nombre = "Comunicacion y representacion de la realidad"; this.curso = curso; minutos = tiempoPorTroncal }
 
                 } else {
-                    //hora de religion 1,3 horas
-                    //ingles 3 y 4 1 y 5 1,30 horas
-                    // 6 6 5 horas
-                    // "Crecimiento y armonia","Descubrimiento y exploracion del entorno", "comunicacion y representacion de la realidad"
+                    // Cargas base
+                    AsignaturaEntity.new { nombre = "Educación Física"; this.curso = curso; minutos = 180 }
+                    AsignaturaEntity.new { nombre = "Inglés"; this.curso = curso; minutos = 150 }
+                    AsignaturaEntity.new { nombre = "Religión"; this.curso = curso; minutos = 90 }
 
+                    var mat = 300
+                    var len = 300
+                    var cm = 150
+                    var otros = 0
+
+                    // Modificadores según tu solicitud
+                    when (curso.nombre) {
+                        "1º" -> { len = 360 }
+                        "2º" -> { len = 330 }
+                        "3º" -> { len = 360 }
+                        "4º" -> { len = 390 }
+                        "5º" -> {
+                            mat = 270; len = 330; otros = 150
+                            AsignaturaEntity.new { nombre = "Francés"; this.curso = curso; minutos = 60 }
+                            AsignaturaEntity.new { nombre = "Atención Educativa"; this.curso = curso; minutos = 90 }
+                        }
+                        "6º" -> {
+                            mat = 240; len = 300; otros = 150
+                            AsignaturaEntity.new { nombre = "Francés"; this.curso = curso; minutos = 60 }
+                            AsignaturaEntity.new { nombre = "Valores"; this.curso = curso; minutos = 90 }
+                        }
+                    }
+
+                    AsignaturaEntity.new { nombre = "Matemáticas"; this.curso = curso; minutos = mat }
+                    AsignaturaEntity.new { nombre = "Lengua"; this.curso = curso; minutos = len }
+                    AsignaturaEntity.new { nombre = "Conocimientos del medio"; this.curso = curso; minutos = cm }
+
+                    // Absorbedor de horas para cuadrar los 1350
+                    val sumatoriaAsignada = 180 + 150 + 90 + mat + len + cm + otros
+                    val minutosRestantes = totalMinutosSemanales - sumatoriaAsignada
+
+                    if (minutosRestantes > 0) {
+                        AsignaturaEntity.new { nombre = "Tutoría"; this.curso = curso; minutos = minutosRestantes }
+                    }
                 }
-
-                //matematica lengua conocimineto del medio frances
-                //fances 5 6
-                //atencion educativa paralela == religion
-
             }
         }
 
-        // 5. REPARTO DE ESPECIALIDADES A LOS PROFESORES
+        // 5. ASIGNAR LAS ESPECIALIDADES AUTOMÁTICAMENTE
         if (ProfesorAsignaturaTable.selectAll().count() == 0L) {
             val asigEF = AsignaturaEntity.find { AsignaturaTable.nombre eq "Educación Física" }.toList()
             val asigIngles = AsignaturaEntity.find { AsignaturaTable.nombre eq "Inglés" }.toList()
             val asigReligion = AsignaturaEntity.find { AsignaturaTable.nombre eq "Religión" }.toList()
+            val asigFrances = AsignaturaEntity.find { AsignaturaTable.nombre eq "Francés" }.toList()
             val asigValores = AsignaturaEntity.find { AsignaturaTable.nombre eq "Valores" }.toList()
             val asigAtencion = AsignaturaEntity.find { AsignaturaTable.nombre eq "Atención Educativa" }.toList()
-            val asigGenerales = AsignaturaEntity.find { AsignaturaTable.nombre eq "Materias Generales" }.toList()
 
-            val todosLosProfes = ProfesorEntity.all()
+            // Agrupamos las troncales
+            val troncalesPrimaria = listOf("Matemáticas", "Lengua", "Conocimientos del medio", "Tutoría").flatMap {
+                AsignaturaEntity.find { AsignaturaTable.nombre eq it }.toList()
+            }
+            val troncalesInfantil = listOf("Crecimiento y armonia", "Descubrimiento y exploracion del entorno", "Comunicacion y representacion de la realidad").flatMap {
+                AsignaturaEntity.find { AsignaturaTable.nombre eq it }.toList()
+            }
 
-            for (profe in todosLosProfes) {
+            ProfesorEntity.all().forEach { profe ->
                 val materiasDeEsteProfe = mutableListOf<AsignaturaEntity>()
 
-                // Todos los tutores y apoyos pueden dar Materias Generales
-                if (profe.nombre.contains("Tutor") || profe.nombre.contains("Apoyo")) {
-                    materiasDeEsteProfe.addAll(asigGenerales)
+                // Reparto de troncales según su rol
+                if (profe.nombre.contains("Tutor Infantil")) {
+                    materiasDeEsteProfe.addAll(troncalesInfantil)
+                } else if (profe.nombre.contains("Tutor ") || profe.nombre.contains("Apoyo")) {
+                    materiasDeEsteProfe.addAll(troncalesPrimaria)
                 }
 
-                // Tutores Especialistas en E.Física (Añadimos a los de Apoyo para que el sistema tenga respiro)
-                if (profe.nombre in listOf("Tutor 6ºA", "Tutor 5ºA", "Tutor 4ºA", "Apoyo 1")) {
-                    materiasDeEsteProfe.addAll(asigEF)
-                }
+                // Reparto de especialidades según el nombre
+                if (profe.nombre in listOf("Tutor 6ºA", "Tutor 5ºA", "Tutor 4ºA", "Apoyo 1")) materiasDeEsteProfe.addAll(asigEF)
+                if (profe.nombre in listOf("Tutor 6ºB", "Tutor 5ºB", "Tutor 4ºB", "Apoyo 2")) materiasDeEsteProfe.addAll(asigIngles)
+                if (profe.nombre == "Especialista Francés") materiasDeEsteProfe.addAll(asigFrances)
 
-                // Tutores Especialistas en Inglés
-                if (profe.nombre in listOf("Tutor 6ºB", "Tutor 5ºB", "Tutor 4ºB", "Apoyo 2")) {
-                    materiasDeEsteProfe.addAll(asigIngles)
-                }
-
-                // Especialistas únicos
-                if (profe.nombre in listOf("Religión Primaria", "Religión Infantil")) {
-                    materiasDeEsteProfe.addAll(asigReligion)
-                }
-
-                if (profe.nombre == "Jefa de Estudios") {
-                    materiasDeEsteProfe.addAll(asigValores)
-                }
-
-                if (profe.nombre == "Director") {
-                    materiasDeEsteProfe.addAll(asigAtencion)
-                }
+                if (profe.nombre == "Religión Primaria" || profe.nombre == "Religión Infantil") materiasDeEsteProfe.addAll(asigReligion)
+                if (profe.nombre == "Jefa de Estudios") materiasDeEsteProfe.addAll(asigValores)
+                if (profe.nombre == "Director") materiasDeEsteProfe.addAll(asigAtencion)
 
                 profe.asignaturas = SizedCollection(materiasDeEsteProfe)
             }
-            println("✅ Base de datos escolar generada con éxito y sin solapamientos.")
+            println("✅ Base de datos escolar generada con éxito y adaptada a las nuevas materias.")
         }
     }
     io.ktor.server.netty.EngineMain.main(args)
