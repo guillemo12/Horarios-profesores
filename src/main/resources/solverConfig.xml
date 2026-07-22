@@ -13,17 +13,17 @@
     </scoreDirectorFactory>
 
     <termination>
-        <spentLimit>10m</spentLimit>
-        <unimprovedSpentLimit>1m</unimprovedSpentLimit>
-        <bestScoreLimit>0hard/0soft</bestScoreLimit>
+        <spentLimit>30m</spentLimit>
+        <unimprovedSpentLimit>5m</unimprovedSpentLimit>
+        <!-- <bestScoreLimit>0hard/0soft</bestScoreLimit> -->
     </termination>
 
     <!-- FASE 1: Construcción del borrador inicial -->
-    <constructionHeuristic />
-
+   <!-- <constructionHeuristic />
+    -->
     <!-- FASE 2: ACELERADOR con el algoritmo Late Acceptance -->
-    <localSearch>
+    <!-- <localSearch>
         <localSearchType>LATE_ACCEPTANCE</localSearchType>
-    </localSearch>
+    </localSearch> -->
 
 </solver>

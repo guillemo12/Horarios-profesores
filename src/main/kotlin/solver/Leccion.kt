@@ -11,7 +11,8 @@ class Leccion(
     var id: String = "",
     var asignatura: String = "",
     var grupo: Grupo = Grupo(),
-    val minutosSemanales:Int = 0
+    val minutosSemanales:Int = 0,
+    val profesorFijo: Profesor? = null
 ) {
     // La variable que Timefold va a mover se queda en el cuerpo de la clase
     @PlanningVariable(valueRangeProviderRefs = ["rangoDeHoras"])
@@ -20,4 +21,10 @@ class Leccion(
     @PlanningVariable(valueRangeProviderRefs = ["rangoDeProfesores"])
     var profesor: Profesor? = null
 
+    override fun toString(): String {
+        val profeNombre = profesor?.nombre ?: "Sin profe"
+        val diaHora = timeSlot?.let { "${it.dayOfWeek} a las franja ${it.indiceDeFranja}" } ?: "Sin hora"
+        // Añade el curso.nombre para que se vea claro: "4º B - Inglés"
+        return "[${grupo.curso} ${grupo.nombre} - $asignatura con $profeNombre ($diaHora)]"
+    }
 }

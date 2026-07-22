@@ -2,12 +2,15 @@ package com.colegio
 
 import com.colegio.modelos.entities.*
 import com.colegio.modelos.tables.*
+import io.ktor.server.application.Application
 import org.jetbrains.exposed.sql.Database
 import org.jetbrains.exposed.sql.SchemaUtils
 import org.jetbrains.exposed.sql.SizedCollection
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.transaction
 import java.sql.DriverManager.println
+
+
 
 fun main(args: Array<String>) {
     Database.connect("jdbc:sqlite:colegio.db", driver = "org.sqlite.JDBC")
@@ -24,7 +27,7 @@ fun main(args: Array<String>) {
                 tiempoMinimo = 30
                 tiempoMaximo = 60
                 priorizarTutor = true
-                minutosMaximosProfesor = 1500 // 25 horas semanales
+                minutosMaximosProfesor = 22*60+30 // 25 horas semanales
             }
         }
         val configActual = ConfiguracionEntity.all().first()
@@ -161,7 +164,7 @@ fun main(args: Array<String>) {
                 }
 
                 // Reparto de especialidades según el nombre
-                if (profe.nombre in listOf("Tutor 6ºA", "Tutor 5ºA", "Tutor 4ºA", "Apoyo 1")) materiasDeEsteProfe.addAll(asigEF)
+                if (profe.nombre in listOf("Tutor 6ºA", "Tutor 5ºA", "Tutor 4ºA")) materiasDeEsteProfe.addAll(asigEF)
                 if (profe.nombre in listOf("Tutor 6ºB", "Tutor 5ºB", "Tutor 4ºB", "Apoyo 2")) materiasDeEsteProfe.addAll(asigIngles)
                 if (profe.nombre == "Especialista Francés") materiasDeEsteProfe.addAll(asigFrances)
 
@@ -174,5 +177,7 @@ fun main(args: Array<String>) {
             println("✅ Base de datos escolar generada con éxito y adaptada a las nuevas materias.")
         }
     }
+
+
     io.ktor.server.netty.EngineMain.main(args)
 }

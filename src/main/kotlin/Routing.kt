@@ -1,6 +1,8 @@
 package com.colegio
 
+import com.colegio.Constantes.solucion
 import com.colegio.solver.Simulacion
+import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.*
 import io.ktor.server.http.content.*
 import io.ktor.server.response.*
@@ -18,6 +20,10 @@ fun Application.configureRouting() {
         get("/Hola") {
             Simulacion()
             call.respondText("Hola")
+        }
+        get("/fin"){
+            solucion!!.terminateEarly()
+            call.respond(HttpStatusCode.OK)
         }
     }
 }

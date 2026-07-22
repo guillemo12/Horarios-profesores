@@ -41,4 +41,9 @@ dependencies {
 
     // Timefold (Matemáticas)
     implementation("ai.timefold.solver:timefold-solver-core:1.1.0")
+
+    implementation("org.apache.poi:poi-ooxml:5.3.0")
+
+    // WebSocket
+    implementation("io.ktor:ktor-server-websockets")
 }

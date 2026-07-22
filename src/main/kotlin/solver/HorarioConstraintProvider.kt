@@ -19,7 +19,41 @@ class HorarioConstraintProvider : ConstraintProvider {
             priorizarTutorDelGrupo(factory),
             profesorMateriaIncorrecta(factory),
             limiteHorasProfesor(factory),
+            profesorUnicoPorMateriaYGrupo(factory),
+            respetarProfesorFijo(factory),
         )
+    }
+
+    // Regla HARD: Un profesor único por asignatura y grupo
+    private fun profesorUnicoPorMateriaYGrupo(factory: ConstraintFactory): Constraint {
+        return factory.forEachUniquePair(
+            Leccion::class.java,
+            // 1. Buscamos pares de lecciones que sean del mismo grupo
+            Joiners.equal(Leccion::grupo),
+            // 2. Y de la misma asignatura
+            Joiners.equal(Leccion::asignatura)
+        )
+            // 3. Si los profesores asignados son distintos, es un error
+            .filter { leccion1, leccion2 ->
+                leccion1.profesor != null &&
+                        leccion2.profesor != null &&
+                        leccion1.profesor!!.nombre != leccion2.profesor!!.nombre
+            }
+            .penalize(HardSoftScore.ONE_HARD)
+            .asConstraint("Un solo profesor por asignatura y grupo")
+    }
+
+
+    // Regla HARD: Si la lección tiene un profesor preasignado, la IA no puede cambiarlo
+    private fun respetarProfesorFijo(factory: ConstraintFactory): Constraint {
+        return factory.forEach(Leccion::class.java)
+            // 1. Solo evaluamos las lecciones donde tú has forzado un profesor
+            .filter { leccion -> leccion.profesorFijo != null }
+            // 2. CONDICIÓN: ¿La IA ha intentado poner un profesor diferente al que tú ordenaste?
+            .filter { leccion -> leccion.profesor != null && leccion.profesor != leccion.profesorFijo }
+            // 3. CASTIGO: Opción totalmente prohibida
+            .penalize(HardSoftScore.ONE_HARD)
+            .asConstraint("Respetar asignación manual de profesor")
     }
 
     // Regla HARD: Un profesor no puede exceder su límite de horas semanales

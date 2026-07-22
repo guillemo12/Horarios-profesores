@@ -6,3 +6,4 @@ ktor:
       - com.colegio.HttpKt.configureHttp
       - com.colegio.SerializationKt.configureSerialization
       - com.colegio.RoutingKt.configureRouting
+      - com.colegio.WebSocketRoutingKt.configureSockets
