@@ -1,12 +1,14 @@
 import { AppDataState, Subject, Teacher, Course, ScheduledClass } from './types';
 import { ApiService } from './api';
 import { EngineWebSocket } from './websocket';
-import { initCalendar, updateDateRange, refreshCalendarView, openAddClassModal, closeAddClassModal, onModalCourseChange, saveNewClass, openEventDetail, closeEventDetail, onHeaderCourseChange } from './calendar';
+import { initCalendar, updateDateRange, refreshCalendarView, openAddClassModal, closeAddClassModal, onModalCourseChange, saveNewClass, openEventDetail, closeEventDetail, onHeaderCourseChange, clearGroupSchedule } from './calendar';
 import { 
     openFormModal, closeCrudModal, openGroupModal, deleteSubject, deleteTeacher, deleteCourse, deleteGroup, 
-    updateAssignment, renderSubjects, renderTeachers, renderCourses, renderAssignmentsList,
-    openCourseSubjects, openAvailabilityModal, closeAvailabilityModal, saveAvailability, loadSettings, saveSettings
+    renderSubjects, renderTeachers, renderCourses, openCourseSubjects
 } from './crud';
+import { renderAssignmentsList, updateAssignment, clearGroupAssignments, clearCourseAssignments } from './assignments';
+import { openAvailabilityModal, closeAvailabilityModal, saveAvailability, toggleAvailabilitySlot } from './availability';
+import { loadSettings, saveSettings } from './settings';
 import { showToast } from './utils';
 
 export const AppData: AppDataState = { 
@@ -296,5 +298,9 @@ Object.assign(window, {
     openAvailabilityModal,
     closeAvailabilityModal,
     saveAvailability,
-    saveSettings
+    saveSettings,
+    clearGroupSchedule,
+    clearGroupAssignments,
+    clearCourseAssignments,
+    toggleAvailabilitySlot
 });

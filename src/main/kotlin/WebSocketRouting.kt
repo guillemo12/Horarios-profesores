@@ -30,6 +30,7 @@ import java.time.LocalTime
 import java.time.format.DateTimeFormatter
 import java.time.temporal.TemporalAdjusters
 import java.util.concurrent.ConcurrentHashMap
+import java.util.UUID
 
 
 
@@ -54,10 +55,15 @@ fun Application.configureSockets() {
 
     fun findTimeSlot(isoStr: String, timeSlots: List<TimeSlot>): TimeSlot? {
         return try {
-            val cleanStr = if (isoStr.contains("Z")) isoStr.replace("Z", "") else isoStr
-            val dt = if (cleanStr.contains("+") || cleanStr.lastIndexOf("-") > 10) {
-                java.time.ZonedDateTime.parse(isoStr).toLocalDateTime()
+            val dt = if (isoStr.contains("Z") || isoStr.contains("+") || (isoStr.lastIndexOf("-") > 10)) {
+                val zoneId = java.time.ZoneId.systemDefault()
+                if (isoStr.contains("Z")) {
+                    java.time.Instant.parse(isoStr).atZone(zoneId).toLocalDateTime()
+                } else {
+                    java.time.ZonedDateTime.parse(isoStr).withZoneSameInstant(zoneId).toLocalDateTime()
+                }
             } else {
+                val cleanStr = isoStr.replace(" ", "T")
                 LocalDateTime.parse(cleanStr.substring(0, 19))
             }
             val day = dt.dayOfWeek
@@ -93,6 +99,7 @@ fun Application.configureSockets() {
 
                                      // Cargar configuración
                                      val config = transaction {
+                                         val fmt = java.time.format.DateTimeFormatter.ofPattern("HH:mm")
                                          ConfiguracionEntity.all().firstOrNull()?.let {
                                              Configuracion(
                                                  priorizarTutor = it.priorizarTutor,
@@ -102,7 +109,14 @@ fun Application.configureSockets() {
                                                  priorizarTutorPuntos = it.priorizarTutorPuntos,
                                                  fomentarBloques60Puntos = it.fomentarBloques60Puntos,
                                                  evitarHuecosPuntos = it.evitarHuecosPuntos,
-                                                 compactarTempranoPuntos = it.compactarTempranoPuntos
+                                                 compactarTempranoPuntos = it.compactarTempranoPuntos,
+                                                 horaInicioClases = it.horaInicioClases.format(fmt),
+                                                 horaFinClases = it.horaFinClases.format(fmt),
+                                                 horaInicioRecreo = it.horaInicioRecreo.format(fmt),
+                                                 duracionRecreo = it.duracionRecreo,
+                                                 respetarEspecialidad = it.respetarEspecialidad,
+                                                 respetarLimiteHoras = it.respetarLimiteHoras,
+                                                 respetarDisponibilidad = it.respetarDisponibilidad
                                              )
                                          } ?: Configuracion(
                                              priorizarTutor = true,
@@ -112,7 +126,14 @@ fun Application.configureSockets() {
                                              priorizarTutorPuntos = 100,
                                              fomentarBloques60Puntos = 10,
                                              evitarHuecosPuntos = 50,
-                                             compactarTempranoPuntos = 5
+                                             compactarTempranoPuntos = 5,
+                                             horaInicioClases = "09:00",
+                                             horaFinClases = "14:00",
+                                             horaInicioRecreo = "12:00",
+                                             duracionRecreo = 30,
+                                             respetarEspecialidad = true,
+                                             respetarLimiteHoras = true,
+                                             respetarDisponibilidad = true
                                          )
                                      }
 
@@ -132,13 +153,15 @@ fun Application.configureSockets() {
 
                                     for (i in 1..5) {
                                         val dia = DayOfWeek.of(i)
-                                        var horaActual = LocalTime.of(9, 0)
-                                        val horaFinDia = LocalTime.of(14, 0)
-                                        val horaRecreo = LocalTime.of(12, 0)
+                                        var horaActual = LocalTime.parse(config.horaInicioClases)
+                                        val horaFinDia = LocalTime.parse(config.horaFinClases)
+                                        val recreoInicio = LocalTime.parse(config.horaInicioRecreo)
+                                        val recreoFin = recreoInicio.plusMinutes(config.duracionRecreo.toLong())
 
                                         while (horaActual.isBefore(horaFinDia)) {
                                             val horaSiguiente = horaActual.plusMinutes(config.tiempoMinimo.toLong())
-                                            if (horaActual != horaRecreo) {
+                                             val solapaRecreo = horaActual.isBefore(recreoFin) && horaSiguiente.isAfter(recreoInicio)
+                                            if (!solapaRecreo) {
                                                 franjasDisponibles.add(
                                                     TimeSlot(
                                                         id = "T_${idFranja++}", dayOfWeek = dia,
@@ -158,69 +181,84 @@ fun Application.configureSockets() {
 
                                     // 4. Fabricar lecciones combinando asignaciones (RepartoDocente) y clases del calendario
                                     val leccionesSinAsignar = mutableListOf<Leccion>()
-                                    var idLeccion = 1
-
                                     transaction {
-                                        val repartos = RepartoDocenteTable.selectAll().toList()
-                                        
-                                        // Agrupamos repartos para recorrerlos
-                                        repartos.forEach { row ->
-                                            val gId = row[RepartoDocenteTable.grupoId].value
-                                            val sId = row[RepartoDocenteTable.asignaturaId].value
-                                            val pId = row[RepartoDocenteTable.profesorId].value
+                                         val todosLosGrupos = GruposEntity.all().toList()
+                                         val todosLosRepartos = RepartoDocenteTable.selectAll().toList()
 
-                                            val grupoEnt = GruposEntity.findById(gId) ?: return@forEach
-                                            val asigEnt = AsignaturaEntity.findById(sId) ?: return@forEach
-                                            val profEnt = ProfesorEntity.findById(pId) ?: return@forEach
+                                         // Mapear los repartos existentes para búsqueda rápida
+                                         val repartoMap = todosLosRepartos.associate {
+                                             Pair(it[RepartoDocenteTable.grupoId].value, it[RepartoDocenteTable.asignaturaId].value) to
+                                             it[RepartoDocenteTable.profesorId].value
+                                         }
 
-                                            val minutes = asigEnt.minutos
-                                            val blocksCount = minutes / config.tiempoMinimo
+                                         todosLosGrupos.forEach { grupoEnt ->
+                                             val cursoEnt = grupoEnt.curso
+                                             val asignaturasDelCurso = AsignaturaEntity.find { AsignaturaTable.curso eq cursoEnt.id }.toList()
 
-                                            // Obtener clases existentes en la BD para este grupo y materia
-                                            val existingClasses = ClaseEntity.find { 
-                                                (ClaseTable.groupId eq grupoEnt.id) and (ClaseTable.subjectId eq asigEnt.id)
-                                            }.toList()
+                                             asignaturasDelCurso.forEach { asigEnt ->
+                                                 val pId = repartoMap[Pair(grupoEnt.id.value, asigEnt.id.value)]
+                                                 val profEnt = pId?.let { ProfesorEntity.findById(it) }
 
-                                            val pinnedClasses = existingClasses.filter { it.isPinned }
-                                            val unpinnedClasses = existingClasses.filter { !it.isPinned }
+                                                 val minutes = asigEnt.minutos
+                                                 val blocksCount = minutes / config.tiempoMinimo
 
-                                            var unpinnedIndex = 0
+                                                 if (blocksCount > 0) {
+                                                     // Obtener clases existentes en la BD para este grupo y materia
+                                                     val existingClasses = ClaseEntity.find {
+                                                         (ClaseTable.groupId eq grupoEnt.id) and (ClaseTable.subjectId eq asigEnt.id)
+                                                     }.toList()
 
-                                            for (b in 1..blocksCount) {
-                                                val solverGrupo = grupoEnt.toGrupo()
-                                                val solverProfeFijo = profEnt.toProfesor()
+                                                     val pinnedClasses = existingClasses.filter { it.isPinned }
+                                                     val unpinnedClasses = existingClasses.filter { !it.isPinned }
 
-                                                val lec = Leccion(
-                                                    id = "Lec_${idLeccion++}",
-                                                    asignatura = asigEnt.nombre,
-                                                    grupo = solverGrupo,
-                                                    minutosSemanales = minutes,
-                                                    profesorFijo = solverProfeFijo
-                                                )
+                                                     var unpinnedIndex = 0
 
-                                                // Si hay clases fijadas, las asignamos prioritariamente
-                                                if (b <= pinnedClasses.size) {
-                                                    val cls = pinnedClasses[b - 1]
-                                                    lec.isPinned = true
-                                                    lec.timeSlot = findTimeSlot(cls.start, franjasDisponibles)
-                                                    lec.profesor = solverProfeFijo
-                                                } else {
-                                                    // Si hay clases no fijadas, warm-start con sus posiciones
-                                                    val uCls = unpinnedClasses.getOrNull(unpinnedIndex++)
-                                                    if (uCls != null) {
-                                                        lec.timeSlot = findTimeSlot(uCls.start, franjasDisponibles)
-                                                        lec.profesor = solverProfeFijo
-                                                    } else {
-                                                        // Nueva clase, el solver elegirá la posición
-                                                        lec.timeSlot = null
-                                                        lec.profesor = solverProfeFijo
-                                                    }
-                                                    lec.isPinned = false
-                                                }
-                                                leccionesSinAsignar.add(lec)
-                                            }
-                                        }
-                                    }
+                                                     for (b in 1..blocksCount) {
+                                                         val solverGrupo = grupoEnt.toGrupo()
+                                                         val solverProfeFijo = profEnt?.toProfesor()
+
+                                                         val lec = Leccion(
+                                                             id = UUID.randomUUID().toString(),
+                                                             asignatura = asigEnt.nombre,
+                                                             grupo = solverGrupo,
+                                                             minutosSemanales = minutes,
+                                                             profesorFijo = solverProfeFijo
+                                                         )
+
+                                                         // Si hay clases fijadas, las asignamos prioritariamente
+                                                         if (b <= pinnedClasses.size) {
+                                                             val cls = pinnedClasses[b - 1]
+                                                             lec.isPinned = true
+                                                             lec.timeSlot = findTimeSlot(cls.start, franjasDisponibles)
+                                                             
+                                                             // Buscamos el profesor real de la clase fijada en la base de datos
+                                                             val actualTeacher = profesorList.find { it.nombre == cls.teacher.nombre }
+                                                             lec.profesor = actualTeacher ?: solverProfeFijo
+                                                             
+                                                             // Mantenemos el ID original de la base de datos para no perder su identidad
+                                                             lec.id = cls.id.value
+                                                         } else {
+                                                             // Si hay clases no fijadas, warm-start con sus posiciones
+                                                             val uCls = unpinnedClasses.getOrNull(unpinnedIndex++)
+                                                             if (uCls != null) {
+                                                                 lec.timeSlot = findTimeSlot(uCls.start, franjasDisponibles)
+                                                                 val actualTeacher = profesorList.find { it.nombre == uCls.teacher.nombre }
+                                                                 lec.profesor = actualTeacher ?: solverProfeFijo
+                                                                 // Mantenemos el ID original para que puedan ser editadas/fijadas correctamente
+                                                                 lec.id = uCls.id.value
+                                                             } else {
+                                                                 // Nueva clase, el solver elegirá la posición y el profesor
+                                                                 lec.timeSlot = null
+                                                                 lec.profesor = solverProfeFijo
+                                                             }
+                                                             lec.isPinned = false
+                                                         }
+                                                         leccionesSinAsignar.add(lec)
+                                                     }
+                                                 }
+                                             }
+                                         }
+                                     }
 
                                     // 5. Iniciar solver de Timefold
                                     val problemaInicial = HorarioSolution(
@@ -290,30 +328,45 @@ fun Application.configureSockets() {
                                         }
 
                                         if (solucionFinal != null) {
-                                            // Persistir el resultado final en la base de datos
-                                            transaction {
-                                                // Borrar las no fijadas
-                                                ClaseTable.deleteWhere { isPinned eq false }
+                                             transaction {
+                                                 val solverIds = solucionFinal.lessonList.map { it.id }.toSet()
+                                                 ClaseTable.selectAll().forEach { row ->
+                                                     val classId = row[ClaseTable.id].value
+                                                     if (classId !in solverIds) {
+                                                         ClaseTable.deleteWhere { id eq classId }
+                                                     }
+                                                 }
 
-                                                solucionFinal.lessonList
-                                                    .filter { it.timeSlot != null && it.profesor != null && !it.isPinned }
-                                                    .forEach { leccion ->
-                                                        val subId = subjectNameToId[leccion.asignatura] ?: return@forEach
-                                                        val grpId = groupCourseNameToId[Pair(leccion.grupo.curso, leccion.grupo.nombre)] ?: return@forEach
-                                                        val profId = leccion.profesor?.let { teacherNameToId[it.nombre] } ?: return@forEach
+                                                 solucionFinal.lessonList
+                                                     .filter { it.timeSlot != null && it.profesor != null }
+                                                     .forEach { leccion ->
+                                                         val subId = subjectNameToId[leccion.asignatura] ?: return@forEach
+                                                         val grpId = groupCourseNameToId[Pair(leccion.grupo.curso, leccion.grupo.nombre)] ?: return@forEach
+                                                         val profId = leccion.profesor?.let { teacherNameToId[it.nombre] } ?: return@forEach
 
-                                                        ClaseTable.insert {
-                                                            it[id] = leccion.id
-                                                            it[start] = getIsoDateTime(leccion.timeSlot!!.dayOfWeek, leccion.timeSlot!!.startTime)
-                                                            it[end] = getIsoDateTime(leccion.timeSlot!!.dayOfWeek, leccion.timeSlot!!.endTime)
-                                                            it[duration] = leccion.timeSlot!!.duracionMinutos.toDouble() / 60.0
-                                                            it[subjectId] = EntityID(subId, AsignaturaTable)
-                                                            it[groupId] = EntityID(grpId, GruposTable)
-                                                            it[teacherId] = EntityID(profId, ProfesorTable)
-                                                            it[isPinned] = false
-                                                        }
-                                                    }
-                                            }
+                                                         val existing = ClaseEntity.findById(leccion.id)
+                                                         if (existing != null) {
+                                                             existing.start = getIsoDateTime(leccion.timeSlot!!.dayOfWeek, leccion.timeSlot!!.startTime)
+                                                             existing.end = getIsoDateTime(leccion.timeSlot!!.dayOfWeek, leccion.timeSlot!!.endTime)
+                                                             existing.duration = leccion.timeSlot!!.duracionMinutos.toDouble() / 60.0
+                                                             existing.subject = AsignaturaEntity.findById(subId)!!
+                                                             existing.group = GruposEntity.findById(grpId)!!
+                                                             existing.teacher = ProfesorEntity.findById(profId)!!
+                                                             existing.isPinned = existing.isPinned
+                                                         } else {
+                                                             ClaseTable.insert {
+                                                                 it[id] = leccion.id
+                                                                 it[start] = getIsoDateTime(leccion.timeSlot!!.dayOfWeek, leccion.timeSlot!!.startTime)
+                                                                 it[end] = getIsoDateTime(leccion.timeSlot!!.dayOfWeek, leccion.timeSlot!!.endTime)
+                                                                 it[duration] = leccion.timeSlot!!.duracionMinutos.toDouble() / 60.0
+                                                                 it[subjectId] = EntityID(subId, AsignaturaTable)
+                                                                 it[groupId] = EntityID(grpId, GruposTable)
+                                                                 it[teacherId] = EntityID(profId, ProfesorTable)
+                                                                 it[isPinned] = leccion.isPinned
+                                                             }
+                                                         }
+                                                     }
+                                             }
 
                                             // Avisar finalización
                                             try {

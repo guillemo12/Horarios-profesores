@@ -49,7 +49,7 @@ class HorarioConstraintProvider : ConstraintProvider {
             .asConstraint("Respetar asignación manual de profesor")
     }
 
-    // Regla HARD: Un profesor no puede exceder su límite de horas semanales
+    // Regla HARD: Un profesor no puede exceder su límite de horas semanales (Dinamizado con Config)
     private fun limiteHorasProfesor(factory: ConstraintFactory): Constraint {
         return factory.forEach(Leccion::class.java)
             .filter { leccion -> leccion.profesor != null && leccion.timeSlot != null }
@@ -60,22 +60,26 @@ class HorarioConstraintProvider : ConstraintProvider {
             .filter { profesor, minutosTotales ->
                 minutosTotales > profesor.minutosMaximos
             }
-            .penalize(HardSoftScore.ONE_HARD) { profesor, minutosTotales ->
+            .join(Configuracion::class.java)
+            .filter { _, _, config -> config.respetarLimiteHoras }
+            .penalize(HardSoftScore.ONE_HARD) { profesor, minutosTotales, config ->
                 minutosTotales - profesor.minutosMaximos
             }
             .asConstraint("Exceso de horas de trabajo del profesor")
     }
 
-    // Regla HARD: El profesor asignado TIENE que saber dar esa asignatura
+    // Regla HARD: El profesor asignado TIENE que saber dar esa asignatura (Dinamizado con Config)
     private fun profesorMateriaIncorrecta(factory: ConstraintFactory): Constraint {
         return factory.forEach(Leccion::class.java)
             .filter { leccion -> leccion.profesor != null }
             .filter { leccion -> !leccion.profesor!!.asignaturas.contains(leccion.asignatura) }
+            .join(Configuracion::class.java)
+            .filter { leccion, config -> config.respetarEspecialidad }
             .penalize(HardSoftScore.ONE_HARD)
             .asConstraint("El profesor no tiene la especialidad para esta materia")
     }
 
-    // Regla HARD: El profesor debe estar disponible en la franja horaria
+    // Regla HARD: El profesor debe estar disponible en la franja horaria (Dinamizado con Config)
     private fun profesorDisponible(factory: ConstraintFactory): Constraint {
         return factory.forEach(Leccion::class.java)
             .filter { leccion ->
@@ -91,6 +95,8 @@ class HorarioConstraintProvider : ConstraintProvider {
                     false
                 }
             }
+            .join(Configuracion::class.java)
+            .filter { leccion, config -> config.respetarDisponibilidad }
             .penalize(HardSoftScore.ONE_HARD)
             .asConstraint("Disponibilidad del profesor no respetada")
     }

@@ -55,6 +55,17 @@ export interface Configuracion {
     fomentarBloques60Puntos: number;
     evitarHuecosPuntos: number;
     compactarTempranoPuntos: number;
+    
+    // Rango horario y recreo
+    horaInicioClases: string;
+    horaFinClases: string;
+    horaInicioRecreo: string;
+    duracionRecreo: number;
+
+    // Reglas duras
+    respetarEspecialidad: boolean;
+    respetarLimiteHoras: boolean;
+    respetarDisponibilidad: boolean;
 }
 
 export interface Database {

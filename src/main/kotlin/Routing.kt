@@ -434,10 +434,21 @@ fun Application.configureRouting() {
                 call.respond(HttpStatusCode.OK, mapOf("success" to true))
             }
 
+            delete("/scheduledClasses/group/{groupId}") {
+                val groupIdStr = call.parameters["groupId"] ?: return@delete call.respond(HttpStatusCode.BadRequest)
+                transaction {
+                    org.jetbrains.exposed.sql.SqlExpressionBuilder.run {
+                        ClaseTable.deleteWhere { ClaseTable.groupId eq parseId(groupIdStr) }
+                    }
+                }
+                call.respond(HttpStatusCode.OK, mapOf("success" to true))
+            }
+
             // --- CONFIGURACIÓN (CONFIG) ---
             get("/config") {
                 val conf = transaction {
                     ConfiguracionEntity.all().firstOrNull()?.let {
+                        val fmt = java.time.format.DateTimeFormatter.ofPattern("HH:mm")
                         Configuracion(
                             priorizarTutor = it.priorizarTutor,
                             tiempoMinimo = it.tiempoMinimo,
@@ -446,7 +457,14 @@ fun Application.configureRouting() {
                             priorizarTutorPuntos = it.priorizarTutorPuntos,
                             fomentarBloques60Puntos = it.fomentarBloques60Puntos,
                             evitarHuecosPuntos = it.evitarHuecosPuntos,
-                            compactarTempranoPuntos = it.compactarTempranoPuntos
+                            compactarTempranoPuntos = it.compactarTempranoPuntos,
+                            horaInicioClases = it.horaInicioClases.format(fmt),
+                            horaFinClases = it.horaFinClases.format(fmt),
+                            horaInicioRecreo = it.horaInicioRecreo.format(fmt),
+                            duracionRecreo = it.duracionRecreo,
+                            respetarEspecialidad = it.respetarEspecialidad,
+                            respetarLimiteHoras = it.respetarLimiteHoras,
+                            respetarDisponibilidad = it.respetarDisponibilidad
                         )
                     } ?: Configuracion(
                         priorizarTutor = true,
@@ -456,7 +474,14 @@ fun Application.configureRouting() {
                         priorizarTutorPuntos = 100,
                         fomentarBloques60Puntos = 10,
                         evitarHuecosPuntos = 50,
-                        compactarTempranoPuntos = 5
+                        compactarTempranoPuntos = 5,
+                        horaInicioClases = "09:00",
+                        horaFinClases = "14:00",
+                        horaInicioRecreo = "12:00",
+                        duracionRecreo = 30,
+                        respetarEspecialidad = true,
+                        respetarLimiteHoras = true,
+                        respetarDisponibilidad = true
                     )
                 }
                 call.respond(conf)
@@ -474,6 +499,16 @@ fun Application.configureRouting() {
                     entity.fomentarBloques60Puntos = req.fomentarBloques60Puntos
                     entity.evitarHuecosPuntos = req.evitarHuecosPuntos
                     entity.compactarTempranoPuntos = req.compactarTempranoPuntos
+                    
+                    entity.horaInicioClases = java.time.LocalTime.parse(req.horaInicioClases)
+                    entity.horaFinClases = java.time.LocalTime.parse(req.horaFinClases)
+                    entity.horaInicioRecreo = java.time.LocalTime.parse(req.horaInicioRecreo)
+                    entity.duracionRecreo = req.duracionRecreo
+                    entity.respetarEspecialidad = req.respetarEspecialidad
+                    entity.respetarLimiteHoras = req.respetarLimiteHoras
+                    entity.respetarDisponibilidad = req.respetarDisponibilidad
+
+                    val fmt = java.time.format.DateTimeFormatter.ofPattern("HH:mm")
                     Configuracion(
                         priorizarTutor = entity.priorizarTutor,
                         tiempoMinimo = entity.tiempoMinimo,
@@ -482,7 +517,14 @@ fun Application.configureRouting() {
                         priorizarTutorPuntos = entity.priorizarTutorPuntos,
                         fomentarBloques60Puntos = entity.fomentarBloques60Puntos,
                         evitarHuecosPuntos = entity.evitarHuecosPuntos,
-                        compactarTempranoPuntos = entity.compactarTempranoPuntos
+                        compactarTempranoPuntos = entity.compactarTempranoPuntos,
+                        horaInicioClases = entity.horaInicioClases.format(fmt),
+                        horaFinClases = entity.horaFinClases.format(fmt),
+                        horaInicioRecreo = entity.horaInicioRecreo.format(fmt),
+                        duracionRecreo = entity.duracionRecreo,
+                        respetarEspecialidad = entity.respetarEspecialidad,
+                        respetarLimiteHoras = entity.respetarLimiteHoras,
+                        respetarDisponibilidad = entity.respetarDisponibilidad
                     )
                 }
                 call.respond(res)

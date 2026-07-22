@@ -51,4 +51,5 @@ export class ApiService {
     async saveClass(cls: ScheduledClass): Promise<ScheduledClass> { return this._fetch<ScheduledClass>('scheduledClasses', 'POST', cls); }
     async updateClass(cls: ScheduledClass): Promise<ScheduledClass> { return this._fetch<ScheduledClass>('scheduledClasses', 'PUT', cls); }
     async deleteClass(id: string): Promise<{success: boolean}> { return this._fetch<{success: boolean}>(`scheduledClasses/${id}`, 'DELETE'); }
+    async deleteGroupSchedule(groupId: string): Promise<{success: boolean}> { return this._fetch<{success: boolean}>(`scheduledClasses/group/${groupId}`, 'DELETE'); }
 }

@@ -32,6 +32,11 @@
         
         /* Loader Overlay */
         #app-loader { transition: opacity 0.3s ease; }
+
+        /* Mostrar tooltip de conflictos */
+        #status-conflict:hover #conflict-tooltip {
+            display: block !important;
+        }
     </style>
 </head>
 <body class="h-screen flex overflow-hidden text-gray-800">
@@ -97,14 +102,8 @@
                 </div>
             </div>
 
-            <!-- Controles de Fecha y Añadir Clase (NUEVO) -->
+            <!-- Botones de Acción (Añadir Clase) -->
             <div class="hidden lg:flex items-center gap-3 flex-shrink-0">
-                <span id="calendar-date-range" class="text-sm font-medium text-gray-600 whitespace-nowrap">...</span>
-                <div class="flex bg-gray-100 rounded-lg p-0.5 border border-gray-200 flex-shrink-0">
-                    <button onclick="AppData.calendarInstance.today(); updateDateRange();" class="px-3 py-1 text-xs font-medium text-gray-700 hover:bg-white rounded shadow-sm transition-all whitespace-nowrap">Hoy</button>
-                    <button onclick="AppData.calendarInstance.prev(); updateDateRange();" class="px-2 py-1 text-gray-500 hover:text-gray-800 transition-colors"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg></button>
-                    <button onclick="AppData.calendarInstance.next(); updateDateRange();" class="px-2 py-1 text-gray-500 hover:text-gray-800 transition-colors"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg></button>
-                </div>
                 <button onclick="openAddClassModal()" class="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 rounded-lg text-sm font-medium transition-colors shadow-sm whitespace-nowrap flex-shrink-0">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
                     Añadir Clase
@@ -210,9 +209,9 @@
                 <form id="form-settings" onsubmit="event.preventDefault(); saveSettings();" class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 space-y-6">
                     
                     <!-- Configuración General -->
-                    <div class="border-b pb-4">
-                        <h3 class="text-lg font-bold text-gray-700 mb-4">Parámetros Generales</h3>
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="border-b pb-6">
+                        <h3 class="text-lg font-bold text-gray-700 mb-4">Parámetros Generales y Horario</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                             <div title="El tiempo mínimo de cada sesión/franja de clase. Por ejemplo, sesiones de 30 o 60 minutos.">
                                 <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Tiempo Mínimo Sesión (min)</label>
                                 <input type="number" id="settings-tiempo-minimo" min="15" max="120" step="5" class="w-full border border-gray-300 rounded-lg p-2.5 text-sm outline-none focus:ring-2 focus:ring-indigo-500" required>
@@ -226,11 +225,60 @@
                                 <input type="number" id="settings-max-minutos-profesor" min="100" max="3000" step="30" class="w-full border border-gray-300 rounded-lg p-2.5 text-sm outline-none focus:ring-2 focus:ring-indigo-500" required>
                             </div>
                         </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 border-t pt-4">
+                            <div title="Hora de inicio de la jornada escolar (ej: 09:00)">
+                                <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Hora Inicio Clases</label>
+                                <input type="time" id="settings-hora-inicio" class="w-full border border-gray-300 rounded-lg p-2.5 text-sm outline-none focus:ring-2 focus:ring-indigo-500" required>
+                            </div>
+                            <div title="Hora de finalización de la jornada escolar (ej: 14:00)">
+                                <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Hora Fin Clases</label>
+                                <input type="time" id="settings-hora-fin" class="w-full border border-gray-300 rounded-lg p-2.5 text-sm outline-none focus:ring-2 focus:ring-indigo-500" required>
+                            </div>
+                            <div title="Hora a la que comienza el recreo escolar (ej: 12:00)">
+                                <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Hora Inicio Recreo</label>
+                                <input type="time" id="settings-recreo-inicio" class="w-full border border-gray-300 rounded-lg p-2.5 text-sm outline-none focus:ring-2 focus:ring-indigo-500" required>
+                            </div>
+                            <div title="Duración del recreo en minutos (ej: 30 minutos)">
+                                <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Duración Recreo (min)</label>
+                                <input type="number" id="settings-recreo-duracion" min="5" max="120" step="5" class="w-full border border-gray-300 rounded-lg p-2.5 text-sm outline-none focus:ring-2 focus:ring-indigo-500" required>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Configuración de Reglas Duras (Hard Constraints) -->
+                    <div class="border-b pb-6">
+                        <h3 class="text-lg font-bold text-gray-700 mb-4">Reglas Duras (Hard Constraints)</h3>
+                        <div class="space-y-3">
+                            <label class="flex items-center justify-between p-4 bg-slate-50 rounded-lg border border-slate-100 cursor-pointer hover:bg-slate-100 transition-colors">
+                                <div class="flex flex-col pr-4" title="Si está activo, obliga a que solo profesores con la especialidad adecuada impartan la asignatura.">
+                                    <span class="text-sm font-semibold text-gray-800">Respetar Especialidad Docente</span>
+                                    <span class="text-xs text-gray-500">Evitar asignar profesores no capacitados a una materia.</span>
+                                </div>
+                                <input type="checkbox" id="settings-respetar-especialidad" class="w-4 h-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded">
+                            </label>
+                            
+                            <label class="flex items-center justify-between p-4 bg-slate-50 rounded-lg border border-slate-100 cursor-pointer hover:bg-slate-100 transition-colors">
+                                <div class="flex flex-col pr-4" title="Si está activo, el motor no asignará más horas de las permitidas a ningún profesor.">
+                                    <span class="text-sm font-semibold text-gray-800">Respetar Límite de Horas</span>
+                                    <span class="text-xs text-gray-500">Asegurar que los profesores no superen su tope de horas semanales.</span>
+                                </div>
+                                <input type="checkbox" id="settings-respetar-limite-horas" class="w-4 h-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded">
+                            </label>
+
+                            <label class="flex items-center justify-between p-4 bg-slate-50 rounded-lg border border-slate-100 cursor-pointer hover:bg-slate-100 transition-colors">
+                                <div class="flex flex-col pr-4" title="Si está activo, respeta las celdas rojas de indisponibilidad semanal marcadas en cada profesor.">
+                                    <span class="text-sm font-semibold text-gray-800">Respetar Disponibilidad Docente</span>
+                                    <span class="text-xs text-gray-500">Evitar programar clases en las franjas no disponibles del profesor.</span>
+                                </div>
+                                <input type="checkbox" id="settings-respetar-disponibilidad" class="w-4 h-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded">
+                            </label>
+                        </div>
                     </div>
 
                     <!-- Configuración de Reglas Soft -->
                     <div>
-                        <h3 class="text-lg font-bold text-gray-700 mb-4">Ponderación y Prioridades de Reglas</h3>
+                        <h3 class="text-lg font-bold text-gray-700 mb-4">Ponderación y Prioridades de Reglas Soft</h3>
                         <div class="space-y-4">
                             
                             <!-- Priorizar Tutor del Grupo -->

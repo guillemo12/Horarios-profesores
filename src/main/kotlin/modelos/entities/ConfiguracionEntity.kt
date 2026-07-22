@@ -5,6 +5,8 @@ import org.jetbrains.exposed.dao.IntEntity
 import org.jetbrains.exposed.dao.IntEntityClass
 import org.jetbrains.exposed.dao.id.EntityID
 
+import java.time.LocalTime
+
 class ConfiguracionEntity(id: EntityID<Int>) : IntEntity(id) {
     companion object : IntEntityClass<ConfiguracionEntity>(ConfiguracionTable)
 
@@ -17,4 +19,14 @@ class ConfiguracionEntity(id: EntityID<Int>) : IntEntity(id) {
     var evitarHuecosPuntos by ConfiguracionTable.evitarHuecosPuntos
     var compactarTempranoPuntos by ConfiguracionTable.compactarTempranoPuntos
 
+    // Horas y Recreo
+    var horaInicioClases by ConfiguracionTable.horaInicioClases
+    var horaFinClases by ConfiguracionTable.horaFinClases
+    var horaInicioRecreo by ConfiguracionTable.horaInicioRecreo
+    var duracionRecreo by ConfiguracionTable.duracionRecreo
+
+    // Reglas duras
+    var respetarEspecialidad by ConfiguracionTable.respetarEspecialidad
+    var respetarLimiteHoras by ConfiguracionTable.respetarLimiteHoras
+    var respetarDisponibilidad by ConfiguracionTable.respetarDisponibilidad
 }

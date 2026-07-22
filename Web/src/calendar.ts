@@ -86,6 +86,17 @@ export function initCalendar(): void {
             return;
         }
 
+        let startCandidate = cls.start;
+        let endCandidate = cls.end;
+        if (changes.start) startCandidate = (typeof changes.start.toDate === 'function') ? changes.start.toDate() : new Date(changes.start);
+        if (changes.end) endCandidate = (typeof changes.end.toDate === 'function') ? changes.end.toDate() : new Date(changes.end);
+
+        if (overlapsRecess(new Date(startCandidate), new Date(endCandidate))) {
+            showToast("Error", "No se puede programar una clase durante el recreo (12:00 - 12:30).", "error");
+            refreshCalendarView();
+            return;
+        }
+
         if (changes.start) cls.start = (typeof changes.start.toDate === 'function') ? changes.start.toDate() : new Date(changes.start);
         if (changes.end) cls.end = (typeof changes.end.toDate === 'function') ? changes.end.toDate() : new Date(changes.end);
         
@@ -208,6 +219,11 @@ export async function saveNewClass(): Promise<void> {
         return;
     }
 
+    if (overlapsRecess(baseStart, baseEnd)) {
+        showToast("Error", "No se puede programar una clase durante el recreo (12:00 - 12:30).", "error");
+        return;
+    }
+
     const durationInMs = baseEnd.getTime() - baseStart.getTime();
     const durationInHours = durationInMs / (1000 * 60 * 60);
 
@@ -241,7 +257,10 @@ export function refreshCalendarView(): void {
     const type = typeSelect.value;
     const entityId = entitySelect.value;
     
-    if (AppData.calendarInstance) AppData.calendarInstance.clear();
+    if (AppData.calendarInstance) {
+        AppData.calendarInstance.clear();
+        addRecessEvents();
+    }
     if (!entityId) return;
 
     const events = AppData.scheduledClasses.filter(cls => {
@@ -257,7 +276,7 @@ export function refreshCalendarView(): void {
         return {
             id: cls.id, 
             calendarId: cls.teacherId, 
-            title: subject ? subject.name : 'Clase API',
+            title: subject ? (cls.isPinned ? `📌 ${subject.name}` : subject.name) : 'Clase API',
             body: `${course ? course.name : ''} ${group ? ' - G.' + group.name : ''}<br/>Prof: ${teacher ? teacher.name : ''}`,
             start: cls.start, 
             end: cls.end, 
@@ -280,6 +299,10 @@ export function openEventDetail(event: any): void {
 
     if (!subject || !teacher) return;
 
+    const course = AppData.courses.find(c => c.groups.some(g => g.id === cls.groupId));
+    const group = course ? course.groups.find(g => g.id === cls.groupId) : null;
+    const courseGroupName = course && group ? `${course.name} - Grupo ${group.name}` : 'Sin grupo';
+
     const titleEl = document.getElementById('event-detail-title');
     if (titleEl) titleEl.textContent = subject.name;
     
@@ -287,7 +310,12 @@ export function openEventDetail(event: any): void {
     if (headerEl) headerEl.style.backgroundColor = teacher.color;
     
     const bodyEl = document.getElementById('event-detail-body');
-    if (bodyEl) bodyEl.innerHTML = `<p class="text-sm">Impartida por: <b>${teacher.name}</b></p>`;
+    if (bodyEl) {
+        bodyEl.innerHTML = `
+            <p class="text-sm mb-1.5">Curso/Grupo: <b>${courseGroupName}</b></p>
+            <p class="text-sm">Impartida por: <b>${teacher.name}</b></p>
+        `;
+    }
 
     const pinBtn = document.getElementById('btn-pin-event') as HTMLButtonElement;
     if (pinBtn) {
@@ -321,7 +349,30 @@ export function closeEventDetail(): void {
     if (modal) modal.classList.replace('flex', 'hidden'); 
 }
 
-// Añade bloques visuales de recreo (fondo gris) para Lun-Vie de 12:00 a 12:30
+function overlapsRecess(start: Date, end: Date): boolean {
+    const startHour = start.getHours();
+    const startMin = start.getMinutes();
+    const endHour = end.getHours();
+    const endMin = end.getMinutes();
+
+    const startMinutes = startHour * 60 + startMin;
+    const endMinutes = endHour * 60 + endMin;
+
+    let recessStart = 12 * 60; // 12:00 -> 720 min
+    let recessDuration = 30;
+
+    if (AppData.config) {
+        const parts = AppData.config.horaInicioRecreo.split(':');
+        recessStart = parseInt(parts[0]) * 60 + parseInt(parts[1]);
+        recessDuration = AppData.config.duracionRecreo;
+    }
+
+    const recessEnd = recessStart + recessDuration;
+
+    return startMinutes < recessEnd && endMinutes > recessStart;
+}
+
+// Añade bloques visuales de recreo (fondo gris) para Lun-Vie dinámicamente según configuración
 function addRecessEvents(): void {
     if (!AppData.calendarInstance) return;
 
@@ -333,15 +384,26 @@ function addRecessEvents(): void {
     monday.setDate(diff);
     monday.setHours(0, 0, 0, 0);
 
+    let startHour = 12;
+    let startMin = 0;
+    let duration = 30;
+
+    if (AppData.config) {
+        const parts = AppData.config.horaInicioRecreo.split(':');
+        startHour = parseInt(parts[0]);
+        startMin = parseInt(parts[1]);
+        duration = AppData.config.duracionRecreo;
+    }
+
     for (let i = 0; i < 5; i++) {
         const day = new Date(monday);
         day.setDate(monday.getDate() + i);
 
         const start = new Date(day);
-        start.setHours(12, 0, 0, 0);
+        start.setHours(startHour, startMin, 0, 0);
 
-        const end = new Date(day);
-        end.setHours(12, 30, 0, 0);
+        const end = new Date(start);
+        end.setMinutes(start.getMinutes() + duration);
 
         AppData.calendarInstance.createEvents([{
             id: `recess-${i}`,
@@ -355,5 +417,44 @@ function addRecessEvents(): void {
             borderColor: '#94a3b8',
             color: '#64748b',
         }]);
+    }
+}
+
+export async function clearGroupSchedule(): Promise<void> {
+    const typeSelect = document.getElementById('view-type-select') as HTMLSelectElement;
+    const entitySelect = document.getElementById('view-entity-select') as HTMLSelectElement;
+    if (!typeSelect || !entitySelect) return;
+
+    if (typeSelect.value !== 'group') {
+        showToast("Info", "Por favor, selecciona la vista de 'Grupo' para vaciar un horario específico.", "info");
+        return;
+    }
+
+    const groupId = entitySelect.value;
+    if (!groupId) {
+        showToast("Info", "No hay ningún grupo seleccionado.", "info");
+        return;
+    }
+
+    const groupObj = AppData.courses.flatMap(c => c.groups).find(g => g.id === groupId);
+    const groupName = groupObj ? groupObj.name : 'este grupo';
+
+    if (!confirm(`¿Estás seguro de que deseas vaciar todas las clases programadas para el grupo "${groupName}"?`)) {
+        return;
+    }
+
+    try {
+        showToast("Limpiando...", "Eliminando clases de la base de datos...", "info");
+        await AppData.API.deleteGroupSchedule(groupId);
+        
+        // Quitar de local
+        AppData.scheduledClasses = AppData.scheduledClasses.filter(c => c.groupId !== groupId);
+        refreshCalendarView();
+        
+        showToast("Éxito", "El horario del grupo se ha vaciado.", "success");
+        AppData.WS.sendCommand('MANUAL_EDIT', { action: 'cleared', groupId });
+    } catch (err) {
+        console.error("Error clearing schedule:", err);
+        showToast("Error", "No se pudo limpiar el horario.", "error");
     }
 }
