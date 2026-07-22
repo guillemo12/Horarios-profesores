@@ -11,7 +11,6 @@ class HorarioConstraintProvider : ConstraintProvider {
         return arrayOf(
             profesorConflicto(factory),
             grupoConflicto(factory),
-            // Aquí irías añadiendo más reglas: horas máximas al día, guardias, etc.
             fomentarBloquesDe60Minutos(factory),
             limiteMaximoMinutosPorDia(factory),
             evitarHuecosLibres(factory),
@@ -21,6 +20,7 @@ class HorarioConstraintProvider : ConstraintProvider {
             limiteHorasProfesor(factory),
             profesorUnicoPorMateriaYGrupo(factory),
             respetarProfesorFijo(factory),
+            profesorDisponible(factory),
         )
     }
 
@@ -28,30 +28,23 @@ class HorarioConstraintProvider : ConstraintProvider {
     private fun profesorUnicoPorMateriaYGrupo(factory: ConstraintFactory): Constraint {
         return factory.forEachUniquePair(
             Leccion::class.java,
-            // 1. Buscamos pares de lecciones que sean del mismo grupo
             Joiners.equal(Leccion::grupo),
-            // 2. Y de la misma asignatura
             Joiners.equal(Leccion::asignatura)
         )
-            // 3. Si los profesores asignados son distintos, es un error
-            .filter { leccion1, leccion2 ->
-                leccion1.profesor != null &&
-                        leccion2.profesor != null &&
-                        leccion1.profesor!!.nombre != leccion2.profesor!!.nombre
-            }
-            .penalize(HardSoftScore.ONE_HARD)
-            .asConstraint("Un solo profesor por asignatura y grupo")
+        .filter { leccion1, leccion2 ->
+            leccion1.profesor != null &&
+                    leccion2.profesor != null &&
+                    leccion1.profesor!!.nombre != leccion2.profesor!!.nombre
+        }
+        .penalize(HardSoftScore.ONE_HARD)
+        .asConstraint("Un solo profesor por asignatura y grupo")
     }
-
 
     // Regla HARD: Si la lección tiene un profesor preasignado, la IA no puede cambiarlo
     private fun respetarProfesorFijo(factory: ConstraintFactory): Constraint {
         return factory.forEach(Leccion::class.java)
-            // 1. Solo evaluamos las lecciones donde tú has forzado un profesor
             .filter { leccion -> leccion.profesorFijo != null }
-            // 2. CONDICIÓN: ¿La IA ha intentado poner un profesor diferente al que tú ordenaste?
             .filter { leccion -> leccion.profesor != null && leccion.profesor != leccion.profesorFijo }
-            // 3. CASTIGO: Opción totalmente prohibida
             .penalize(HardSoftScore.ONE_HARD)
             .asConstraint("Respetar asignación manual de profesor")
     }
@@ -59,129 +52,128 @@ class HorarioConstraintProvider : ConstraintProvider {
     // Regla HARD: Un profesor no puede exceder su límite de horas semanales
     private fun limiteHorasProfesor(factory: ConstraintFactory): Constraint {
         return factory.forEach(Leccion::class.java)
-            // 1. Filtramos las lecciones que ya tienen profesor y hora asignada
             .filter { leccion -> leccion.profesor != null && leccion.timeSlot != null }
-            // 2. Agrupamos por profesor y sumamos la duración de todas sus clases en la semana
             .groupBy(
                 { leccion -> leccion.profesor!! },
                 ConstraintCollectors.sum { leccion -> leccion.timeSlot!!.duracionMinutos }
             )
-            // 3. Condición: ¿Los minutos totales superan el máximo permitido para este profe?
             .filter { profesor, minutosTotales ->
                 minutosTotales > profesor.minutosMaximos
             }
-            // 4. Penalizamos severamente restando los minutos exactos que se ha pasado
             .penalize(HardSoftScore.ONE_HARD) { profesor, minutosTotales ->
                 minutosTotales - profesor.minutosMaximos
             }
             .asConstraint("Exceso de horas de trabajo del profesor")
     }
 
-
     // Regla HARD: El profesor asignado TIENE que saber dar esa asignatura
     private fun profesorMateriaIncorrecta(factory: ConstraintFactory): Constraint {
         return factory.forEach(Leccion::class.java)
-            // Filtramos las lecciones a las que la IA ya les ha puesto profesor
             .filter { leccion -> leccion.profesor != null }
-            // CONDICIÓN: ¿La asignatura de esta lección NO ESTÁ en la lista de asignaturas del profesor?
             .filter { leccion -> !leccion.profesor!!.asignaturas.contains(leccion.asignatura) }
-            // Castigamos severamente: Opción prohibida
             .penalize(HardSoftScore.ONE_HARD)
             .asConstraint("El profesor no tiene la especialidad para esta materia")
     }
 
-    // Regla Soft: Evitar huecos libres intermedios para los grupos
+    // Regla HARD: El profesor debe estar disponible en la franja horaria
+    private fun profesorDisponible(factory: ConstraintFactory): Constraint {
+        return factory.forEach(Leccion::class.java)
+            .filter { leccion ->
+                val slot = leccion.timeSlot
+                val profe = leccion.profesor
+                if (slot != null && profe != null) {
+                    profe.availability.any { av ->
+                        av.dayOfWeek == slot.dayOfWeek.value &&
+                        slot.startTime.toString() >= av.startTime &&
+                        slot.endTime.toString() <= av.endTime
+                    }
+                } else {
+                    false
+                }
+            }
+            .penalize(HardSoftScore.ONE_HARD)
+            .asConstraint("Disponibilidad del profesor no respetada")
+    }
+
+    // Regla Soft: Evitar huecos libres intermedios para los grupos (Dinamizado con Config)
     private fun evitarHuecosLibres(factory: ConstraintFactory): Constraint {
         return factory.forEach(Leccion::class.java)
             .filter { leccion -> leccion.timeSlot != null }
             .groupBy(
-                // Empaquetamos Grupo y Día en una sola variable (Pair) para no exceder los límites
                 { leccion -> Pair(leccion.grupo, leccion.timeSlot!!.dayOfWeek) },
-                // Extraemos el primer hueco, el último hueco, y la cantidad real de clases
                 ConstraintCollectors.min { leccion -> leccion.timeSlot!!.indiceDeFranja },
                 ConstraintCollectors.max { leccion -> leccion.timeSlot!!.indiceDeFranja },
                 ConstraintCollectors.count()
             )
-            .filter { _, minIndice, maxIndice, cantidad ->
-                // Calculamos cuántas franjas abarca en total (ej: de la franja 0 a la 3 son 4 franjas)
+            .map { _, minIndice, maxIndice, cantidad ->
                 val min = minIndice ?: 0
                 val max = maxIndice ?: 0
                 val franjasAbarcadas = (max - min) + 1
-
-                // Si abarca más franjas que clases reales tiene, significa que hay huecos en medio
-                franjasAbarcadas > cantidad
+                franjasAbarcadas - cantidad
             }
-            // Penalizamos severamente (10 puntos) por cada hora muerta que haya en medio
-            .penalize(HardSoftScore.ofSoft(10)) { _, minIndice, maxIndice, cantidad ->
-                val min = minIndice ?: 0
-                val max = maxIndice ?: 0
-                val franjasAbarcadas = (max - min) + 1
-
-                val huecos = franjasAbarcadas - cantidad
-                huecos.toInt()
+            .filter { huecos -> huecos > 0 }
+            .join(Configuracion::class.java)
+            .penalize(HardSoftScore.ONE_SOFT) { huecos, config ->
+                huecos * config.evitarHuecosPuntos
             }
             .asConstraint("Evitar huecos libres intermedios")
     }
 
-    // Regla Soft: Preferir colocar las clases lo más temprano posible (Efecto gravedad)
+    // Regla Soft: Preferir colocar las clases lo más temprano posible (Dinamizado con Config)
     private fun compactarTemprano(factory: ConstraintFactory): Constraint {
         return factory.forEach(Leccion::class.java)
             .filter { leccion -> leccion.timeSlot != null }
-            // Penalizamos multiplicando por el índice de la franja.
-            // Una clase a las 09:00 (índice 0) tiene 0 penalización.
-            // Una a las 11:30 (índice 5) recibirá 5 puntos negativos.
-            .penalize(HardSoftScore.ONE_SOFT) { leccion ->
-                leccion.timeSlot!!.indiceDeFranja
+            .join(Configuracion::class.java)
+            .penalize(HardSoftScore.ONE_SOFT) { leccion, config ->
+                leccion.timeSlot!!.indiceDeFranja * config.compactarTempranoPuntos
             }
             .asConstraint("Compactar horario por la mañana")
     }
 
+    // Regla Soft: Priorizar que el tutor dé clase a su grupo (Dinamizado con Config)
     private fun priorizarTutorDelGrupo(factory: ConstraintFactory): Constraint {
         return factory.forEach(Leccion::class.java)
-            // 1. Filtramos para evaluar solo las lecciones a las que la IA ya les ha puesto un profe
             .filter { leccion -> leccion.profesor != null }
-
-            // 2. LA CONDICIÓN: ¿El profe que ha elegido la IA es el tutor de este grupo exacto?
-            .filter { leccion -> leccion.profesor?.equals(leccion.grupo.tutor) == true }
-
-            // 3. EL PREMIO: Le damos 100 puntos Soft.
-            // La IA se volverá "adicta" a emparejar a los tutores con sus clases para ganar más puntos.
-            .reward(HardSoftScore.ofSoft(100))
-
+            .filter { leccion -> leccion.profesor?.nombre == leccion.grupo.tutor?.nombre }
+            .join(Configuracion::class.java)
+            .filter { leccion, config -> config.priorizarTutor }
+            .reward(HardSoftScore.ONE_SOFT) { leccion, config ->
+                config.priorizarTutorPuntos
+            }
             .asConstraint("Priorizar que el tutor dé clase a su grupo")
     }
 
-    // Regla Soft: Se busca que haya 1 hora de cada asignatura
+    // Regla Soft: Fomentar bloques de 60 minutos (Dinamizado con Config)
     private fun fomentarBloquesDe60Minutos(factory: ConstraintFactory): Constraint {
         return factory.forEach(Leccion::class.java)
-            // CRUZAMOS la lección consigo misma para buscar "parejas"
             .join(
                 Leccion::class.java,
                 Joiners.equal(Leccion::grupo),
                 Joiners.equal(Leccion::asignatura),
                 Joiners.equal { leccion -> leccion.timeSlot?.dayOfWeek }
             )
-            // CONDICIÓN: La lección 2 debe ir EXACTAMENTE un hueco después de la lección 1
             .filter { leccion1, leccion2 ->
-                val indice1 = leccion1.timeSlot!!.indiceDeFranja
-                val indice2 = leccion2.timeSlot!!.indiceDeFranja
-                indice2 == indice1 + 1
+                val slot1 = leccion1.timeSlot
+                val slot2 = leccion2.timeSlot
+                if (slot1 != null && slot2 != null) {
+                    slot2.indiceDeFranja == slot1.indiceDeFranja + 1
+                } else {
+                    false
+                }
             }
-            // PREMIO: ¡Bien hecho IA! Has juntado 60 minutos. Te doy 10 puntos.
-            .reward(HardSoftScore.ofSoft(10))
+            .join(Configuracion::class.java)
+            .reward(HardSoftScore.ONE_SOFT) { leccion1, leccion2, config ->
+                config.fomentarBloques60Puntos
+            }
             .asConstraint("Fomentar bloques de 60 minutos")
     }
-
 
     private fun limiteMaximoMinutosPorDia(factory: ConstraintFactory): Constraint {
         return factory.forEach(Leccion::class.java)
             .filter { leccion -> leccion.timeSlot != null }
             .groupBy(
                 { leccion ->
-                    // AQUÍ ESTÁ LA MAGIA: Unimos el curso y la letra ("1º A", "Infantil 3 B")
-                    // para que la IA no fusione los grupos.
                     val nombreUnicoGrupo = "${leccion.grupo.curso} ${leccion.grupo.nombre}"
-
                     AgrupacionDiaria(
                         nombreUnicoGrupo,
                         leccion.asignatura,
@@ -193,8 +185,6 @@ class HorarioConstraintProvider : ConstraintProvider {
             )
             .join(Configuracion::class.java)
             .filter { llave, minutosTotalesDelDia, ajustes ->
-
-                // Cálculo matemático dinámico
                 val promedioDiario = llave.minutosSemanales / 5.0
                 val bloquesNecesarios = Math.ceil(promedioDiario / ajustes.tiempoMinimo).toInt()
                 val limiteMatematico = bloquesNecesarios * ajustes.tiempoMinimo
@@ -216,29 +206,25 @@ class HorarioConstraintProvider : ConstraintProvider {
             .asConstraint("Exceso de minutos de una asignatura en un mismo día")
     }
 
-
-    // Regla HARD 1: Un profesor no puede dar dos clases distintas en la misma franja horaria.
+    // Regla HARD: Un profesor no puede dar dos clases distintas en la misma franja horaria.
     private fun profesorConflicto(factory: ConstraintFactory): Constraint {
         return factory.forEachUniquePair(
             Leccion::class.java,
-            // Si dos sesiones ocurren en el mismo hueco de tiempo...
             Joiners.equal(Leccion::timeSlot),
-            // ...y el profesor es el mismo...
             Joiners.equal(Leccion::profesor)
         )
-            // ...entonces penalizamos duramente este horario.
-            .penalize(HardSoftScore.ONE_HARD)
-            .asConstraint("Conflicto de profesor")
+        .penalize(HardSoftScore.ONE_HARD)
+        .asConstraint("Conflicto de profesor")
     }
 
-    // Regla HARD 2: Un grupo de alumnos (ej. 1ºA) no puede tener dos asignaturas a la vez.
+    // Regla HARD: Un grupo de alumnos no puede tener dos asignaturas a la vez.
     private fun grupoConflicto(factory: ConstraintFactory): Constraint {
         return factory.forEachUniquePair(
             Leccion::class.java,
             Joiners.equal(Leccion::timeSlot),
             Joiners.equal(Leccion::grupo)
         )
-            .penalize(HardSoftScore.ONE_HARD)
-            .asConstraint("Conflicto de grupo")
+        .penalize(HardSoftScore.ONE_HARD)
+        .asConstraint("Conflicto de grupo")
     }
 }

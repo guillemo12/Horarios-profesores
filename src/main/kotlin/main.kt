@@ -7,6 +7,7 @@ import org.jetbrains.exposed.sql.Database
 import org.jetbrains.exposed.sql.SchemaUtils
 import org.jetbrains.exposed.sql.SizedCollection
 import org.jetbrains.exposed.sql.selectAll
+import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.transactions.transaction
 import java.sql.DriverManager.println
 
@@ -18,7 +19,7 @@ fun main(args: Array<String>) {
     transaction {
         SchemaUtils.createMissingTablesAndColumns(
             ProfesorTable, ConfiguracionTable, AsignaturaTable,
-            ProfesorAsignaturaTable, RepartoDocenteTable, GruposTable, CursoTable
+            ProfesorAsignaturaTable, RepartoDocenteTable, GruposTable, CursoTable, ClaseTable
         )
 
         // 1. CONFIGURACIÓN
@@ -44,10 +45,16 @@ fun main(args: Array<String>) {
                 "Religión Primaria", "Religión Infantil", "Especialista Francés", "Especialista Música"
             )
 
-            listaNombresProfesores.forEach { nombreProfe ->
+            val coloresHtml = listOf(
+                "#ef4444", "#3b82f6", "#10b981", "#f59e0b", "#8b5cf6", 
+                "#ec4899", "#14b8a6", "#6366f1", "#06b6d4", "#84cc16",
+                "#a855f7", "#f97316"
+            )
+            listaNombresProfesores.forEachIndexed { index, nombreProfe ->
                 ProfesorEntity.new {
                     this.nombre = nombreProfe
                     this.minutosMaximos = configActual.minutosMaximosProfesor
+                    this.color = coloresHtml[index % coloresHtml.size]
                 }
             }
         }
@@ -175,6 +182,33 @@ fun main(args: Array<String>) {
                 profe.asignaturas = SizedCollection(materiasDeEsteProfe)
             }
             println("✅ Base de datos escolar generada con éxito y adaptada a las nuevas materias.")
+        }
+
+        // 6. ASIGNACIONES DE REPARTO DOCENTE POR DEFECTO
+        if (RepartoDocenteTable.selectAll().count() == 0L) {
+            GruposEntity.all().forEach { grupo ->
+                val cursoObj = grupo.curso
+                val tutorObj = grupo.tutor
+                
+                val asignaturasDelCurso = AsignaturaEntity.find { AsignaturaTable.curso eq cursoObj.id }.toList()
+                
+                asignaturasDelCurso.forEach { asignatura ->
+                    val tutorPuedeDarla = tutorObj.asignaturas.contains(asignatura)
+                    val profeAsignado = if (tutorPuedeDarla) {
+                        tutorObj
+                    } else {
+                        ProfesorEntity.all().firstOrNull { it.asignaturas.contains(asignatura) }
+                            ?: ProfesorEntity.all().first()
+                    }
+                    
+                    RepartoDocenteTable.insert {
+                        it[grupoId] = grupo.id
+                        it[asignaturaId] = asignatura.id
+                        it[profesorId] = profeAsignado.id
+                    }
+                }
+            }
+            println("✅ Asignaciones de reparto docente por defecto generadas para todos los grupos.")
         }
     }
 

@@ -19,11 +19,11 @@
     </termination>
 
     <!-- FASE 1: Construcción del borrador inicial -->
-   <!-- <constructionHeuristic />
-    -->
+    <constructionHeuristic />
+
     <!-- FASE 2: ACELERADOR con el algoritmo Late Acceptance -->
-    <!-- <localSearch>
+     <localSearch>
         <localSearchType>LATE_ACCEPTANCE</localSearchType>
-    </localSearch> -->
+    </localSearch>
 
 </solver>

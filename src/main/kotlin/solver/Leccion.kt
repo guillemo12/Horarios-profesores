@@ -1,6 +1,7 @@
 package com.colegio.solver
 
 import ai.timefold.solver.core.api.domain.entity.PlanningEntity
+import ai.timefold.solver.core.api.domain.entity.PlanningPin
 import ai.timefold.solver.core.api.domain.lookup.PlanningId
 import ai.timefold.solver.core.api.domain.variable.PlanningVariable
 
@@ -14,6 +15,9 @@ class Leccion(
     val minutosSemanales:Int = 0,
     val profesorFijo: Profesor? = null
 ) {
+    @PlanningPin
+    var isPinned: Boolean = false
+
     // La variable que Timefold va a mover se queda en el cuerpo de la clase
     @PlanningVariable(valueRangeProviderRefs = ["rangoDeHoras"])
     var timeSlot: TimeSlot? = null

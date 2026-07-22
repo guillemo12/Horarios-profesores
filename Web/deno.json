@@ -1,0 +1,10 @@
+{
+  "imports": {
+    "@std/http/file-server": "jsr:@std/http/file-server@^0.224.0",
+    "esbuild": "npm:esbuild@^0.20.2"
+  },
+  "tasks": {
+    "build": "deno run --allow-read --allow-write https://deno.land/x/emit/cli.ts main.ts dist/main.js",
+    "dev": "deno run --allow-net --allow-read https://deno.land/std/http/file_server.ts . --port 8080"
+  }
+}
