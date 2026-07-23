@@ -4,7 +4,7 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 data class ScheduledClassDto(
-    val id: String,
+    val id: String? = null,
     val start: String,
     val end: String,
     val duration: Double,

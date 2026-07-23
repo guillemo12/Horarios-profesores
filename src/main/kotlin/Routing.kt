@@ -103,7 +103,7 @@ fun Application.configureRouting() {
             put("/subjects") {
                 val req = call.receive<SubjectDto>()
                 val res = transaction {
-                    val entity = AsignaturaEntity.findById(parseId(req.id)) ?: return@transaction null
+                    val entity = AsignaturaEntity.findById(parseId(req.id ?: "")) ?: return@transaction null
                     val courseEntity = CursosEntity.findById(parseId(req.courseId)) ?: return@transaction null
                     val teacherEntities = req.teachers.mapNotNull { ProfesorEntity.findById(parseId(it)) }
                     entity.nombre = req.name
@@ -187,7 +187,7 @@ fun Application.configureRouting() {
             put("/teachers") {
                 val req = call.receive<TeacherDto>()
                 val res = transaction {
-                    val entity = ProfesorEntity.findById(parseId(req.id)) ?: return@transaction null
+                    val entity = ProfesorEntity.findById(parseId(req.id ?: "")) ?: return@transaction null
                     val subjectEntities = req.subjects.mapNotNull { AsignaturaEntity.findById(parseId(it)) }
                     val availJson = try {
                         kotlinx.serialization.json.Json.encodeToString(req.availability)
@@ -270,7 +270,7 @@ fun Application.configureRouting() {
             put("/courses") {
                 val req = call.receive<CourseDto>()
                 val res = transaction {
-                    val entity = CursosEntity.findById(parseId(req.id)) ?: return@transaction null
+                    val entity = CursosEntity.findById(parseId(req.id ?: "")) ?: return@transaction null
                     entity.nombre = req.name
                     val subjects = AsignaturaEntity.find { AsignaturaTable.curso eq entity.id }.map { it.id.value.toString() }
                     val groups = GruposEntity.find { GruposTable.curso eq entity.id }.map { group ->
@@ -307,7 +307,7 @@ fun Application.configureRouting() {
                 val groupDtos = call.receive<List<CourseGroupDto>>()
                 val res = transaction {
                     val courseEntity = CursosEntity.findById(parseId(courseIdStr)) ?: return@transaction null
-                    val incomingGroupIds = groupDtos.mapNotNull { it.id.toIntOrNull() }
+                    val incomingGroupIds = groupDtos.mapNotNull { it.id?.toIntOrNull() }
                     
                     // Borrar grupos ausentes
                     GruposEntity.find { GruposTable.curso eq courseEntity.id }.forEach { g ->
@@ -318,7 +318,7 @@ fun Application.configureRouting() {
 
                     groupDtos.map { gDto ->
                         val tutorEntity = ProfesorEntity.findById(parseId(gDto.tutorId)) ?: ProfesorEntity.all().first()
-                        val groupEntity = if (gDto.id.toIntOrNull() != null) {
+                        val groupEntity = if (gDto.id?.toIntOrNull() != null) {
                             val existing = GruposEntity.findById(gDto.id.toInt())
                             if (existing != null) {
                                 existing.nombre = gDto.name
@@ -415,7 +415,7 @@ fun Application.configureRouting() {
             put("/scheduledClasses") {
                 val req = call.receive<ScheduledClassDto>()
                 val res = transaction {
-                    var entity = ClaseEntity.findById(req.id)
+                    var entity = ClaseEntity.findById(req.id ?: "")
                     val sub = AsignaturaEntity.findById(parseId(req.subjectId)) ?: return@transaction null
                     val grp = GruposEntity.findById(parseId(req.groupId)) ?: return@transaction null
                     val prof = ProfesorEntity.findById(parseId(req.teacherId)) ?: return@transaction null
