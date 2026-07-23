@@ -322,7 +322,11 @@ export function openEventDetail(event: any): void {
         pinBtn.innerText = cls.isPinned ? "Desfijar" : "Fijar (Pin)";
         pinBtn.onclick = async () => { 
             cls.isPinned = !cls.isPinned; 
-            await AppData.API.updateClass(cls); 
+            try {
+                await AppData.API.updateClass(cls); 
+            } catch (err) {
+                console.error("Error al actualizar estado del pin:", err);
+            }
             AppData.WS.sendCommand('PIN_UPDATE', { id: cls.id, state: cls.isPinned }); 
             closeEventDetail(); 
             refreshCalendarView(); 

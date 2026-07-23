@@ -3,4 +3,7 @@
   <component name="CompilerConfiguration">
     <bytecodeTargetLevel target="21" />
   </component>
+  <component name="TypeScriptCompiler">
+    <option name="memoryAutoIncrease" value="true" />
+  </component>
 </project>

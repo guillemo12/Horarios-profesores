@@ -11,6 +11,14 @@ version = "1.0.0-SNAPSHOT"
 application {
     // Fíjate en la "Kt" al final, es muy importante
     mainClass.set("com.colegio.MainKt")
+
+    applicationDefaultJvmArgs = listOf(
+        "-Xms8G",
+        "-Xmx8G",
+        "-XX:+AlwaysPreTouch",
+        "-XX:+UseParallelGC", // O cambia a ZGC Generacional si Ktor se bloquea
+        "-XX:+UseStringDeduplication"
+    )
 }
 
 ktor {

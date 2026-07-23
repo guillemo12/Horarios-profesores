@@ -1,4 +1,4 @@
-import { Subject, Teacher, Course, CourseGroup, ScheduledClass, Configuracion } from './types';
+import { Subject, Teacher, Course, CourseGroup, ScheduledClass, Configuracion, PrevalidationResult } from './types';
 
 export class ApiService {
     private baseUrl: string;
@@ -52,4 +52,6 @@ export class ApiService {
     async updateClass(cls: ScheduledClass): Promise<ScheduledClass> { return this._fetch<ScheduledClass>('scheduledClasses', 'PUT', cls); }
     async deleteClass(id: string): Promise<{success: boolean}> { return this._fetch<{success: boolean}>(`scheduledClasses/${id}`, 'DELETE'); }
     async deleteGroupSchedule(groupId: string): Promise<{success: boolean}> { return this._fetch<{success: boolean}>(`scheduledClasses/group/${groupId}`, 'DELETE'); }
+
+    async getPrevalidation(): Promise<PrevalidationResult> { return this._fetch<PrevalidationResult>('prevalidation'); }
 }

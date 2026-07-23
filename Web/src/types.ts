@@ -88,3 +88,15 @@ export interface AppDataState {
     currentEventContext: any;
     config?: Configuracion;
 }
+
+export interface PrevalidationCheck {
+    name: string;
+    status: 'ok' | 'warning' | 'error';
+    message: string;
+    details: string[];
+}
+
+export interface PrevalidationResult {
+    viable: boolean;
+    checks: PrevalidationCheck[];
+}

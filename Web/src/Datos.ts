@@ -9,6 +9,7 @@ import {
 import { renderAssignmentsList, updateAssignment, clearGroupAssignments, clearCourseAssignments } from './assignments';
 import { openAvailabilityModal, closeAvailabilityModal, saveAvailability, toggleAvailabilitySlot } from './availability';
 import { loadSettings, saveSettings } from './settings';
+import { runPrevalidation, closePrevalidation } from './prevalidation';
 import { showToast } from './utils';
 
 export const AppData: AppDataState = { 
@@ -302,5 +303,7 @@ Object.assign(window, {
     clearGroupSchedule,
     clearGroupAssignments,
     clearCourseAssignments,
-    toggleAvailabilitySlot
+    toggleAvailabilitySlot,
+    runPrevalidation,
+    closePrevalidation
 });

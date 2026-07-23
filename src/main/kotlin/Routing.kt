@@ -20,6 +20,20 @@ import org.jetbrains.exposed.sql.transactions.transaction
 
 import com.colegio.DTO.*
 
+@Serializable
+data class PrevalidationResult(
+    val viable: Boolean,
+    val checks: List<PrevalidationCheck>
+)
+
+@Serializable
+data class PrevalidationCheck(
+    val name: String,
+    val status: String,
+    val message: String,
+    val details: List<String> = emptyList()
+)
+
 // --- AUXILIAR DE PARSEO DE IDS ---
 fun parseId(idStr: String): Int {
     val clean = idStr.replace(Regex("^[a-zA-Z]+-"), "")
@@ -401,17 +415,31 @@ fun Application.configureRouting() {
             put("/scheduledClasses") {
                 val req = call.receive<ScheduledClassDto>()
                 val res = transaction {
-                    val entity = ClaseEntity.findById(req.id) ?: return@transaction null
+                    var entity = ClaseEntity.findById(req.id)
                     val sub = AsignaturaEntity.findById(parseId(req.subjectId)) ?: return@transaction null
                     val grp = GruposEntity.findById(parseId(req.groupId)) ?: return@transaction null
                     val prof = ProfesorEntity.findById(parseId(req.teacherId)) ?: return@transaction null
-                    entity.start = req.start
-                    entity.end = req.end
-                    entity.duration = req.duration
-                    entity.subject = sub
-                    entity.group = grp
-                    entity.teacher = prof
-                    entity.isPinned = req.isPinned
+
+                    if (entity != null) {
+                        entity.start = req.start
+                        entity.end = req.end
+                        entity.duration = req.duration
+                        entity.subject = sub
+                        entity.group = grp
+                        entity.teacher = prof
+                        entity.isPinned = req.isPinned
+                    } else {
+                        entity = ClaseEntity.new(req.id) {
+                            start = req.start
+                            end = req.end
+                            duration = req.duration
+                            subject = sub
+                            group = grp
+                            teacher = prof
+                            isPinned = req.isPinned
+                        }
+                    }
+
                     ScheduledClassDto(
                         id = entity.id.value,
                         start = entity.start,
@@ -423,7 +451,7 @@ fun Application.configureRouting() {
                         isPinned = entity.isPinned
                     )
                 }
-                if (res != null) call.respond(res) else call.respond(HttpStatusCode.NotFound)
+                if (res != null) call.respond(res) else call.respond(HttpStatusCode.BadRequest, "Entities not found")
             }
 
             delete("/scheduledClasses/{id}") {
@@ -528,6 +556,154 @@ fun Application.configureRouting() {
                     )
                 }
                 call.respond(res)
+            }
+
+            get("/prevalidation") {
+                val result = transaction {
+                    val checks = mutableListOf<PrevalidationCheck>()
+                    var viable = true
+                    
+                    val allSubjects = AsignaturaEntity.all().toList()
+                    val allTeachers = ProfesorEntity.all().toList()
+                    val allGroups = GruposEntity.all().toList()
+                    val allCourses = CursosEntity.all().toList()
+                    val config = ConfiguracionEntity.all().firstOrNull()
+                    
+                    // 1. Cobertura de asignaturas
+                    val subjectsWithoutTeachers = allSubjects.filter { it.profesores.empty() }
+                    if (subjectsWithoutTeachers.isNotEmpty()) {
+                        viable = false
+                        checks.add(PrevalidationCheck(
+                            name = "Cobertura de asignaturas",
+                            status = "error",
+                            message = "Existen asignaturas sin profesores cualificados asignados.",
+                            details = subjectsWithoutTeachers.map { "La asignatura '${it.nombre}' no tiene profesores." }
+                        ))
+                    } else {
+                        checks.add(PrevalidationCheck(
+                            name = "Cobertura de asignaturas",
+                            status = "ok",
+                            message = "Todas las asignaturas tienen al menos un profesor cualificado."
+                        ))
+                    }
+                    
+                    // 2. Capacidad total de horas
+                    var totalDemand = 0
+                    allSubjects.forEach { sub ->
+                        val groupsWithSub = allGroups.filter { it.curso.id == sub.curso.id }
+                        totalDemand += (sub.minutos * groupsWithSub.size)
+                    }
+                    val totalSupply = allTeachers.sumOf { it.minutosMaximos }
+                    
+                    if (totalDemand > totalSupply) {
+                        viable = false
+                        checks.add(PrevalidationCheck(
+                            name = "Capacidad total de horas",
+                            status = "error",
+                            message = "La demanda de horas supera la capacidad total de los profesores.",
+                            details = listOf("Demanda total: $totalDemand minutos", "Capacidad total: $totalSupply minutos")
+                        ))
+                    } else if (totalDemand > (totalSupply * 0.8)) {
+                        checks.add(PrevalidationCheck(
+                            name = "Capacidad total de horas",
+                            status = "warning",
+                            message = "La demanda de horas está cerca de la capacidad total de los profesores (más del 80%).",
+                            details = listOf("Demanda total: $totalDemand minutos", "Capacidad total: $totalSupply minutos")
+                        ))
+                    } else {
+                        checks.add(PrevalidationCheck(
+                            name = "Capacidad total de horas",
+                            status = "ok",
+                            message = "La capacidad total de horas es suficiente."
+                        ))
+                    }
+                    
+                    // 3. Capacidad por asignatura
+                    val capacityIssues = mutableListOf<String>()
+                    var subjectCapacityOk = true
+                    allSubjects.forEach { sub ->
+                        val groupsWithSubCount = allGroups.count { it.curso.id == sub.curso.id }
+                        val demandForSub = sub.minutos * groupsWithSubCount
+                        val supplyForSub = sub.profesores.sumOf { it.minutosMaximos }
+                        
+                        if (demandForSub > supplyForSub) {
+                            subjectCapacityOk = false
+                            capacityIssues.add("Asignatura '${sub.nombre}': Demanda de $demandForSub min, pero los profesores cualificados solo suman $supplyForSub min.")
+                        }
+                    }
+                    if (!subjectCapacityOk) {
+                        viable = false
+                        checks.add(PrevalidationCheck(
+                            name = "Capacidad por asignatura",
+                            status = "error",
+                            message = "Algunas asignaturas demandan más horas de las que pueden cubrir sus profesores cualificados.",
+                            details = capacityIssues
+                        ))
+                    } else {
+                        checks.add(PrevalidationCheck(
+                            name = "Capacidad por asignatura",
+                            status = "ok",
+                            message = "Todas las asignaturas tienen suficiente capacidad por parte de sus profesores."
+                        ))
+                    }
+                    
+                    // 4. Cuellos de botella por franja
+                    if (allGroups.size > allTeachers.size) {
+                        checks.add(PrevalidationCheck(
+                            name = "Cuellos de botella por franja",
+                            status = "warning",
+                            message = "Hay más grupos que profesores. No se podrán programar clases para todos los grupos en paralelo en una misma franja.",
+                            details = listOf("Grupos totales: ${allGroups.size}", "Profesores totales: ${allTeachers.size}")
+                        ))
+                    } else {
+                        checks.add(PrevalidationCheck(
+                            name = "Cuellos de botella por franja",
+                            status = "ok",
+                            message = "Hay suficientes profesores para dar clase a todos los grupos en paralelo."
+                        ))
+                    }
+                    
+                    // 5. Grupos sin asignaturas
+                    val coursesWithoutSubjects = allCourses.filter { course -> 
+                        val groupsCount = allGroups.count { it.curso.id == course.id }
+                        val subjectsCount = allSubjects.count { it.curso.id == course.id }
+                        groupsCount > 0 && subjectsCount == 0
+                    }
+                    if (coursesWithoutSubjects.isNotEmpty()) {
+                        checks.add(PrevalidationCheck(
+                            name = "Grupos sin asignaturas",
+                            status = "warning",
+                            message = "Existen cursos con grupos pero sin asignaturas definidas.",
+                            details = coursesWithoutSubjects.map { "El curso '${it.nombre}' tiene grupos pero ninguna asignatura." }
+                        ))
+                    } else {
+                        checks.add(PrevalidationCheck(
+                            name = "Grupos sin asignaturas",
+                            status = "ok",
+                            message = "Todos los cursos con grupos tienen asignaturas."
+                        ))
+                    }
+                    
+                    // 6. Profesores sin asignaturas
+                    val teachersWithoutSubjects = allTeachers.filter { it.asignaturas.empty() }
+                    if (teachersWithoutSubjects.isNotEmpty()) {
+                        checks.add(PrevalidationCheck(
+                            name = "Profesores sin asignaturas",
+                            status = "warning",
+                            message = "Hay profesores sin ninguna asignatura asignada.",
+                            details = teachersWithoutSubjects.map { "El profesor '${it.nombre}' no imparte ninguna asignatura." }
+                        ))
+                    } else {
+                        checks.add(PrevalidationCheck(
+                            name = "Profesores sin asignaturas",
+                            status = "ok",
+                            message = "Todos los profesores tienen al menos una asignatura asignada."
+                        ))
+                    }
+                    
+                    PrevalidationResult(viable, checks)
+                }
+                call.respond(result)
             }
         }
     }

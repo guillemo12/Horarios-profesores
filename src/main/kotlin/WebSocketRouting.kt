@@ -3,24 +3,27 @@ package com.colegio
 import ai.timefold.solver.core.api.score.buildin.hardsoft.HardSoftScore
 import ai.timefold.solver.core.api.solver.Solver
 import ai.timefold.solver.core.api.solver.SolverFactory
-import com.colegio.DTO.*
+import com.colegio.DTO.Configuracion
+import com.colegio.DTO.ScheduledClassDto
+import com.colegio.DTO.WsMessage
 import com.colegio.modelos.entities.*
 import com.colegio.modelos.tables.*
-import com.colegio.solver.*
+import com.colegio.solver.HorarioSolution
+import com.colegio.solver.Leccion
+import com.colegio.solver.TimeSlot
 import io.ktor.server.application.*
 import io.ktor.server.routing.*
 import io.ktor.server.websocket.*
 import io.ktor.websocket.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import org.jetbrains.exposed.dao.id.EntityID
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
+import org.jetbrains.exposed.sql.and
 import org.jetbrains.exposed.sql.deleteWhere
 import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.selectAll
-import org.jetbrains.exposed.sql.and
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.slf4j.LoggerFactory
 import java.time.DayOfWeek
@@ -29,9 +32,8 @@ import java.time.LocalDateTime
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
 import java.time.temporal.TemporalAdjusters
+import java.util.*
 import java.util.concurrent.ConcurrentHashMap
-import java.util.UUID
-
 
 
 fun Application.configureSockets() {
@@ -55,17 +57,15 @@ fun Application.configureSockets() {
 
     fun findTimeSlot(isoStr: String, timeSlots: List<TimeSlot>): TimeSlot? {
         return try {
-            val dt = if (isoStr.contains("Z") || isoStr.contains("+") || (isoStr.lastIndexOf("-") > 10)) {
-                val zoneId = java.time.ZoneId.systemDefault()
-                if (isoStr.contains("Z")) {
-                    java.time.Instant.parse(isoStr).atZone(zoneId).toLocalDateTime()
-                } else {
-                    java.time.ZonedDateTime.parse(isoStr).withZoneSameInstant(zoneId).toLocalDateTime()
-                }
-            } else {
-                val cleanStr = isoStr.replace(" ", "T")
-                LocalDateTime.parse(cleanStr.substring(0, 19))
+            val cleanStr = isoStr.replace(" ", "T").let { s ->
+                if (s.contains("T")) {
+                    val parts = s.split("T")
+                    val datePart = parts[0]
+                    val timePart = parts[1].split(".", "+", "Z")[0]
+                    "${datePart}T${timePart}"
+                } else s
             }
+            val dt = LocalDateTime.parse(cleanStr)
             val day = dt.dayOfWeek
             val time = dt.toLocalTime()
             timeSlots.find { it.dayOfWeek == day && it.startTime == time }
@@ -229,11 +229,12 @@ fun Application.configureSockets() {
                                                          if (b <= pinnedClasses.size) {
                                                              val cls = pinnedClasses[b - 1]
                                                              lec.isPinned = true
-                                                             lec.timeSlot = findTimeSlot(cls.start, franjasDisponibles)
+                                                             lec.timeSlot = findTimeSlot(cls.start, franjasDisponibles) ?: franjasDisponibles.firstOrNull()
                                                              
                                                              // Buscamos el profesor real de la clase fijada en la base de datos
-                                                             val actualTeacher = profesorList.find { it.nombre == cls.teacher.nombre }
-                                                             lec.profesor = actualTeacher ?: solverProfeFijo
+                                                             val actualTeacher = try { profesorList.find { it.nombre == cls.teacher.nombre } } catch (_: Exception) { null }
+                                                             val fallbackTeacher = profesorList.find { it.asignaturas.contains(asigEnt.nombre) }
+                                                             lec.profesor = actualTeacher ?: solverProfeFijo ?: fallbackTeacher ?: profesorList.firstOrNull()
                                                              
                                                              // Mantenemos el ID original de la base de datos para no perder su identidad
                                                              lec.id = cls.id.value
@@ -242,7 +243,7 @@ fun Application.configureSockets() {
                                                              val uCls = unpinnedClasses.getOrNull(unpinnedIndex++)
                                                              if (uCls != null) {
                                                                  lec.timeSlot = findTimeSlot(uCls.start, franjasDisponibles)
-                                                                 val actualTeacher = profesorList.find { it.nombre == uCls.teacher.nombre }
+                                                                 val actualTeacher = try { profesorList.find { it.nombre == uCls.teacher.nombre } } catch (_: Exception) { null }
                                                                  lec.profesor = actualTeacher ?: solverProfeFijo
                                                                  // Mantenemos el ID original para que puedan ser editadas/fijadas correctamente
                                                                  lec.id = uCls.id.value
@@ -338,11 +339,13 @@ fun Application.configureSockets() {
                                                  }
 
                                                  solucionFinal.lessonList
-                                                     .filter { it.timeSlot != null && it.profesor != null }
+                                                     .filter { it.timeSlot != null }
                                                      .forEach { leccion ->
                                                          val subId = subjectNameToId[leccion.asignatura] ?: return@forEach
                                                          val grpId = groupCourseNameToId[Pair(leccion.grupo.curso, leccion.grupo.nombre)] ?: return@forEach
-                                                         val profId = leccion.profesor?.let { teacherNameToId[it.nombre] } ?: return@forEach
+                                                         val profId = leccion.profesor?.let { teacherNameToId[it.nombre] } 
+                                                             ?: profesorList.find { it.asignaturas.contains(leccion.asignatura) }?.let { teacherNameToId[it.nombre] } 
+                                                             ?: 1
 
                                                          val existing = ClaseEntity.findById(leccion.id)
                                                          if (existing != null) {
@@ -352,7 +355,7 @@ fun Application.configureSockets() {
                                                              existing.subject = AsignaturaEntity.findById(subId)!!
                                                              existing.group = GruposEntity.findById(grpId)!!
                                                              existing.teacher = ProfesorEntity.findById(profId)!!
-                                                             existing.isPinned = existing.isPinned
+                                                             existing.isPinned = existing.isPinned || leccion.isPinned
                                                          } else {
                                                              ClaseTable.insert {
                                                                  it[id] = leccion.id
@@ -368,11 +371,27 @@ fun Application.configureSockets() {
                                                      }
                                              }
 
-                                            // Avisar finalización
+                                            // Enviar el horario final persistido al cliente
                                             try {
+                                                val finalDtos = transaction {
+                                                    ClaseEntity.all().map { cls ->
+                                                        ScheduledClassDto(
+                                                            id = cls.id.value,
+                                                            start = cls.start,
+                                                            end = cls.end,
+                                                            duration = cls.duration,
+                                                            subjectId = cls.subject.id.value.toString(),
+                                                            groupId = cls.group.id.value.toString(),
+                                                            teacherId = cls.teacher.id.value.toString(),
+                                                            isPinned = cls.isPinned
+                                                        )
+                                                    }
+                                                }
+                                                val scheduleJson = Json.encodeToString(finalDtos)
+                                                send(Frame.Text("""{"type":"schedule_pushed","schedule":$scheduleJson}"""))
                                                 send(Frame.Text("""{"type":"optimization_complete"}"""))
                                             } catch (e: Exception) {
-                                                // ignore
+                                                logger.warn("Error enviando resultado final por WS: ${e.message}")
                                             }
                                         }
                                         activeSolvers.remove(this@webSocket)
@@ -399,80 +418,68 @@ fun Application.configureSockets() {
 }
 
 private fun obtenerListaConflictos(solution: HorarioSolution): List<String> {
-    val conflictos = mutableListOf<String>()
+    val contadores = mutableMapOf<String, Int>()
     val lecciones = solution.lessonList
 
     // 1. Conflictos de profesor (simultaneidad)
     val slotsPorProfesor = lecciones.filter { it.profesor != null && it.timeSlot != null }
-        .groupBy { it.profesor!!.nombre }
-
-    slotsPorProfesor.forEach { (nombreProfe, lecs) ->
-        val slotsAgrupados = lecs.groupBy { it.timeSlot!!.id }
-        slotsAgrupados.forEach { (slotId, lecsEnSlot) ->
-            if (lecsEnSlot.size > 1) {
-                val slot = lecsEnSlot.first().timeSlot!!
-                val diaEsp = when (slot.dayOfWeek) {
-                    java.time.DayOfWeek.MONDAY -> "Lunes"
-                    java.time.DayOfWeek.TUESDAY -> "Martes"
-                    java.time.DayOfWeek.WEDNESDAY -> "Miércoles"
-                    java.time.DayOfWeek.THURSDAY -> "Jueves"
-                    java.time.DayOfWeek.FRIDAY -> "Viernes"
-                    else -> slot.dayOfWeek.toString()
-                }
-                val desc = lecsEnSlot.map { "${it.grupo.curso} ${it.grupo.nombre} (${it.asignatura})" }.joinToString(" y ")
-                conflictos.add("El profesor $nombreProfe tiene clases simultáneas en $desc el $diaEsp a las ${slot.startTime}")
-            }
+        .groupBy { Pair(it.profesor!!.nombre, it.timeSlot!!.id) }
+    slotsPorProfesor.forEach { (_, lecsEnSlot) ->
+        if (lecsEnSlot.size > 1) {
+            contadores["Conflicto de profesor (clases simultáneas)"] =
+                (contadores["Conflicto de profesor (clases simultáneas)"] ?: 0) + (lecsEnSlot.size - 1)
         }
     }
 
     // 2. Conflictos de grupo (simultaneidad)
     val slotsPorGrupo = lecciones.filter { it.timeSlot != null }
-        .groupBy { "${it.grupo.curso} ${it.grupo.nombre}" }
-
-    slotsPorGrupo.forEach { (nombreGrupo, lecs) ->
-        val slotsAgrupados = lecs.groupBy { it.timeSlot!!.id }
-        slotsAgrupados.forEach { (slotId, lecsEnSlot) ->
-            if (lecsEnSlot.size > 1) {
-                val slot = lecsEnSlot.first().timeSlot!!
-                val diaEsp = when (slot.dayOfWeek) {
-                    java.time.DayOfWeek.MONDAY -> "Lunes"
-                    java.time.DayOfWeek.TUESDAY -> "Martes"
-                    java.time.DayOfWeek.WEDNESDAY -> "Miércoles"
-                    java.time.DayOfWeek.THURSDAY -> "Jueves"
-                    java.time.DayOfWeek.FRIDAY -> "Viernes"
-                    else -> slot.dayOfWeek.toString()
-                }
-                val desc = lecsEnSlot.map { it.asignatura }.joinToString(" y ")
-                conflictos.add("El grupo $nombreGrupo tiene clases simultáneas de $desc el $diaEsp a las ${slot.startTime}")
-            }
+        .groupBy { Pair("${it.grupo.curso} ${it.grupo.nombre}", it.timeSlot!!.id) }
+    slotsPorGrupo.forEach { (_, lecsEnSlot) ->
+        if (lecsEnSlot.size > 1) {
+            contadores["Conflicto de grupo (clases simultáneas)"] =
+                (contadores["Conflicto de grupo (clases simultáneas)"] ?: 0) + (lecsEnSlot.size - 1)
         }
     }
 
     // 3. Especialidad incorrecta
     lecciones.forEach { lec ->
-        val profe = lec.profesor
-        if (profe != null) {
-            val calificado = profe.asignaturas.contains(lec.asignatura)
-            if (!calificado) {
-                conflictos.add("El profesor ${profe.nombre} está dando ${lec.asignatura} para ${lec.grupo.curso} ${lec.grupo.nombre} sin estar capacitado")
-            }
+        if (lec.profesor != null && !lec.profesor!!.asignaturas.contains(lec.asignatura)) {
+            contadores["Especialidad incorrecta"] =
+                (contadores["Especialidad incorrecta"] ?: 0) + 1
         }
     }
 
-    // 4. Exceso de horas
+    // 4. Profesor fijo no respetado
+    lecciones.forEach { lec ->
+        if (lec.profesorFijo != null && lec.profesor != null && lec.profesor != lec.profesorFijo) {
+            contadores["Asignación manual no respetada"] =
+                (contadores["Asignación manual no respetada"] ?: 0) + 1
+        }
+    }
+
+    // 5. Profesor único por materia y grupo
+    val grupoAsig = lecciones.filter { it.profesor != null }
+        .groupBy { Pair(it.grupo, it.asignatura) }
+    grupoAsig.forEach { (_, lecs) ->
+        val profes = lecs.map { it.profesor!!.nombre }.distinct()
+        if (profes.size > 1) {
+            contadores["Varios profesores en misma materia-grupo"] =
+                (contadores["Varios profesores en misma materia-grupo"] ?: 0) + (profes.size - 1)
+        }
+    }
+
+    // 6. Exceso de horas
     val horasPorProfesor = lecciones.filter { it.profesor != null && it.timeSlot != null }
         .groupBy { it.profesor!! }
-
     horasPorProfesor.forEach { (profe, lecs) ->
         val totalMinutos = lecs.sumOf { it.timeSlot!!.duracionMinutos }
         if (totalMinutos > profe.minutosMaximos) {
-            val horasMax = profe.minutosMaximos / 60.0
-            val horasAct = totalMinutos / 60.0
-            conflictos.add("El profesor ${profe.nombre} supera su límite semanal: tiene ${horasAct}h asignadas (máximo ${horasMax}h)")
+            contadores["Exceso de horas del profesor"] =
+                (contadores["Exceso de horas del profesor"] ?: 0) + 1
         }
     }
 
-    // 5. Disponibilidad horaria no respetada
+    // 7. Disponibilidad no respetada
     lecciones.forEach { lec ->
         val slot = lec.timeSlot
         val profe = lec.profesor
@@ -483,32 +490,20 @@ private fun obtenerListaConflictos(solution: HorarioSolution): List<String> {
                 slot.endTime.toString() <= av.endTime
             }
             if (noDisponible) {
-                val diaEsp = when (slot.dayOfWeek) {
-                    java.time.DayOfWeek.MONDAY -> "Lunes"
-                    java.time.DayOfWeek.TUESDAY -> "Martes"
-                    java.time.DayOfWeek.WEDNESDAY -> "Miércoles"
-                    java.time.DayOfWeek.THURSDAY -> "Jueves"
-                    java.time.DayOfWeek.FRIDAY -> "Viernes"
-                    else -> slot.dayOfWeek.toString()
-                }
-                conflictos.add("El profesor ${profe.nombre} está asignado el $diaEsp de ${slot.startTime} a ${slot.endTime} (horario no disponible)")
+                contadores["Disponibilidad no respetada"] =
+                    (contadores["Disponibilidad no respetada"] ?: 0) + 1
             }
         }
     }
 
-    // 6. Sin profesor asignado
-    lecciones.forEach { lec ->
-        if (lec.profesor == null) {
-            conflictos.add("Falta asignar profesor para la lección de ${lec.asignatura} en el grupo ${lec.grupo.curso} ${lec.grupo.nombre}")
-        }
-    }
+    // 8. Sin profesor asignado
+    val sinProfe = lecciones.count { it.profesor == null }
+    if (sinProfe > 0) contadores["Sin profesor asignado"] = sinProfe
 
-    // 7. Sin franja asignada (horas faltantes)
-    lecciones.forEach { lec ->
-        if (lec.timeSlot == null) {
-            conflictos.add("La lección de ${lec.asignatura} para el grupo ${lec.grupo.curso} ${lec.grupo.nombre} no cabe en el horario semanal (sesión sin franja)")
-        }
-    }
+    // 9. Sin franja asignada
+    val sinSlot = lecciones.count { it.timeSlot == null }
+    if (sinSlot > 0) contadores["Sin franja horaria (no cabe)"] = sinSlot
 
-    return conflictos
+    return contadores.map { (tipo, cantidad) -> "$tipo: $cantidad" }
+        .sortedByDescending { it.substringAfterLast(": ").toIntOrNull() ?: 0 }
 }

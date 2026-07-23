@@ -24,6 +24,6 @@ class HorarioSolution(
     var profesorList: List<Profesor> = emptyList(),
 ) {
     // La puntuación se queda sola en el cuerpo de la clase
-    @PlanningScore
+    @get:PlanningScore
     var score: HardSoftScore? = null
 }
