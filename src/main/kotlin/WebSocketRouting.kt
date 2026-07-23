@@ -52,11 +52,25 @@ fun Application.configureSockets() {
     fun getIsoDateTime(day: DayOfWeek, time: LocalTime): String {
         val date = monday.plusDays((day.value - 1).toLong())
         val dateTime = LocalDateTime.of(date, time)
-        return dateTime.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME)
+        // Ensure formatting includes 'Z' to be parsed correctly by frontend as UTC time
+        // to prevent timezone shifts when loading pins
+        return dateTime.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME) + "Z"
     }
 
     fun findTimeSlot(isoStr: String, timeSlots: List<TimeSlot>): TimeSlot? {
         return try {
+            // Check if it's already an Instant format with Z
+            val isUtc = isoStr.endsWith("Z") || isoStr.contains("+00:00")
+            if (isUtc) {
+                val instant = java.time.Instant.parse(isoStr)
+                // Assuming backend expects time in UTC context if timezone not correctly configured
+                // Or simply extract local time and day from the UTC ZonedDateTime
+                val zdt = instant.atZone(java.time.ZoneId.of("UTC"))
+                val day = zdt.dayOfWeek
+                val time = zdt.toLocalTime()
+                return timeSlots.find { it.dayOfWeek == day && it.startTime == time }
+            }
+
             val cleanStr = isoStr.replace(" ", "T").let { s ->
                 if (s.contains("T")) {
                     val parts = s.split("T")
@@ -213,7 +227,8 @@ fun Application.configureSockets() {
 
                                                      var unpinnedIndex = 0
 
-                                                     for (b in 1..blocksCount) {
+                                                     val maxBlocks = maxOf(blocksCount, pinnedClasses.size)
+                                                     for (b in 1..maxBlocks) {
                                                          val solverGrupo = grupoEnt.toGrupo()
                                                          val solverProfeFijo = profEnt?.toProfesor()
 
