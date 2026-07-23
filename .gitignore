@@ -1,4 +1,11 @@
-/SalvaVacaciones/
-/build/
-/.gradle/
+.gradle
+build
+node_modules/
+node_modules
+Web/node_modules/
+Web/node_modules
+Web/test-results/
+Web/playwright-report/
 colegio.db
+ui-test-colegio.db
+test-colegio.db

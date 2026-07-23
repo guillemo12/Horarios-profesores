@@ -1,3 +1,4 @@
+// Replace the previous buildWeb task
 plugins {
     alias(libs.plugins.kotlin.jvm)
     alias(ktorLibs.plugins.ktor)
@@ -46,4 +47,17 @@ dependencies {
 
     // WebSocket
     implementation("io.ktor:ktor-server-websockets")
+}
+
+dependencies {
+    testImplementation("com.microsoft.playwright:playwright:1.44.0")
+}
+
+tasks.register<Exec>("buildWeb") {
+    workingDir = file("Web")
+    commandLine = listOf("/home/jules/.deno/bin/deno", "run", "-A", "build.ts")
+}
+
+tasks.named("processResources") {
+    dependsOn("buildWeb")
 }
