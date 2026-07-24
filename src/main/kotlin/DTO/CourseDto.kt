@@ -4,7 +4,7 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 data class CourseGroupDto(
-    val id: String,
+    val id: String? = null,
     val name: String,
     val tutorId: String,
     val assignments: Map<String, String> // subjectId -> teacherId
@@ -12,7 +12,7 @@ data class CourseGroupDto(
 
 @Serializable
 data class CourseDto(
-    val id: String,
+    val id: String? = null,
     val name: String,
     val subjects: List<String>,
     val groups: List<CourseGroupDto>
