@@ -7,6 +7,7 @@ import org.jetbrains.exposed.sql.Database
 import org.jetbrains.exposed.sql.SchemaUtils
 import org.jetbrains.exposed.sql.SizedCollection
 import org.jetbrains.exposed.sql.selectAll
+import org.jetbrains.exposed.sql.deleteAll
 import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.transactions.transaction
 import java.sql.DriverManager.println
@@ -184,8 +185,30 @@ fun main(args: Array<String>) {
             println("✅ Base de datos escolar generada con éxito y adaptada a las nuevas materias.")
         }
 
-        // 6. ASIGNACIONES DE REPARTO DOCENTE POR DEFECTO
-        if (RepartoDocenteTable.selectAll().count() == 0L) {
+        // 6. ASIGNACIONES DE REPARTO DOCENTE POR DEFECTO (REPARTO EQUITATIVO Y SEGURO)
+        val repartoCount = RepartoDocenteTable.selectAll().count()
+        var necesitaLimpieza = repartoCount == 0L
+
+        if (repartoCount > 0) {
+            val cargasProfesor = mutableMapOf<Int, Int>()
+            RepartoDocenteTable.selectAll().forEach { row ->
+                val pId = row[RepartoDocenteTable.profesorId].value
+                val aId = row[RepartoDocenteTable.asignaturaId].value
+                val asig = AsignaturaEntity.findById(aId)
+                if (asig != null) {
+                    cargasProfesor[pId] = (cargasProfesor[pId] ?: 0) + asig.minutos
+                }
+            }
+            if (cargasProfesor.values.any { it > 25 * 60 }) {
+                necesitaLimpieza = true
+                println("⚠️ Se detectaron sobrecargas desproporcionadas en el Reparto Docente existente (> 25h/semana). Regenerando reparto de forma equitativa...")
+            }
+        }
+
+        if (necesitaLimpieza) {
+            RepartoDocenteTable.deleteAll()
+            val cargaDocenteMinutos = mutableMapOf<Int, Int>()
+
             GruposEntity.all().forEach { grupo ->
                 val cursoObj = grupo.curso
                 val tutorObj = grupo.tutor
@@ -193,22 +216,30 @@ fun main(args: Array<String>) {
                 val asignaturasDelCurso = AsignaturaEntity.find { AsignaturaTable.curso eq cursoObj.id }.toList()
                 
                 asignaturasDelCurso.forEach { asignatura ->
-                    val tutorPuedeDarla = tutorObj.asignaturas.contains(asignatura)
+                    val asigClean = asignatura.nombre.trim().lowercase()
+                    val tutorPuedeDarla = tutorObj.asignaturas.any { it.nombre.trim().lowercase() == asigClean }
+                    
                     val profeAsignado = if (tutorPuedeDarla) {
                         tutorObj
                     } else {
-                        ProfesorEntity.all().firstOrNull { it.asignaturas.contains(asignatura) }
-                            ?: ProfesorEntity.all().first()
+                        val cualificados = ProfesorEntity.all().filter { prof ->
+                            prof.asignaturas.any { it.nombre.trim().lowercase() == asigClean }
+                        }
+                        cualificados.minByOrNull { cargaDocenteMinutos.getOrDefault(it.id.value, 0) }
                     }
-                    
-                    RepartoDocenteTable.insert {
-                        it[grupoId] = grupo.id
-                        it[asignaturaId] = asignatura.id
-                        it[profesorId] = profeAsignado.id
+
+                    if (profeAsignado != null) {
+                        cargaDocenteMinutos[profeAsignado.id.value] = (cargaDocenteMinutos.getOrDefault(profeAsignado.id.value, 0)) + asignatura.minutos
+
+                        RepartoDocenteTable.insert {
+                            it[grupoId] = grupo.id
+                            it[asignaturaId] = asignatura.id
+                            it[profesorId] = profeAsignado.id
+                        }
                     }
                 }
             }
-            println("✅ Asignaciones de reparto docente por defecto generadas para todos los grupos.")
+            println("✅ Asignaciones de reparto docente generadas equitativamente sin sobrecargar a ningún profesor.")
         }
     }
 

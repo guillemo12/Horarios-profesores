@@ -931,6 +931,17 @@ function setupWebSocketsListeners() {
         stConflict.classList.replace("hidden", "flex");
       }
     }
+    const countTooltip = document.getElementById("conflict-tooltip-count");
+    const listTooltip = document.getElementById("conflict-tooltip-list");
+    if (countTooltip && listTooltip) {
+      const conflicts = scores.conflictos || [];
+      countTooltip.textContent = conflicts.length.toString();
+      if (conflicts.length === 0) {
+        listTooltip.innerHTML = '<span class="text-emerald-600 font-medium">\xA1Horario matem\xE1ticamente correcto!</span>';
+      } else {
+        listTooltip.innerHTML = '<ul class="list-disc pl-4 space-y-1 text-red-600 font-medium">' + conflicts.map((m) => `<li>${m}</li>`).join("") + "</ul>";
+      }
+    }
   });
   AppData.WS.on("optimization_complete", () => {
     toggleOptimizationEngine(true);

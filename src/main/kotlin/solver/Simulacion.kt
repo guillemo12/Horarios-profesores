@@ -1,18 +1,11 @@
 package com.colegio.solver
 
-import ai.timefold.solver.core.api.score.buildin.hardsoft.HardSoftScore
-import ai.timefold.solver.core.api.solver.SolutionManager
-import ai.timefold.solver.core.api.solver.SolverFactory
-import com.colegio.Constantes.solucion
 import com.colegio.DTO.Configuracion
 import com.colegio.modelos.entities.AsignaturaEntity
 import com.colegio.modelos.entities.GruposEntity
 import com.colegio.modelos.entities.ProfesorEntity
 import com.colegio.modelos.tables.CursoTable
 import com.colegio.modelos.tables.GruposTable
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.slf4j.LoggerFactory
@@ -21,7 +14,6 @@ import java.time.LocalTime
 
 private val logger = LoggerFactory.getLogger("SimuladorHorarios")
 
-// Función auxiliar para tener los días en español en cualquier parte del archivo
 fun traducirDia(dia: DayOfWeek): String {
     return when (dia) {
         DayOfWeek.MONDAY -> "LUNES"
@@ -47,8 +39,7 @@ fun Simulacion() {
                 (GruposTable innerJoin CursoTable).selectAll().where { CursoTable.nombre eq asignatura.curso.nombre }
             val grupos = GruposEntity.wrapRows(query).toList()
 
-
-            val asigMinutos = asignatura.minutos // <--- Asegúrate de tener esta variable
+            val asigMinutos = asignatura.minutos
             val cantidadDeFichas = asigMinutos / configuracion.tiempoMinimo
 
             for (i in 1..cantidadDeFichas) {
@@ -58,7 +49,7 @@ fun Simulacion() {
                             id = "Lec_${idLeccion++}",
                             asignatura = asignatura.nombre,
                             grupo = grupo.toGrupo(),
-                            minutosSemanales = asigMinutos // <--- AÑADIMOS EL DATO AQUÍ
+                            minutosSemanales = asigMinutos
                         )
                     )
                 }
@@ -96,108 +87,34 @@ fun Simulacion() {
     var profesorList = emptyList<Profesor>()
     transaction { profesorList = ProfesorEntity.all().map { it.toProfesor() } }
 
-    val problemaInicial = HorarioSolution(
-        timeSlotList = franjasDisponibles, lessonList = leccionesSinAsignar,
-        configuracion = configuracion, profesorList = profesorList
+    logger.info("3. Arrancando el motor matemático Google OR-Tools (CP-SAT Solver)...")
+    val resultado = OrToolsScheduleSolver.solve(
+        timeSlots = franjasDisponibles,
+        lessons = leccionesSinAsignar,
+        teachers = profesorList,
+        config = configuracion,
+        timeLimitSeconds = 10.0,
+        onProgress = { progress ->
+            logger.info("📊 Progreso OR-Tools -> Score Soft actual: ${progress.softScore}")
+        }
     )
 
-    logger.info("3. Arrancando el motor matemático Timefold...")
-    val solverFactory = SolverFactory.createFromXmlResource<HorarioSolution>("solverConfig.xml")
-    solucion = solverFactory.buildSolver()
-    // --- NUEVO: Listener para ver progreso en tiempo real ---
-// 1. Creamos el analizador de soluciones ANTES del evento (para no saturar la memoria)
-    val solutionManager = SolutionManager.create(solverFactory)
-// Creamos un scope para lanzar tareas asíncronas en hilos secundarios
-    val bgScope = CoroutineScope(Dispatchers.Default)
-
-    solucion!!.addEventListener { event ->
-        val bestScore = event.newBestScore as HardSoftScore
-
-        // Imprimir el score es rapidísimo, lo dejamos en el hilo principal
-        logger.info("📊 Progreso -> Mejor score actual encontrado: $bestScore")
-
-        if (bestScore.hardScore() < 0) {
-            // Guardamos la referencia del clon para pasarla al hilo secundario
-            val snapshot = event.newBestSolution
-
-            // Lanzamos la tarea pesada de forma ASÍNCRONA
-            bgScope.launch {
-                // A partir de esta línea, el solver original ya está calculando
-                // el siguiente paso. Esto corre en paralelo en otro núcleo.
-
-                val explanation = solutionManager.explain(snapshot)
-                logger.info("   ⚠️ DETALLE EXACTO DE REGLAS HARD ROTAS:")
-
-                explanation.constraintMatchTotalMap.values.forEach { matchTotal ->
-                    val scoreDeLaRegla = matchTotal.score as HardSoftScore
-
-                    if (scoreDeLaRegla.hardScore() < 0) {
-                        logger.info("      ❌ Regla: '${matchTotal.constraintName}'")
-
-                        matchTotal.constraintMatchSet.forEach { match ->
-                            // Usamos indictedObjectList como vimos antes
-                            logger.info("         -> Culpables: ${match.indictedObjectList}")
-                        }
-                    }
-                }
-                logger.info("   ------------------------------------------------")
-            }
+    if (!resultado.isFeasible) {
+        logger.error("❌ ¡ALERTA! El horario NO ES VIABLE. Detalles de conflictos detectados:")
+        resultado.conflictos.forEach { conflicto ->
+            logger.error(" -> ❌ $conflicto")
         }
-
-    }
-
-
-
-    val solucionFinal = solucion!!.solve(problemaInicial)
-
-    val explicacion = solutionManager.explain(solucionFinal)
-
-    // --- NUEVO: AUDITORÍA ULTRA PRECISA DE REGLAS ROTAS ---
-    if (!solucionFinal.score!!.isFeasible) {
-        logger.error("❌ ¡ALERTA! El horario rompe reglas DURAS. Detalles del conflicto:")
-
-        explicacion.constraintMatchTotalMap.values
-            .filter { (it.score as HardSoftScore).hardScore() < 0 }
-            .forEach { match ->
-                val scoreDeLaRegla = match.score as HardSoftScore
-                logger.error(" -> REGLA: '${match.constraintName}' | Penalización: ${scoreDeLaRegla.hardScore()} Hard")
-
-                // Entramos a ver cada emparejamiento incorrecto individualmente
-                match.constraintMatchSet.forEach { constraintMatch ->
-                    val culpables = constraintMatch.indictedObjectList
-
-                    // Traducimos los objetos nativos de la IA a texto legible para humanos
-                    val detallesCulpables = culpables.joinToString(" con ") { obj ->
-                        when (obj) {
-                            is Leccion -> "'${obj.asignatura}' de ${obj.grupo.curso}${obj.grupo.nombre}"
-                            is Profesor -> "Prof. ${obj.nombre}"
-                            else -> obj.toString()
-                        }
-                    }
-
-                    // Intentamos averiguar el momento exacto del tiempo usando la primera lección que encontremos
-                    val unaLeccion = culpables.filterIsInstance<Leccion>().firstOrNull()
-                    val momentoTexto = unaLeccion?.timeSlot?.let {
-                        " el ${traducirDia(it.dayOfWeek)} de ${it.startTime} a ${it.endTime}"
-                    } ?: ""
-
-                    logger.error("    • Fallo detectado$momentoTexto afectando a: $detallesCulpables")
-                }
-            }
     } else {
-        logger.info("✅ Horario matemáticamente factible (0 reglas duras rotas).")
+        logger.info("✅ Horario matemáticamente VIABLE y FACTIBLE (0 reglas duras rotas). Score Soft: ${resultado.softScore}")
     }
-    // -----------------------------------------------------
 
-    logger.info("4. Generando vistas por grupo y exportando a CSV...")
+    logger.info("4. Generando vistas por grupo y exportando a Excel (.xlsx)...")
 
-    // Agrupamos las lecciones por el nombre del curso y la letra (Ej: "1º A")
-    val leccionesPorGrupo = solucionFinal.lessonList
+    val leccionesPorGrupo = resultado.solvedLessons
         .filter { it.timeSlot != null && it.profesor != null }
         .groupBy { "${it.grupo.curso} ${it.grupo.nombre}" }
-        .toSortedMap() // Las ordenamos alfabéticamente
+        .toSortedMap()
 
-    // --- 1. IMPRIMIR POR CONSOLA SEPARADO POR GRUPOS ---
     for ((nombreGrupo, leccionesDelGrupo) in leccionesPorGrupo) {
         logger.info("=========================================")
         logger.info(" HORARIO: $nombreGrupo")
@@ -216,15 +133,13 @@ fun Simulacion() {
             }
             logger.info("  [${hueco.startTime} - ${hueco.endTime}] ${leccion.asignatura} (Prof. ${leccion.profesor!!.nombre})")
         }
-        logger.info("") // Espacio en blanco para separar grupos
+        logger.info("")
     }
 
-    // --- 2. GENERAR ARCHIVO EXCEL (.xlsx) ---
     try {
         val workbook = org.apache.poi.xssf.usermodel.XSSFWorkbook()
         val hoja = workbook.createSheet("Horarios Escolares")
 
-        // Estilo cabecera
         val estiloCabecera = workbook.createCellStyle()
         val fuente = workbook.createFont()
         fuente.bold = true
@@ -255,7 +170,6 @@ fun Simulacion() {
             }
         }
 
-        // Autoajustar columnas
         for (i in 0 until cabeceras.size) hoja.autoSizeColumn(i)
 
         val archivoExcel = java.io.File("Horarios_Colegio.xlsx")
