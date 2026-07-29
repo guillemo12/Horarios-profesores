@@ -14,8 +14,9 @@ object ConfiguracionTable : IntIdTable("tabla_configuracion") {
     val minutosMaximosProfesor = integer("minutos_maximos_profesor").default(1500)
     val priorizarTutorPuntos = integer("priorizar_tutor_puntos").default(100)
     val fomentarBloques60Puntos = integer("fomentar_bloques_60_puntos").default(10)
-    val evitarHuecosPuntos = integer("evitar_huecos_puntos").default(50)
-    val compactarTempranoPuntos = integer("compactar_temprano_puntos").default(5)
+    val minimizarAsignaturasDistintas = bool("minimizar_asignaturas_distintas").default(true)
+    val limiteTiempoSegundos = double("limite_tiempo_segundos").default(18000.0)
+    val tiempoEstancamientoSegundos = double("tiempo_estancamiento_segundos").default(60.0)
 
     // Configuración dinámica de horas de clase y recreo
     val horaInicioClases = time("hora_inicio_clases").default(LocalTime.of(9, 0))

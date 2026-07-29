@@ -1,31 +1,674 @@
-(()=>{var pe=Object.defineProperty;var fe=(t,e,s)=>e in t?pe(t,e,{enumerable:!0,configurable:!0,writable:!0,value:s}):t[e]=s;var v=(t,e,s)=>fe(t,typeof e!="symbol"?e+"":e,s);var M=class{constructor(){v(this,"baseUrl");this.baseUrl="/api/v1"}async _fetch(e,s="GET",r=null){let n=`${this.baseUrl}/${e}`,a={method:s,headers:{"Content-Type":"application/json"}};r&&(a.body=JSON.stringify(r));let i=await fetch(n,a);if(!i.ok)throw new Error(`HTTP error! status: ${i.status}`);return s==="DELETE"?{success:!0}:await i.json()}async getConfig(){return this._fetch("config")}async saveConfig(e){return this._fetch("config","PUT",e)}async getSubjects(){return this._fetch("subjects")}async saveSubject(e){return e.id?this._fetch("subjects","PUT",e):this._fetch("subjects","POST",e)}async deleteSubject(e){return this._fetch(`subjects/${e}`,"DELETE")}async getTeachers(){return this._fetch("teachers")}async saveTeacher(e){return e.id?this._fetch("teachers","PUT",e):this._fetch("teachers","POST",e)}async deleteTeacher(e){return this._fetch(`teachers/${e}`,"DELETE")}async getCourses(){return this._fetch("courses")}async saveCourse(e){return e.id?this._fetch("courses","PUT",e):this._fetch("courses","POST",e)}async deleteCourse(e){return this._fetch(`courses/${e}`,"DELETE")}async updateCourseGroup(e,s){return this._fetch(`courses/${e}/groups`,"PUT",s)}async getSchedule(){return this._fetch("scheduledClasses")}async saveClass(e){return this._fetch("scheduledClasses","POST",e)}async updateClass(e){return this._fetch("scheduledClasses","PUT",e)}async deleteClass(e){return this._fetch(`scheduledClasses/${e}`,"DELETE")}async deleteGroupSchedule(e){return this._fetch(`scheduledClasses/group/${e}`,"DELETE")}async getPrevalidation(){return this._fetch("prevalidation")}};function c(t,e,s="info"){let r=document.getElementById("toast-container");if(!r)return;let n=document.createElement("div"),a=s==="error"?"border-red-500 text-red-500":s==="success"?"border-green-500 text-green-500":s==="warning"?"border-yellow-500 text-yellow-500":"border-blue-500 text-blue-500";n.className=`bg-white border-l-4 ${a} shadow-lg rounded-r-lg p-4 w-80 transform transition-all duration-300 translate-y-4 opacity-0 flex gap-3`,n.innerHTML=`<div><h4 class="text-sm font-bold text-gray-800">${t}</h4><p class="text-xs text-gray-600 mt-1">${e}</p></div>`,r.appendChild(n),setTimeout(()=>n.classList.remove("translate-y-4","opacity-0"),10),setTimeout(()=>{n.classList.add("opacity-0","translate-x-full"),setTimeout(()=>n.remove(),300)},4e3)}function S(t){return Number(t.toFixed(2)).toString()}var H=class{constructor(){v(this,"isConnected");v(this,"isOptimizing");v(this,"wsUrl");v(this,"callbacks");v(this,"socket");this.wsUrl=(window.location.protocol==="https:"?"wss://":"ws://")+window.location.host+"/ws",this.isConnected=!1,this.isOptimizing=!1,this.callbacks={},this.socket=null}connect(){this.socket=new WebSocket(this.wsUrl),this.socket.onopen=()=>{this.isConnected=!0,this._trigger("connected")},this.socket.onclose=()=>{this.isConnected=!1,this._trigger("disconnected"),setTimeout(()=>this.connect(),5e3)},this.socket.onerror=e=>{console.error("WebSocket error:",e)},this.socket.onmessage=e=>{try{let s=JSON.parse(e.data);s.type==="scores_updated"?this._trigger("scores_updated",{hard:s.hard,soft:s.soft,conflictos:s.conflictos}):s.type==="schedule_pushed"?this._trigger("schedule_pushed",s.schedule):s.type==="optimization_complete"?this._trigger("optimization_complete"):s.type==="optimization_stopped"&&(this.isOptimizing=!1)}catch(s){console.error("Error parsing WS message:",s)}}}on(e,s){this.callbacks[e]=s}_trigger(e,s){this.callbacks[e]&&this.callbacks[e](s)}sendCommand(e,s={}){try{if(!this.isConnected||!this.socket){c("Error","WebSocket Desconectado","error");return}this.socket.send(JSON.stringify({command:e,payload:s})),e==="START"?(this.isOptimizing=!0,c("Motor Iniciado","Servidor analizando el \xE1rbol de posibilidades (WS)...","info")):e==="STOP"&&(this.isOptimizing=!1,c("Motor Pausado","Optimizaci\xF3n detenida.","warning"))}catch(r){throw console.error("Error sending WS command:",r),c("Error de Comunicaci\xF3n","No se pudo enviar el comando al servidor","error"),r}}};function $(){if(!o.calendarInstance)return;let t=o.calendarInstance.getDateRangeStart(),e=o.calendarInstance.getDateRangeEnd(),s=n=>{let a=typeof n.toDate=="function"?n.toDate():new Date(n),i=["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];return`${a.getDate()} ${i[a.getMonth()]}`},r=document.getElementById("calendar-date-range");r&&(r.textContent=`${s(t)} - ${s(e)}`)}function j(t=null){let e=document.getElementById("header-course-select"),s=document.getElementById("view-entity-select");if(!e||!s)return;let r=e.value;s.innerHTML="";let n=o.courses.find(a=>a.id===r);n&&(n.groups.length===0?s.innerHTML='<option value="">Sin grupos</option>':n.groups.forEach(a=>s.innerHTML+=`<option value="${a.id}">Grupo ${a.name}</option>`)),t&&Array.from(s.options).some(a=>a.value===t)&&(s.value=t),h()}function W(){if(typeof tui>"u")return;let t=tui.Calendar;o.calendarInstance=new t("#calendar",{defaultView:"week",useFormPopup:!1,useDetailPopup:!1,week:{taskView:!1,eventView:["time"],dayNames:["Dom","Lunes","Martes","Mi\xE9rcoles","Jueves","Viernes","S\xE1b"],workweek:!0,hourStart:8,hourEnd:15},calendars:[{id:"default",name:"Clases",backgroundColor:"#4f46e5"},{id:"pinned",name:"Fijadas",backgroundColor:"#059669"},{id:"recess",name:"Recreo",backgroundColor:"#f1f5f9",borderColor:"#94a3b8",color:"#64748b"}],template:{weekDayName(e){return`<span class="toastui-calendar-day-name-item">${e.dayName}</span>`}}});let nw=new Date(),dy=nw.getDay(),md=new Date(nw);md.setDate(nw.getDate()-(dy===0?6:dy-1));o.calendarInstance.setDate(md);F();$();o.calendarInstance.on("selectDateTime",function(e){o.calendarInstance.clearGridSelections();let s=typeof e.start.toDate=="function"?e.start.toDate():new Date(e.start),r=typeof e.end.toDate=="function"?e.end.toDate():new Date(e.end);A(s,r)}),o.calendarInstance.on("beforeUpdateEvent",async function(e){let{event:s,changes:r}=e,n=o.scheduledClasses.find(d=>d.id===s.id);if(!n)return;if(n.isPinned){c("Bloqueado","No puedes mover ni alterar una clase que est\xE1 fijada (Pin).","warning");return}let a=n.start,i=n.end;if(r.start&&(a=typeof r.start.toDate=="function"?r.start.toDate():new Date(r.start)),r.end&&(i=typeof r.end.toDate=="function"?r.end.toDate():new Date(r.end)),U(new Date(a),new Date(i))){c("Error","No se puede programar una clase durante el recreo (12:00 - 12:30).","error"),h();return}r.start&&(n.start=typeof r.start.toDate=="function"?r.start.toDate():new Date(r.start)),r.end&&(n.end=typeof r.end.toDate=="function"?r.end.toDate():new Date(r.end)),n.duration=(new Date(n.end).getTime()-new Date(n.start).getTime())/(1e3*60*60),o.calendarInstance.updateEvent(s.id,s.calendarId,r),c("Sincronizando...","Guardando nueva posici\xF3n en el servidor...","info"),await o.API.updateClass(n),o.WS.sendCommand("MANUAL_EDIT",{id:n.id,action:"moved"})}),o.calendarInstance.on("clickEvent",e=>be(e.event))}function A(t=null,e=null){if(!t){let f=new Date,y=f.getDate()-f.getDay()+(f.getDay()===0?-6:1);t=new Date(f.setDate(y)),t.setHours(9,0,0,0),e=new Date(t),e.setHours(10,0,0,0)}let s=f=>f.toTimeString().slice(0,5);document.getElementById("modal-class-start").value=t.toISOString(),document.getElementById("modal-class-end").value=e.toISOString(),document.getElementById("modal-time-start").value=s(t),document.getElementById("modal-time-end").value=s(e);let r=document.getElementById("view-type-select"),n=document.getElementById("header-course-select"),a=document.getElementById("view-entity-select"),i=r?.value,d=n?.value,l=a?.value,u=document.getElementById("modal-subject"),m=document.getElementById("modal-course"),g=document.getElementById("modal-group"),p=document.getElementById("modal-teacher");if(u.innerHTML=o.subjects.map(f=>`<option value="${f.id}">${f.name}</option>`).join(""),m.innerHTML=o.courses.map(f=>`<option value="${f.id}">${f.name}</option>`).join(""),p.innerHTML=o.teachers.map(f=>`<option value="${f.id}">${f.name}</option>`).join(""),m.disabled=!1,g.disabled=!1,p.disabled=!1,i==="group"&&d)m.value=d,m.disabled=!0,L(),l&&(g.value=l,g.disabled=!0);else if(i==="teacher"&&l){p.value=l,p.disabled=!0,L();let f=o.teachers.find(y=>y.id===l);f&&f.subjects&&f.subjects.length>0&&(u.value=f.subjects[0])}else L();let b=document.getElementById("add-class-modal");b&&b.classList.replace("hidden","flex")}function L(){let t=document.getElementById("modal-course").value,e=document.getElementById("modal-group");e.innerHTML="";let s=o.courses.find(r=>r.id===t);s&&s.groups.length>0?s.groups.forEach(r=>{e.innerHTML+=`<option value="${r.id}">Grupo ${r.name}</option>`}):e.innerHTML='<option value="">(Sin grupos)</option>'}function D(){let t=document.getElementById("add-class-modal");t&&t.classList.replace("flex","hidden")}async function z(){let t=document.getElementById("modal-class-start").value,e=document.getElementById("modal-class-end").value,s=new Date(t),r=new Date(e),n=document.getElementById("modal-time-start").value.split(":"),a=document.getElementById("modal-time-end").value.split(":");s.setHours(parseInt(n[0]),parseInt(n[1]),0,0),r.setHours(parseInt(a[0]),parseInt(a[1]),0,0);let i=document.getElementById("modal-subject").value,d=document.getElementById("modal-group").value,l=document.getElementById("modal-teacher").value;if(!d||!l){c("Error","Faltan datos por seleccionar (Grupo o Profesor)","error");return}if(U(s,r)){c("Error","No se puede programar una clase durante el recreo (12:00 - 12:30).","error");return}let m=(r.getTime()-s.getTime())/(1e3*60*60),g={id:"evt-"+Date.now(),start:s.toISOString(),end:r.toISOString(),duration:m,subjectId:i,groupId:d,teacherId:l,isPinned:!1};c("Guardando...","Enviando bloque a la base de datos API","info"),await o.API.saveClass(g),o.scheduledClasses.push(g),D(),h(),o.WS.sendCommand("MANUAL_EDIT",{id:g.id})}function h(){let t=document.getElementById("view-type-select"),e=document.getElementById("view-entity-select");if(!t||!e)return;let s=t.value,r=e.value;if(o.calendarInstance){o.calendarInstance.clear();if(o.scheduledClasses&&o.scheduledClasses.length>0){o.calendarInstance.setDate(new Date(o.scheduledClasses[0].start));$()}F()}if(!r)return;let n=o.scheduledClasses.filter(a=>s==="teacher"?a.teacherId===r:s==="group"?a.groupId===r:!1).map(a=>{let i=o.subjects.find(m=>m.id===a.subjectId),d=o.teachers.find(m=>m.id===a.teacherId),l=o.courses.find(m=>m.groups.some(g=>g.id===a.groupId)),u=l?l.groups.find(m=>m.id===a.groupId):null;return{id:a.id,calendarId:a.isPinned?"pinned":"default",title:i?a.isPinned?`\u{1F4CC} ${i.name}`:i.name:"Clase API",body:`${l?l.name:""} ${u?" - G."+u.name:""}<br/>Prof: ${d?d.name:""}`,start:a.start,end:a.end,isReadOnly:a.isPinned||!1,backgroundColor:d?d.color:"#cbd5e1",color:"#ffffff",customStyle:{borderRadius:"6px",border:"none",padding:"4px"}}});o.calendarInstance&&o.calendarInstance.createEvents(n)}function be(t){let e=o.scheduledClasses.find(b=>b.id===t.id);if(!e)return;let s=o.subjects.find(b=>b.id===e.subjectId),r=o.teachers.find(b=>b.id===e.teacherId);if(!s||!r)return;let n=o.courses.find(b=>b.groups.some(f=>f.id===e.groupId)),a=n?n.groups.find(b=>b.id===e.groupId):null,i=n&&a?`${n.name} - Grupo ${a.name}`:"Sin grupo",d=document.getElementById("event-detail-title");d&&(d.textContent=s.name);let l=document.getElementById("event-detail-header");l&&(l.style.backgroundColor=r.color);let u=document.getElementById("event-detail-body");u&&(u.innerHTML=`
-            <p class="text-sm mb-1.5">Curso/Grupo: <b>${i}</b></p>
-            <p class="text-sm">Impartida por: <b>${r.name}</b></p>
-        `);let m=document.getElementById("btn-pin-event");m&&(m.innerText=e.isPinned?"Desfijar":"Fijar (Pin)",m.onclick=async()=>{e.isPinned=!e.isPinned;try{await o.API.updateClass(e)}catch(b){console.error("Error al actualizar estado del pin:",b)}o.WS.sendCommand("PIN_UPDATE",{id:e.id,state:e.isPinned}),P(),h()});let g=document.getElementById("btn-delete-event");g&&(g.onclick=async()=>{await o.API.deleteClass(e.id),o.scheduledClasses=o.scheduledClasses.filter(b=>b.id!==e.id),o.WS.sendCommand("MANUAL_EDIT",{delete:e.id}),P(),h()});let p=document.getElementById("event-detail-modal");p&&p.classList.replace("hidden","flex")}function P(){let t=document.getElementById("event-detail-modal");t&&t.classList.replace("flex","hidden")}function U(t,e){let s=t.getHours(),r=t.getMinutes(),n=e.getHours(),a=e.getMinutes(),i=s*60+r,d=n*60+a,l=720,u=30;if(o.config){let g=o.config.horaInicioRecreo.split(":");l=parseInt(g[0])*60+parseInt(g[1]),u=o.config.duracionRecreo}let m=l+u;return i<m&&d>l}function F(){if(!o.calendarInstance)return;let t=new Date,e=t.getDay(),s=t.getDate()-e+(e===0?-6:1),r=new Date(t);r.setDate(s),r.setHours(0,0,0,0);let n=12,a=0,i=30;if(o.config){let d=o.config.horaInicioRecreo.split(":");n=parseInt(d[0]),a=parseInt(d[1]),i=o.config.duracionRecreo}for(let d=0;d<5;d++){let l=new Date(r);l.setDate(r.getDate()+d);let u=new Date(l);u.setHours(n,a,0,0);let m=new Date(u);m.setMinutes(u.getMinutes()+i),o.calendarInstance.createEvents([{id:`recess-${d}`,calendarId:"recess",title:"\u2615 Recreo",start:u.toISOString(),end:m.toISOString(),isReadOnly:!0,isAllDay:!1,backgroundColor:"#f1f5f9",borderColor:"#94a3b8",color:"#64748b"}])}}async function V(){let t=document.getElementById("view-type-select"),e=document.getElementById("view-entity-select");if(!t||!e)return;if(t.value!=="group"){c("Info","Por favor, selecciona la vista de 'Grupo' para vaciar un horario espec\xEDfico.","info");return}let s=e.value;if(!s){c("Info","No hay ning\xFAn grupo seleccionado.","info");return}let r=o.courses.flatMap(a=>a.groups).find(a=>a.id===s),n=r?r.name:"este grupo";if(confirm(`\xBFEst\xE1s seguro de que deseas vaciar todas las clases programadas para el grupo "${n}"?`))try{c("Limpiando...","Eliminando clases de la base de datos...","info"),await o.API.deleteGroupSchedule(s),o.scheduledClasses=o.scheduledClasses.filter(a=>a.groupId!==s),h(),c("\xC9xito","El horario del grupo se ha vaciado.","success"),o.WS.sendCommand("MANUAL_EDIT",{action:"cleared",groupId:s})}catch(a){console.error("Error clearing schedule:",a),c("Error","No se pudo limpiar el horario.","error")}}var he="",x=null,N="",G=null;function J(t,e=null){he=t,x=e;let s=document.getElementById("crud-modal-title"),r=document.getElementById("crud-modal-body");if(!s||!r)return;if(t==="subject"){s.textContent=e?"Editar Asignatura":"Nueva Asignatura";let i=e?o.subjects.find(l=>l.id===e):null,d=o.currentCourseId;r.innerHTML=`
+var __defProp = Object.defineProperty;
+var __defNormalProp = (obj, key, value) => key in obj ? __defProp(obj, key, { enumerable: true, configurable: true, writable: true, value }) : obj[key] = value;
+var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "symbol" ? key + "" : key, value);
+
+// Web/src/api.ts
+var ApiService = class {
+  constructor() {
+    __publicField(this, "baseUrl");
+    this.baseUrl = "/api/v1";
+  }
+  async _fetch(endpoint, method = "GET", payload = null) {
+    const url = `${this.baseUrl}/${endpoint}`;
+    const options = {
+      method,
+      headers: {
+        "Content-Type": "application/json"
+      }
+    };
+    if (payload) {
+      options.body = JSON.stringify(payload);
+    }
+    const response = await fetch(url, options);
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    if (method === "DELETE") {
+      return { success: true };
+    }
+    return await response.json();
+  }
+  async getConfig() {
+    return this._fetch("config");
+  }
+  async saveConfig(c) {
+    return this._fetch("config", "PUT", c);
+  }
+  async getSubjects() {
+    return this._fetch("subjects");
+  }
+  async saveSubject(s) {
+    return s.id ? this._fetch("subjects", "PUT", s) : this._fetch("subjects", "POST", s);
+  }
+  async deleteSubject(id) {
+    return this._fetch(`subjects/${id}`, "DELETE");
+  }
+  async getTeachers() {
+    return this._fetch("teachers");
+  }
+  async saveTeacher(t) {
+    return t.id ? this._fetch("teachers", "PUT", t) : this._fetch("teachers", "POST", t);
+  }
+  async deleteTeacher(id) {
+    return this._fetch(`teachers/${id}`, "DELETE");
+  }
+  async getCourses() {
+    return this._fetch("courses");
+  }
+  async saveCourse(c) {
+    return c.id ? this._fetch("courses", "PUT", c) : this._fetch("courses", "POST", c);
+  }
+  async deleteCourse(id) {
+    return this._fetch(`courses/${id}`, "DELETE");
+  }
+  async updateCourseGroup(courseId, newGroupsArray) {
+    return this._fetch(`courses/${courseId}/groups`, "PUT", newGroupsArray);
+  }
+  async getSchedule() {
+    return this._fetch("scheduledClasses");
+  }
+  async saveClass(cls) {
+    return this._fetch("scheduledClasses", "POST", cls);
+  }
+  async updateClass(cls) {
+    return this._fetch("scheduledClasses", "PUT", cls);
+  }
+  async deleteClass(id) {
+    return this._fetch(`scheduledClasses/${id}`, "DELETE");
+  }
+  async deleteGroupSchedule(groupId) {
+    return this._fetch(`scheduledClasses/group/${groupId}`, "DELETE");
+  }
+  async getPrevalidation() {
+    return this._fetch("prevalidation");
+  }
+};
+
+// Web/src/utils.ts
+function showToast(title, message, type = "info") {
+  const container = document.getElementById("toast-container");
+  if (!container) return;
+  const toast = document.createElement("div");
+  let bgClass = type === "error" ? "border-red-500 text-red-500" : type === "success" ? "border-green-500 text-green-500" : type === "warning" ? "border-yellow-500 text-yellow-500" : "border-blue-500 text-blue-500";
+  toast.className = `bg-white border-l-4 ${bgClass} shadow-lg rounded-r-lg p-4 w-80 transform transition-all duration-300 translate-y-4 opacity-0 flex gap-3`;
+  toast.innerHTML = `<div><h4 class="text-sm font-bold text-gray-800">${title}</h4><p class="text-xs text-gray-600 mt-1">${message}</p></div>`;
+  container.appendChild(toast);
+  setTimeout(() => toast.classList.remove("translate-y-4", "opacity-0"), 10);
+  setTimeout(() => {
+    toast.classList.add("opacity-0", "translate-x-full");
+    setTimeout(() => toast.remove(), 300);
+  }, 4e3);
+}
+function formatHours(h) {
+  return Number(h.toFixed(2)).toString();
+}
+
+// Web/src/websocket.ts
+var EngineWebSocket = class {
+  constructor() {
+    __publicField(this, "isConnected");
+    __publicField(this, "isOptimizing");
+    __publicField(this, "wsUrl");
+    __publicField(this, "callbacks");
+    __publicField(this, "socket");
+    this.wsUrl = (window.location.protocol === "https:" ? "wss://" : "ws://") + window.location.host + "/ws";
+    this.isConnected = false;
+    this.isOptimizing = false;
+    this.callbacks = {};
+    this.socket = null;
+  }
+  connect() {
+    this.socket = new WebSocket(this.wsUrl);
+    this.socket.onopen = () => {
+      this.isConnected = true;
+      this._trigger("connected");
+    };
+    this.socket.onclose = () => {
+      this.isConnected = false;
+      this._trigger("disconnected");
+      setTimeout(() => this.connect(), 5e3);
+    };
+    this.socket.onerror = (err) => {
+      console.error("WebSocket error:", err);
+    };
+    this.socket.onmessage = (event) => {
+      try {
+        const msg = JSON.parse(event.data);
+        if (msg.type === "scores_updated") {
+          this._trigger("scores_updated", msg);
+        } else if (msg.type === "schedule_pushed") {
+          this._trigger("schedule_pushed", msg.schedule);
+        } else if (msg.type === "optimization_complete") {
+          this._trigger("optimization_complete");
+        } else if (msg.type === "optimization_stopped") {
+          this.isOptimizing = false;
+        }
+      } catch (err) {
+        console.error("Error parsing WS message:", err);
+      }
+    };
+  }
+  on(event, callback) {
+    this.callbacks[event] = callback;
+  }
+  _trigger(event, data) {
+    if (this.callbacks[event]) this.callbacks[event](data);
+  }
+  sendCommand(command, payload = {}) {
+    try {
+      if (!this.isConnected || !this.socket) {
+        showToast("Error", "WebSocket Desconectado", "error");
+        return;
+      }
+      this.socket.send(JSON.stringify({ command, payload }));
+      if (command === "START") {
+        this.isOptimizing = true;
+        showToast("Motor Iniciado", "Servidor analizando el \xE1rbol de posibilidades (WS)...", "info");
+      } else if (command === "STOP") {
+        this.isOptimizing = false;
+        showToast("Motor Pausado", "Optimizaci\xF3n detenida.", "warning");
+      }
+    } catch (err) {
+      console.error("Error sending WS command:", err);
+      showToast("Error de Comunicaci\xF3n", "No se pudo enviar el comando al servidor", "error");
+      throw err;
+    }
+  }
+};
+
+// Web/src/calendar.ts
+function updateDateRange() {
+  if (!AppData.calendarInstance) return;
+  const start = AppData.calendarInstance.getDateRangeStart();
+  const end = AppData.calendarInstance.getDateRangeEnd();
+  const formatDate = (date) => {
+    const d = typeof date.toDate === "function" ? date.toDate() : new Date(date);
+    const months = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
+    return `${d.getDate()} ${months[d.getMonth()]}`;
+  };
+  const rangeEl = document.getElementById("calendar-date-range");
+  if (rangeEl) rangeEl.textContent = `${formatDate(start)} - ${formatDate(end)}`;
+}
+function onHeaderCourseChange(previousVal = null) {
+  const courseSelect = document.getElementById("header-course-select");
+  const select = document.getElementById("view-entity-select");
+  if (!courseSelect || !select) return;
+  const courseId = courseSelect.value;
+  select.innerHTML = "";
+  const course = AppData.courses.find((c) => c.id === courseId);
+  if (course) {
+    if (course.groups.length === 0) {
+      select.innerHTML = `<option value="">Sin grupos</option>`;
+    } else {
+      course.groups.forEach((g) => select.innerHTML += `<option value="${g.id}">Grupo ${g.name}</option>`);
+    }
+  }
+  if (previousVal && Array.from(select.options).some((opt) => opt.value === previousVal)) {
+    select.value = previousVal;
+  }
+  refreshCalendarView();
+}
+function initCalendar() {
+  if (typeof tui === "undefined") return;
+  const Calendar = tui.Calendar;
+  AppData.calendarInstance = new Calendar("#calendar", {
+    defaultView: "week",
+    useFormPopup: false,
+    useDetailPopup: false,
+    week: { taskView: false, eventView: ["time"], dayNames: ["Dom", "Lunes", "Martes", "Mi\xE9rcoles", "Jueves", "Viernes", "S\xE1b"], workweek: true, hourStart: 8, hourEnd: 15 },
+    calendars: [
+      { id: "default", name: "Clases", backgroundColor: "#4f46e5" },
+      { id: "pinned", name: "Fijadas", backgroundColor: "#059669" },
+      { id: "recess", name: "Recreo", backgroundColor: "#f1f5f9", borderColor: "#94a3b8", color: "#64748b" }
+    ],
+    template: {
+      weekDayName(model) {
+        return `<span class="toastui-calendar-day-name-item">${model.dayName}</span>`;
+      },
+      time(event) {
+        if (event.calendarId === "recess") {
+          return `<div class="p-1 font-semibold text-slate-500 text-xs">\u2615 Recreo</div>`;
+        }
+        return `
+                    <div class="p-1 flex flex-col justify-center h-full overflow-hidden text-white leading-tight">
+                        <div class="font-bold text-xs truncate">${event.title}</div>
+                        ${event.body ? `<div class="text-[11px] font-medium opacity-90 truncate mt-0.5">${event.body}</div>` : ""}
+                    </div>
+                `;
+      }
+    }
+  });
+  addRecessEvents();
+  AppData.calendarInstance.on("selectDateTime", function(info) {
+    AppData.calendarInstance.clearGridSelections();
+    let startObj = typeof info.start.toDate === "function" ? info.start.toDate() : new Date(info.start);
+    let endObj = typeof info.end.toDate === "function" ? info.end.toDate() : new Date(info.end);
+    openAddClassModal(startObj, endObj);
+  });
+  AppData.calendarInstance.on("beforeUpdateEvent", async function(info) {
+    const { event, changes } = info;
+    let cls = AppData.scheduledClasses.find((c) => c.id === event.id);
+    if (!cls) return;
+    if (cls.isPinned) {
+      showToast("Bloqueado", "No puedes mover ni alterar una clase que est\xE1 fijada (Pin).", "warning");
+      return;
+    }
+    let startCandidate = cls.start;
+    let endCandidate = cls.end;
+    if (changes.start) startCandidate = typeof changes.start.toDate === "function" ? changes.start.toDate() : new Date(changes.start);
+    if (changes.end) endCandidate = typeof changes.end.toDate === "function" ? changes.end.toDate() : new Date(changes.end);
+    if (overlapsRecess(new Date(startCandidate), new Date(endCandidate))) {
+      showToast("Error", "No se puede programar una clase durante el recreo (12:00 - 12:30).", "error");
+      refreshCalendarView();
+      return;
+    }
+    if (changes.start) cls.start = typeof changes.start.toDate === "function" ? changes.start.toDate() : new Date(changes.start);
+    if (changes.end) cls.end = typeof changes.end.toDate === "function" ? changes.end.toDate() : new Date(changes.end);
+    cls.duration = (new Date(cls.end).getTime() - new Date(cls.start).getTime()) / (1e3 * 60 * 60);
+    AppData.calendarInstance.updateEvent(event.id, event.calendarId, changes);
+    showToast("Sincronizando...", "Guardando nueva posici\xF3n en el servidor...", "info");
+    await AppData.API.updateClass(cls);
+    AppData.WS.sendCommand("MANUAL_EDIT", { id: cls.id, action: "moved" });
+  });
+  AppData.calendarInstance.on("clickEvent", (e) => openEventDetail(e.event));
+}
+function openAddClassModal(startDate = null, endDate = null) {
+  if (!startDate) {
+    const now = /* @__PURE__ */ new Date();
+    const diff = now.getDate() - now.getDay() + (now.getDay() === 0 ? -6 : 1);
+    startDate = new Date(now.setDate(diff));
+    startDate.setHours(9, 0, 0, 0);
+    endDate = new Date(startDate);
+    endDate.setHours(10, 0, 0, 0);
+  }
+  const formatTime = (date) => date.toTimeString().slice(0, 5);
+  document.getElementById("modal-class-start").value = startDate.toISOString();
+  document.getElementById("modal-class-end").value = endDate.toISOString();
+  document.getElementById("modal-time-start").value = formatTime(startDate);
+  document.getElementById("modal-time-end").value = formatTime(endDate);
+  const typeSelect = document.getElementById("view-type-select");
+  const headerCourseSelect = document.getElementById("header-course-select");
+  const viewEntitySelect = document.getElementById("view-entity-select");
+  const viewType = typeSelect?.value;
+  const viewCourse = headerCourseSelect?.value;
+  const viewEntity = viewEntitySelect?.value;
+  const subjSelect = document.getElementById("modal-subject");
+  const courseSelect = document.getElementById("modal-course");
+  const groupSelect = document.getElementById("modal-group");
+  const teacherSelect = document.getElementById("modal-teacher");
+  subjSelect.innerHTML = AppData.subjects.map((s) => `<option value="${s.id}">${s.name}</option>`).join("");
+  courseSelect.innerHTML = AppData.courses.map((c) => `<option value="${c.id}">${c.name}</option>`).join("");
+  teacherSelect.innerHTML = AppData.teachers.map((t) => `<option value="${t.id}">${t.name}</option>`).join("");
+  courseSelect.disabled = false;
+  groupSelect.disabled = false;
+  teacherSelect.disabled = false;
+  if (viewType === "group" && viewCourse) {
+    courseSelect.value = viewCourse;
+    courseSelect.disabled = true;
+    onModalCourseChange();
+    if (viewEntity) {
+      groupSelect.value = viewEntity;
+      groupSelect.disabled = true;
+    }
+  } else if (viewType === "teacher" && viewEntity) {
+    teacherSelect.value = viewEntity;
+    teacherSelect.disabled = true;
+    onModalCourseChange();
+    const teacherObj = AppData.teachers.find((t) => t.id === viewEntity);
+    if (teacherObj && teacherObj.subjects && teacherObj.subjects.length > 0) {
+      subjSelect.value = teacherObj.subjects[0];
+    }
+  } else {
+    onModalCourseChange();
+  }
+  const modal = document.getElementById("add-class-modal");
+  if (modal) {
+    modal.classList.replace("hidden", "flex");
+    modal.onclick = (e) => {
+      if (e.target === modal) {
+        closeAddClassModal();
+      }
+    };
+  }
+}
+function onModalCourseChange() {
+  const courseId = document.getElementById("modal-course").value;
+  const groupSelect = document.getElementById("modal-group");
+  groupSelect.innerHTML = "";
+  const course = AppData.courses.find((c) => c.id === courseId);
+  if (course && course.groups.length > 0) {
+    course.groups.forEach((g) => {
+      groupSelect.innerHTML += `<option value="${g.id}">Grupo ${g.name}</option>`;
+    });
+  } else {
+    groupSelect.innerHTML = `<option value="">(Sin grupos)</option>`;
+  }
+}
+function closeAddClassModal() {
+  const modal = document.getElementById("add-class-modal");
+  if (modal) modal.classList.replace("flex", "hidden");
+}
+async function saveNewClass() {
+  const baseStartStr = document.getElementById("modal-class-start").value;
+  const baseEndStr = document.getElementById("modal-class-end").value;
+  const baseStart = new Date(baseStartStr);
+  const baseEnd = new Date(baseEndStr);
+  const timeStartStr = document.getElementById("modal-time-start").value.split(":");
+  const timeEndStr = document.getElementById("modal-time-end").value.split(":");
+  baseStart.setHours(parseInt(timeStartStr[0]), parseInt(timeStartStr[1]), 0, 0);
+  baseEnd.setHours(parseInt(timeEndStr[0]), parseInt(timeEndStr[1]), 0, 0);
+  const subjId = document.getElementById("modal-subject").value;
+  const groupId = document.getElementById("modal-group").value;
+  const teacherId = document.getElementById("modal-teacher").value;
+  if (!groupId || !teacherId) {
+    showToast("Error", "Faltan datos por seleccionar (Grupo o Profesor)", "error");
+    return;
+  }
+  if (overlapsRecess(baseStart, baseEnd)) {
+    showToast("Error", "No se puede programar una clase durante el recreo (12:00 - 12:30).", "error");
+    return;
+  }
+  const durationInMs = baseEnd.getTime() - baseStart.getTime();
+  const durationInHours = durationInMs / (1e3 * 60 * 60);
+  let nuevaClase = {
+    id: "evt-" + Date.now(),
+    start: baseStart.toISOString(),
+    end: baseEnd.toISOString(),
+    duration: durationInHours,
+    subjectId: subjId,
+    groupId,
+    teacherId,
+    isPinned: false
+  };
+  showToast("Guardando...", "Enviando bloque a la base de datos API", "info");
+  await AppData.API.saveClass(nuevaClase);
+  AppData.scheduledClasses.push(nuevaClase);
+  closeAddClassModal();
+  refreshCalendarView();
+  AppData.WS.sendCommand("MANUAL_EDIT", { id: nuevaClase.id });
+}
+var SUBJECT_PALETTE = [
+  "#4f46e5",
+  // Indigo
+  "#0284c7",
+  // Sky Blue
+  "#059669",
+  // Emerald
+  "#d97706",
+  // Amber
+  "#dc2626",
+  // Red
+  "#7c3aed",
+  // Purple
+  "#db2777",
+  // Pink
+  "#2563eb",
+  // Blue
+  "#0d9488",
+  // Teal
+  "#ca8a04",
+  // Yellow
+  "#ea580c",
+  // Orange
+  "#e11d48",
+  // Rose
+  "#9333ea",
+  // Violet
+  "#16a34a"
+  // Green
+];
+function getSubjectColor(subjectId) {
+  if (!subjectId) return "#4f46e5";
+  let hash = 0;
+  for (let i = 0; i < subjectId.length; i++) {
+    hash = subjectId.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  const idx = Math.abs(hash) % SUBJECT_PALETTE.length;
+  return SUBJECT_PALETTE[idx];
+}
+function toggleColorMode() {
+  if (!AppData.colorMode) AppData.colorMode = "teacher";
+  AppData.colorMode = AppData.colorMode === "teacher" ? "subject" : "teacher";
+  const btnText = document.getElementById("btn-color-mode-text");
+  if (btnText) {
+    btnText.textContent = AppData.colorMode === "teacher" ? "Color: Profesor" : "Color: Asignatura";
+  }
+  const btnIcon = document.getElementById("btn-color-mode-icon");
+  if (btnIcon) {
+    btnIcon.textContent = AppData.colorMode === "teacher" ? "\u{1F3A8}" : "\u{1F4DA}";
+  }
+  refreshCalendarView();
+}
+function refreshCalendarView() {
+  const typeSelect = document.getElementById("view-type-select");
+  const entitySelect = document.getElementById("view-entity-select");
+  if (!typeSelect || !entitySelect) return;
+  const type = typeSelect.value;
+  const entityId = entitySelect.value;
+  if (AppData.calendarInstance) {
+    AppData.calendarInstance.clear();
+    addRecessEvents();
+  }
+  if (!entityId) return;
+  const colorMode = AppData.colorMode || "teacher";
+  const events = AppData.scheduledClasses.filter((cls) => {
+    if (type === "teacher") return cls.teacherId === entityId;
+    if (type === "group") return cls.groupId === entityId;
+    return false;
+  }).map((cls) => {
+    const subject = AppData.subjects.find((s) => s.id === cls.subjectId);
+    const teacher = AppData.teachers.find((t) => t.id === cls.teacherId);
+    const course = AppData.courses.find((c) => c.groups.some((g) => g.id === cls.groupId));
+    const group = course ? course.groups.find((g) => g.id === cls.groupId) : null;
+    const pin = cls.isPinned ? "\u{1F4CC} " : "";
+    const subjectTitle = subject ? `${pin}${subject.name}` : "Clase API";
+    const subtitle = type === "group" ? teacher ? `Prof: ${teacher.name}` : "" : course && group ? `${course.name} - G.${group.name}` : teacher ? `Prof: ${teacher.name}` : "";
+    const eventBgColor = colorMode === "subject" ? getSubjectColor(cls.subjectId) : teacher ? teacher.color : "#4f46e5";
+    return {
+      id: cls.id,
+      calendarId: cls.teacherId,
+      title: subjectTitle,
+      body: subtitle,
+      start: cls.start,
+      end: cls.end,
+      isReadOnly: cls.isPinned || false,
+      backgroundColor: eventBgColor,
+      color: "#ffffff",
+      customStyle: { borderRadius: "6px", border: "none", padding: "2px" }
+    };
+  });
+  if (AppData.calendarInstance) AppData.calendarInstance.createEvents(events);
+}
+function openEventDetail(event) {
+  const cls = AppData.scheduledClasses.find((c) => c.id === event.id);
+  if (!cls) return;
+  const subject = AppData.subjects.find((s) => s.id === cls.subjectId);
+  const teacher = AppData.teachers.find((t) => t.id === cls.teacherId);
+  if (!subject || !teacher) return;
+  const course = AppData.courses.find((c) => c.groups.some((g) => g.id === cls.groupId));
+  const group = course ? course.groups.find((g) => g.id === cls.groupId) : null;
+  const courseGroupName = course && group ? `${course.name} - Grupo ${group.name}` : "Sin grupo";
+  const titleEl = document.getElementById("event-detail-title");
+  if (titleEl) titleEl.textContent = subject.name;
+  const colorMode = AppData.colorMode || "teacher";
+  const headerColor = colorMode === "subject" ? getSubjectColor(cls.subjectId) : teacher.color;
+  const headerEl = document.getElementById("event-detail-header");
+  if (headerEl) headerEl.style.backgroundColor = headerColor;
+  const bodyEl = document.getElementById("event-detail-body");
+  if (bodyEl) {
+    bodyEl.innerHTML = `
+            <p class="text-sm mb-1.5">Curso/Grupo: <b>${courseGroupName}</b></p>
+            <p class="text-sm">Impartida por: <b>${teacher.name}</b></p>
+        `;
+  }
+  const pinBtn = document.getElementById("btn-pin-event");
+  if (pinBtn) {
+    pinBtn.innerText = cls.isPinned ? "Desfijar" : "Fijar (Pin)";
+    pinBtn.onclick = async () => {
+      cls.isPinned = !cls.isPinned;
+      try {
+        await AppData.API.updateClass(cls);
+      } catch (err) {
+        console.error("Error al actualizar estado del pin:", err);
+      }
+      AppData.WS.sendCommand("PIN_UPDATE", { id: cls.id, state: cls.isPinned });
+      closeEventDetail();
+      refreshCalendarView();
+    };
+  }
+  const delBtn = document.getElementById("btn-delete-event");
+  if (delBtn) {
+    delBtn.onclick = async () => {
+      await AppData.API.deleteClass(cls.id);
+      AppData.scheduledClasses = AppData.scheduledClasses.filter((c) => c.id !== cls.id);
+      AppData.WS.sendCommand("MANUAL_EDIT", { delete: cls.id });
+      closeEventDetail();
+      refreshCalendarView();
+    };
+  }
+  const modal = document.getElementById("event-detail-modal");
+  if (modal) {
+    modal.classList.replace("hidden", "flex");
+    modal.onclick = (e) => {
+      if (e.target === modal) {
+        closeEventDetail();
+      }
+    };
+  }
+}
+function closeEventDetail() {
+  const modal = document.getElementById("event-detail-modal");
+  if (modal) modal.classList.replace("flex", "hidden");
+}
+function overlapsRecess(start, end) {
+  const startHour = start.getHours();
+  const startMin = start.getMinutes();
+  const endHour = end.getHours();
+  const endMin = end.getMinutes();
+  const startMinutes = startHour * 60 + startMin;
+  const endMinutes = endHour * 60 + endMin;
+  let recessStart = 12 * 60;
+  let recessDuration = 30;
+  if (AppData.config) {
+    const parts = AppData.config.horaInicioRecreo.split(":");
+    recessStart = parseInt(parts[0]) * 60 + parseInt(parts[1]);
+    recessDuration = AppData.config.duracionRecreo;
+  }
+  const recessEnd = recessStart + recessDuration;
+  return startMinutes < recessEnd && endMinutes > recessStart;
+}
+function addRecessEvents() {
+  if (!AppData.calendarInstance) return;
+  const today = /* @__PURE__ */ new Date();
+  const dayOfWeek = today.getDay();
+  const diff = today.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1);
+  const monday = new Date(today);
+  monday.setDate(diff);
+  monday.setHours(0, 0, 0, 0);
+  let startHour = 12;
+  let startMin = 0;
+  let duration = 30;
+  if (AppData.config) {
+    const parts = AppData.config.horaInicioRecreo.split(":");
+    startHour = parseInt(parts[0]);
+    startMin = parseInt(parts[1]);
+    duration = AppData.config.duracionRecreo;
+  }
+  for (let i = 0; i < 5; i++) {
+    const day = new Date(monday);
+    day.setDate(monday.getDate() + i);
+    const start = new Date(day);
+    start.setHours(startHour, startMin, 0, 0);
+    const end = new Date(start);
+    end.setMinutes(start.getMinutes() + duration);
+    AppData.calendarInstance.createEvents([{
+      id: `recess-${i}`,
+      calendarId: "recess",
+      title: "\u2615 Recreo",
+      start: start.toISOString(),
+      end: end.toISOString(),
+      isReadOnly: true,
+      isAllDay: false,
+      backgroundColor: "#f1f5f9",
+      borderColor: "#94a3b8",
+      color: "#64748b"
+    }]);
+  }
+}
+async function clearGroupSchedule() {
+  const typeSelect = document.getElementById("view-type-select");
+  const entitySelect = document.getElementById("view-entity-select");
+  if (!typeSelect || !entitySelect) return;
+  if (typeSelect.value !== "group") {
+    showToast("Info", "Por favor, selecciona la vista de 'Grupo' para vaciar un horario espec\xEDfico.", "info");
+    return;
+  }
+  const groupId = entitySelect.value;
+  if (!groupId) {
+    showToast("Info", "No hay ning\xFAn grupo seleccionado.", "info");
+    return;
+  }
+  const groupObj = AppData.courses.flatMap((c) => c.groups).find((g) => g.id === groupId);
+  const groupName = groupObj ? groupObj.name : "este grupo";
+  if (!confirm(`\xBFEst\xE1s seguro de que deseas vaciar todas las clases programadas para el grupo "${groupName}"?`)) {
+    return;
+  }
+  try {
+    showToast("Limpiando...", "Eliminando clases de la base de datos...", "info");
+    await AppData.API.deleteGroupSchedule(groupId);
+    AppData.scheduledClasses = AppData.scheduledClasses.filter((c) => c.groupId !== groupId);
+    refreshCalendarView();
+    showToast("\xC9xito", "El horario del grupo se ha vaciado.", "success");
+    AppData.WS.sendCommand("MANUAL_EDIT", { action: "cleared", groupId });
+  } catch (err) {
+    console.error("Error clearing schedule:", err);
+    showToast("Error", "No se pudo limpiar el horario.", "error");
+  }
+}
+
+// Web/src/crud.ts
+var currentCrudType = "";
+var currentCrudId = null;
+var currentCourseIdForGroup = "";
+var currentGroupIdForGroup = null;
+function openFormModal(type, id = null) {
+  currentCrudType = type;
+  currentCrudId = id;
+  const titleEl = document.getElementById("crud-modal-title");
+  const bodyEl = document.getElementById("crud-modal-body");
+  if (!titleEl || !bodyEl) return;
+  if (type === "subject") {
+    titleEl.textContent = id ? "Editar Asignatura" : "Nueva Asignatura";
+    const s = id ? AppData.subjects.find((x) => x.id === id) : null;
+    const currentCourseId = AppData.currentCourseId;
+    bodyEl.innerHTML = `
             <form id="form-crud" class="space-y-4">
                 <div>
                     <label class="block text-sm font-semibold text-gray-700 mb-1">Nombre de la Asignatura</label>
-                    <input type="text" id="crud-subject-name" required class="w-full border border-gray-300 rounded-lg p-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500" value="${i?.name||""}">
+                    <input type="text" id="crud-subject-name" required class="w-full border border-gray-300 rounded-lg p-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500" value="${s?.name || ""}">
                 </div>
                 <div>
                     <label class="block text-sm font-semibold text-gray-700 mb-1">Horas Semanales</label>
-                    <input type="number" id="crud-subject-hours" required min="0.5" step="0.5" class="w-full border border-gray-300 rounded-lg p-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500" value="${i?.hours||4}">
+                    <input type="number" id="crud-subject-hours" required min="0.5" step="0.5" class="w-full border border-gray-300 rounded-lg p-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500" value="${s?.hours || 4}">
                 </div>
                 <div>
                     <label class="block text-sm font-semibold text-gray-700 mb-1">Curso Asociado</label>
                     <select id="crud-subject-course" disabled required class="w-full border border-gray-300 rounded-lg p-2 text-sm outline-none bg-gray-100 cursor-not-allowed">
-                        ${o.courses.map(l=>`<option value="${l.id}" ${l.id===(i?.courseId||d)?"selected":""}>${l.name}</option>`).join("")}
+                        ${AppData.courses.map((c) => `<option value="${c.id}" ${c.id === (s?.courseId || currentCourseId) ? "selected" : ""}>${c.name}</option>`).join("")}
                     </select>
                 </div>
                 <div>
                     <label class="block text-sm font-semibold text-gray-700 mb-1">Profesores Cualificados (Especialistas)</label>
                     <div class="border border-gray-300 rounded-lg p-3 max-h-40 overflow-y-auto space-y-2 bg-gray-50">
-                        ${o.teachers.map(l=>{let u=i?.teachers?.includes(l.id)||!1;return`
+                        ${AppData.teachers.map((t) => {
+      const isChecked = s?.teachers?.includes(t.id) || false;
+      return `
                                 <label class="flex items-center gap-2 cursor-pointer text-sm">
-                                    <input type="checkbox" name="crud-subject-teachers" value="${l.id}" ${u?"checked":""} class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500">
-                                    <span>${l.name}</span>
+                                    <input type="checkbox" name="crud-subject-teachers" value="${t.id}" ${isChecked ? "checked" : ""} class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500">
+                                    <span>${t.name}</span>
                                 </label>
-                            `}).join("")}
+                            `;
+    }).join("")}
                     </div>
                 </div>
                 <div class="flex justify-end gap-2 pt-2">
@@ -33,30 +676,34 @@
                     <button type="submit" class="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm hover:bg-indigo-700 shadow animate-fade-in">Guardar</button>
                 </div>
             </form>
-        `}else if(t==="teacher"){s.textContent=e?"Editar Profesor":"Nuevo Profesor";let i=e?o.teachers.find(d=>d.id===e):null;r.innerHTML=`
+        `;
+  } else if (type === "teacher") {
+    titleEl.textContent = id ? "Editar Profesor" : "Nuevo Profesor";
+    const t = id ? AppData.teachers.find((x) => x.id === id) : null;
+    bodyEl.innerHTML = `
             <form id="form-crud" class="space-y-4">
                 <div>
                     <label class="block text-sm font-semibold text-gray-700 mb-1">Nombre del Profesor</label>
-                    <input type="text" id="crud-teacher-name" required class="w-full border border-gray-300 rounded-lg p-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500" value="${i?.name||""}">
+                    <input type="text" id="crud-teacher-name" required class="w-full border border-gray-300 rounded-lg p-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500" value="${t?.name || ""}">
                 </div>
                 <div>
                     <label class="block text-sm font-semibold text-gray-700 mb-1">Horas M\xE1ximas Semanales</label>
-                    <input type="number" id="crud-teacher-max-hours" required min="0.5" step="0.5" class="w-full border border-gray-300 rounded-lg p-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500" value="${i?.maxHours||22.5}">
+                    <input type="number" id="crud-teacher-max-hours" required min="0.5" step="0.5" class="w-full border border-gray-300 rounded-lg p-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500" value="${t?.maxHours || 22.5}">
                 </div>
                 <div>
                     <label class="block text-sm font-semibold text-gray-700 mb-1">Color Identificativo</label>
                     <div class="flex gap-2 items-center">
-                        <input type="color" id="crud-teacher-color" required class="w-10 h-10 border border-gray-300 rounded cursor-pointer" value="${i?.color||"#4f46e5"}">
+                        <input type="color" id="crud-teacher-color" required class="w-10 h-10 border border-gray-300 rounded cursor-pointer" value="${t?.color || "#4f46e5"}">
                         <span class="text-xs text-gray-500">Color visual en el calendario.</span>
                     </div>
                 </div>
                 <div>
                     <label class="block text-sm font-semibold text-gray-700 mb-1">Especialidades (Materias habilitadas)</label>
                     <div class="border border-gray-300 rounded-lg p-3 max-h-40 overflow-y-auto space-y-2 bg-gray-50">
-                        ${o.subjects.map(d=>`
+                        ${AppData.subjects.map((s) => `
                             <label class="flex items-center gap-2 cursor-pointer text-sm">
-                                <input type="checkbox" name="crud-teacher-subjects" value="${d.id}" ${i?.subjects.includes(d.id)?"checked":""} class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500">
-                                <span>${d.name}</span>
+                                <input type="checkbox" name="crud-teacher-subjects" value="${s.id}" ${t?.subjects.includes(s.id) ? "checked" : ""} class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500">
+                                <span>${s.name}</span>
                             </label>
                         `).join("")}
                     </div>
@@ -66,27 +713,93 @@
                     <button type="submit" class="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm hover:bg-indigo-700 shadow">Guardar</button>
                 </div>
             </form>
-        `}else if(t==="course"){s.textContent=e?"Editar Curso":"Nuevo Curso";let i=e?o.courses.find(d=>d.id===e):null;r.innerHTML=`
+        `;
+  } else if (type === "course") {
+    titleEl.textContent = id ? "Editar Curso" : "Nuevo Curso";
+    const c = id ? AppData.courses.find((x) => x.id === id) : null;
+    bodyEl.innerHTML = `
             <form id="form-crud" class="space-y-4">
                 <div>
                     <label class="block text-sm font-semibold text-gray-700 mb-1">Nombre del Curso</label>
-                    <input type="text" id="crud-course-name" required class="w-full border border-gray-300 rounded-lg p-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500" value="${i?.name||""}">
+                    <input type="text" id="crud-course-name" required class="w-full border border-gray-300 rounded-lg p-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500" value="${c?.name || ""}">
                 </div>
                 <div class="flex justify-end gap-2 pt-2">
                     <button type="button" onclick="closeCrudModal()" class="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm hover:bg-gray-50">Cancelar</button>
                     <button type="submit" class="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm hover:bg-indigo-700 shadow">Guardar</button>
                 </div>
             </form>
-        `}let n=document.getElementById("crud-modal");n&&n.classList.replace("hidden","flex");let a=document.getElementById("form-crud");a&&(a.onsubmit=async i=>{if(i.preventDefault(),t==="subject"){let d=document.getElementById("crud-subject-name").value,l=parseFloat(document.getElementById("crud-subject-hours").value),u=o.currentCourseId,m=document.querySelectorAll('input[name="crud-subject-teachers"]:checked'),g=Array.from(m).map(p=>p.value);try{await o.API.saveSubject({id:x||void 0,name:d,hours:l,courseId:u,teachers:g}),c("\xC9xito","Asignatura guardada correctamente","success"),E(),B()}catch{c("Error","No se pudo guardar la asignatura","error")}}else if(t==="teacher"){let d=document.getElementById("crud-teacher-name").value,l=parseFloat(document.getElementById("crud-teacher-max-hours").value),u=document.getElementById("crud-teacher-color").value,m=document.querySelectorAll('input[name="crud-teacher-subjects"]:checked'),g=Array.from(m).map(p=>p.value);try{let p=x?o.teachers.find(f=>f.id===x):null,b=p?p.availability:[];await o.API.saveTeacher({id:x||void 0,name:d,maxHours:l,color:u,subjects:g,availability:b}),c("\xC9xito","Profesor guardado correctamente","success"),E(),I()}catch{c("Error","No se pudo guardar el profesor","error")}}else if(t==="course"){let d=document.getElementById("crud-course-name").value;try{await o.API.saveCourse({id:x||void 0,name:d}),c("\xC9xito","Curso guardado correctamente","success"),E(),T()}catch{c("Error","No se pudo guardar el curso","error")}}})}function Q(t,e=null){N=t,G=e;let s=o.courses.find(l=>l.id===t);if(!s)return;let r=e?s.groups.find(l=>l.id===e):null,n=document.getElementById("crud-modal-title");n&&(n.textContent=e?"Editar Grupo":"Nuevo Grupo");let a=document.getElementById("crud-modal-body");if(!a)return;a.innerHTML=`
+        `;
+  }
+  const modal = document.getElementById("crud-modal");
+  if (modal) modal.classList.replace("hidden", "flex");
+  const form = document.getElementById("form-crud");
+  if (form) {
+    form.onsubmit = async (e) => {
+      e.preventDefault();
+      if (type === "subject") {
+        const name = document.getElementById("crud-subject-name").value;
+        const hours = parseFloat(document.getElementById("crud-subject-hours").value);
+        const courseId = AppData.currentCourseId;
+        const checkboxes = document.querySelectorAll('input[name="crud-subject-teachers"]:checked');
+        const teachers = Array.from(checkboxes).map((cb) => cb.value);
+        try {
+          await AppData.API.saveSubject({ id: currentCrudId || void 0, name, hours, courseId, teachers });
+          showToast("\xC9xito", "Asignatura guardada correctamente", "success");
+          closeCrudModal();
+          renderSubjects();
+        } catch (err) {
+          showToast("Error", "No se pudo guardar la asignatura", "error");
+        }
+      } else if (type === "teacher") {
+        const name = document.getElementById("crud-teacher-name").value;
+        const maxHours = parseFloat(document.getElementById("crud-teacher-max-hours").value);
+        const color = document.getElementById("crud-teacher-color").value;
+        const checkboxes = document.querySelectorAll('input[name="crud-teacher-subjects"]:checked');
+        const subjects = Array.from(checkboxes).map((cb) => cb.value);
+        try {
+          const existing = currentCrudId ? AppData.teachers.find((x) => x.id === currentCrudId) : null;
+          const availability = existing ? existing.availability : [];
+          await AppData.API.saveTeacher({ id: currentCrudId || void 0, name, maxHours, color, subjects, availability });
+          showToast("\xC9xito", "Profesor guardado correctamente", "success");
+          closeCrudModal();
+          renderTeachers();
+        } catch (err) {
+          showToast("Error", "No se pudo guardar el profesor", "error");
+        }
+      } else if (type === "course") {
+        const name = document.getElementById("crud-course-name").value;
+        try {
+          await AppData.API.saveCourse({ id: currentCrudId || void 0, name });
+          showToast("\xC9xito", "Curso guardado correctamente", "success");
+          closeCrudModal();
+          renderCourses();
+        } catch (err) {
+          showToast("Error", "No se pudo guardar el curso", "error");
+        }
+      }
+    };
+  }
+}
+function openGroupModal(courseId, groupId = null) {
+  currentCourseIdForGroup = courseId;
+  currentGroupIdForGroup = groupId;
+  const course = AppData.courses.find((x) => x.id === courseId);
+  if (!course) return;
+  const group = groupId ? course.groups.find((g) => g.id === groupId) : null;
+  const titleEl = document.getElementById("crud-modal-title");
+  if (titleEl) titleEl.textContent = groupId ? "Editar Grupo" : "Nuevo Grupo";
+  const body = document.getElementById("crud-modal-body");
+  if (!body) return;
+  body.innerHTML = `
         <form id="form-group-crud" class="space-y-4">
             <div>
                 <label class="block text-sm font-semibold text-gray-700 mb-1">Nombre del Grupo (Letra/Identificador)</label>
-                <input type="text" id="crud-group-name" required class="w-full border border-gray-300 rounded-lg p-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500" value="${r?.name||""}">
+                <input type="text" id="crud-group-name" required class="w-full border border-gray-300 rounded-lg p-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500" value="${group?.name || ""}">
             </div>
             <div>
                 <label class="block text-sm font-semibold text-gray-700 mb-1">Tutor del Grupo</label>
                 <select id="crud-group-tutor" required class="w-full border border-gray-300 rounded-lg p-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500 bg-white">
-                    ${o.teachers.map(l=>`<option value="${l.id}" ${r?.tutorId===l.id?"selected":""}>${l.name}</option>`).join("")}
+                    ${AppData.teachers.map((t) => `<option value="${t.id}" ${group?.tutorId === t.id ? "selected" : ""}>${t.name}</option>`).join("")}
                 </select>
             </div>
             <div class="flex justify-end gap-2 pt-2">
@@ -94,137 +807,1024 @@
                 <button type="submit" class="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm hover:bg-indigo-700 shadow">Guardar</button>
             </div>
         </form>
-    `;let i=document.getElementById("crud-modal");i&&i.classList.replace("hidden","flex");let d=document.getElementById("form-group-crud");d&&(d.onsubmit=async l=>{l.preventDefault();let u=document.getElementById("crud-group-name").value,m=document.getElementById("crud-group-tutor").value;try{let g=o.courses.find(p=>p.id===N);if(!g)return;if(G){let p=g.groups.find(b=>b.id===G);p&&(p.name=u,p.tutorId=m)}else{let p={id:"temp-"+Date.now(),name:u,tutorId:m,assignments:{}};g.groups.push(p)}await o.API.updateCourseGroup(N,g.groups),c("\xC9xito","Grupo guardado correctamente","success"),E(),T()}catch{c("Error","No se pudo guardar el grupo","error")}})}function E(){let t=document.getElementById("crud-modal");t&&t.classList.replace("flex","hidden")}function K(t){o.currentCourseId=t,window.switchTab("subjects")}async function B(){try{o.subjects=await o.API.getSubjects(),o.courses=await o.API.getCourses();let t=o.currentCourseId,e=document.getElementById("view-subjects-title");if(e){let n=o.courses.find(a=>a.id===t);e.textContent=n?`Asignaturas de ${n.name}`:"Gesti\xF3n de Asignaturas"}let s=document.getElementById("table-subjects");if(!s)return;if(s.innerHTML="",!t){s.innerHTML='<tr><td colspan="3" class="p-4 text-center text-gray-500 italic">Por favor, selecciona un curso primero.</td></tr>';return}let r=o.subjects.filter(n=>n.courseId===t);if(r.length===0){s.innerHTML='<tr><td colspan="3" class="p-4 text-center text-gray-500 italic">No hay asignaturas en este curso.</td></tr>';return}r.forEach(n=>{s.innerHTML+=`
+    `;
+  const modal = document.getElementById("crud-modal");
+  if (modal) modal.classList.replace("hidden", "flex");
+  const form = document.getElementById("form-group-crud");
+  if (form) {
+    form.onsubmit = async (e) => {
+      e.preventDefault();
+      const name = document.getElementById("crud-group-name").value;
+      const tutorId = document.getElementById("crud-group-tutor").value;
+      try {
+        const courseObj = AppData.courses.find((x) => x.id === currentCourseIdForGroup);
+        if (!courseObj) return;
+        if (currentGroupIdForGroup) {
+          const g = courseObj.groups.find((x) => x.id === currentGroupIdForGroup);
+          if (g) {
+            g.name = name;
+            g.tutorId = tutorId;
+          }
+        } else {
+          const newGroup = {
+            id: "temp-" + Date.now(),
+            name,
+            tutorId,
+            assignments: {}
+          };
+          courseObj.groups.push(newGroup);
+        }
+        await AppData.API.updateCourseGroup(currentCourseIdForGroup, courseObj.groups);
+        showToast("\xC9xito", "Grupo guardado correctamente", "success");
+        closeCrudModal();
+        renderCourses();
+      } catch (err) {
+        showToast("Error", "No se pudo guardar el grupo", "error");
+      }
+    };
+  }
+}
+function closeCrudModal() {
+  const modal = document.getElementById("crud-modal");
+  if (modal) modal.classList.replace("flex", "hidden");
+}
+function openCourseSubjects(courseId) {
+  AppData.currentCourseId = courseId;
+  window.switchTab("subjects");
+}
+async function renderSubjects() {
+  try {
+    AppData.subjects = await AppData.API.getSubjects();
+    AppData.courses = await AppData.API.getCourses();
+    const courseId = AppData.currentCourseId;
+    const titleEl = document.getElementById("view-subjects-title");
+    if (titleEl) {
+      const course = AppData.courses.find((c) => c.id === courseId);
+      titleEl.textContent = course ? `Asignaturas de ${course.name}` : "Gesti\xF3n de Asignaturas";
+    }
+    const tbody = document.getElementById("table-subjects");
+    if (!tbody) return;
+    tbody.innerHTML = "";
+    if (!courseId) {
+      tbody.innerHTML = '<tr><td colspan="3" class="p-4 text-center text-gray-500 italic">Por favor, selecciona un curso primero.</td></tr>';
+      return;
+    }
+    const filtered = AppData.subjects.filter((s) => s.courseId === courseId);
+    if (filtered.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="3" class="p-4 text-center text-gray-500 italic">No hay asignaturas en este curso.</td></tr>';
+      return;
+    }
+    filtered.forEach((s) => {
+      tbody.innerHTML += `
                 <tr class="hover:bg-gray-50 border-b border-gray-100 text-sm">
-                    <td class="p-4 font-medium text-gray-800">${n.name}</td>
-                    <td class="p-4 text-center text-gray-600">${S(n.hours)} h</td>
+                    <td class="p-4 font-medium text-gray-800">${s.name}</td>
+                    <td class="p-4 text-center text-gray-600">${formatHours(s.hours)} h</td>
                     <td class="p-4 text-center">
-                        <button onclick="openFormModal('subject', '${n.id}')" class="text-indigo-600 hover:text-indigo-900 font-semibold mr-3">Editar</button>
-                        <button onclick="deleteSubject('${n.id}')" class="text-red-600 hover:text-red-900 font-semibold">Eliminar</button>
+                        <button onclick="openFormModal('subject', '${s.id}')" class="text-indigo-600 hover:text-indigo-900 font-semibold mr-3">Editar</button>
+                        <button onclick="deleteSubject('${s.id}')" class="text-red-600 hover:text-red-900 font-semibold">Eliminar</button>
                     </td>
                 </tr>
-            `})}catch(t){console.error(t),c("Error","No se pudieron cargar las asignaturas","error")}}async function X(t){if(confirm("\xBFEst\xE1s seguro de que deseas eliminar esta asignatura?"))try{await o.API.deleteSubject(t),c("\xC9xito","Asignatura eliminada correctamente","success"),B()}catch{c("Error","No se pudo eliminar la asignatura","error")}}async function I(){try{o.teachers=await o.API.getTeachers();let t=document.getElementById("list-teachers");if(!t)return;t.innerHTML="",o.teachers.forEach(e=>{let s=e.subjects.map(r=>{let n=o.subjects.find(a=>a.id===r);return n?n.name:""}).filter(r=>r!=="").join(", ");t.innerHTML+=`
+            `;
+    });
+  } catch (err) {
+    console.error(err);
+    showToast("Error", "No se pudieron cargar las asignaturas", "error");
+  }
+}
+async function deleteSubject(id) {
+  if (confirm("\xBFEst\xE1s seguro de que deseas eliminar esta asignatura?")) {
+    try {
+      await AppData.API.deleteSubject(id);
+      showToast("\xC9xito", "Asignatura eliminada correctamente", "success");
+      renderSubjects();
+    } catch (err) {
+      showToast("Error", "No se pudo eliminar la asignatura", "error");
+    }
+  }
+}
+async function renderTeachers() {
+  try {
+    AppData.teachers = await AppData.API.getTeachers();
+    const list = document.getElementById("list-teachers");
+    if (!list) return;
+    list.innerHTML = "";
+    AppData.teachers.forEach((t) => {
+      const subjNames = t.subjects.map((sId) => {
+        const s = AppData.subjects.find((x) => x.id === sId);
+        return s ? s.name : "";
+      }).filter((n) => n !== "").join(", ");
+      list.innerHTML += `
                 <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-5 flex flex-col justify-between">
                     <div>
                         <div class="flex items-center justify-between mb-2">
-                            <h3 class="font-bold text-gray-800 text-lg">${e.name}</h3>
-                            <span class="w-4 h-4 rounded-full border border-gray-300" style="background-color: ${e.color}"></span>
+                            <h3 class="font-bold text-gray-800 text-lg">${t.name}</h3>
+                            <span class="w-4 h-4 rounded-full border border-gray-300" style="background-color: ${t.color}"></span>
                         </div>
-                        <p class="text-sm text-gray-500 mb-1">Max: <b>${S(e.maxHours)} h / semana</b></p>
-                        <p class="text-xs text-gray-600 mt-2 italic truncate" title="${s||"Sin especialidades"}">
-                            Especialidades: ${s||"Ninguna"}
+                        <p class="text-sm text-gray-500 mb-1">Max: <b>${formatHours(t.maxHours)} h / semana</b></p>
+                        <p class="text-xs text-gray-600 mt-2 italic truncate" title="${subjNames || "Sin especialidades"}">
+                            Especialidades: ${subjNames || "Ninguna"}
                         </p>
                     </div>
                     <div class="mt-4 pt-3 border-t border-gray-100 flex justify-end gap-2">
-                        <button onclick="openAvailabilityModal('${e.id}')" class="text-emerald-600 hover:text-emerald-800 text-xs font-semibold mr-auto flex items-center gap-1">\u{1F4C5} Disponibilidad</button>
-                        <button onclick="openFormModal('teacher', '${e.id}')" class="text-indigo-600 hover:text-indigo-900 text-xs font-semibold">Editar</button>
-                        <button onclick="deleteTeacher('${e.id}')" class="text-red-600 hover:text-red-900 text-xs font-semibold">Eliminar</button>
+                        <button onclick="openAvailabilityModal('${t.id}')" class="text-emerald-600 hover:text-emerald-800 text-xs font-semibold mr-auto flex items-center gap-1">\u{1F4C5} Disponibilidad</button>
+                        <button onclick="openFormModal('teacher', '${t.id}')" class="text-indigo-600 hover:text-indigo-900 text-xs font-semibold">Editar</button>
+                        <button onclick="deleteTeacher('${t.id}')" class="text-red-600 hover:text-red-900 text-xs font-semibold">Eliminar</button>
                     </div>
                 </div>
-            `})}catch(t){console.error(t),c("Error","No se pudieron cargar los profesores","error")}}async function Y(t){if(confirm("\xBFEst\xE1s seguro de que deseas eliminar este profesor?"))try{await o.API.deleteTeacher(t),c("\xC9xito","Profesor eliminado correctamente","success"),I()}catch{c("Error","No se pudo eliminar al profesor","error")}}async function T(){try{o.courses=await o.API.getCourses(),o.teachers=await o.API.getTeachers();let t=document.getElementById("list-courses");if(!t)return;t.innerHTML="",o.courses.forEach(e=>{let s="";e.groups.length===0?s='<p class="text-xs text-gray-400 italic">No hay grupos creados en este curso.</p>':s=`
+            `;
+    });
+  } catch (err) {
+    console.error(err);
+    showToast("Error", "No se pudieron cargar los profesores", "error");
+  }
+}
+async function deleteTeacher(id) {
+  if (confirm("\xBFEst\xE1s seguro de que deseas eliminar este profesor?")) {
+    try {
+      await AppData.API.deleteTeacher(id);
+      showToast("\xC9xito", "Profesor eliminado correctamente", "success");
+      renderTeachers();
+    } catch (err) {
+      showToast("Error", "No se pudo eliminar al profesor", "error");
+    }
+  }
+}
+async function renderCourses() {
+  try {
+    AppData.courses = await AppData.API.getCourses();
+    AppData.teachers = await AppData.API.getTeachers();
+    const container = document.getElementById("list-courses");
+    if (!container) return;
+    container.innerHTML = "";
+    AppData.courses.forEach((c) => {
+      let groupsHtml = "";
+      if (c.groups.length === 0) {
+        groupsHtml = '<p class="text-xs text-gray-400 italic">No hay grupos creados en este curso.</p>';
+      } else {
+        groupsHtml = `
                     <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-                        ${e.groups.map(r=>{let n=o.teachers.find(a=>a.id===r.tutorId);return`
+                        ${c.groups.map((g) => {
+          const tutor = AppData.teachers.find((t) => t.id === g.tutorId);
+          return `
                                 <div class="bg-gray-50 border border-gray-200 rounded-lg p-3 flex items-center justify-between">
                                     <div>
-                                        <h4 class="font-semibold text-gray-700 text-sm">Grupo ${r.name}</h4>
-                                        <p class="text-xs text-gray-500">Tutor: ${n?n.name:"Sin asignar"}</p>
+                                        <h4 class="font-semibold text-gray-700 text-sm">Grupo ${g.name}</h4>
+                                        <p class="text-xs text-gray-500">Tutor: ${tutor ? tutor.name : "Sin asignar"}</p>
                                     </div>
                                     <div class="flex gap-2">
-                                        <button onclick="openGroupModal('${e.id}', '${r.id}')" class="text-indigo-600 hover:text-indigo-900 text-xs font-bold">Editar</button>
-                                        <button onclick="deleteGroup('${e.id}', '${r.id}')" class="text-red-600 hover:text-red-900 text-xs font-bold">Borrar</button>
+                                        <button onclick="openGroupModal('${c.id}', '${g.id}')" class="text-indigo-600 hover:text-indigo-900 text-xs font-bold">Editar</button>
+                                        <button onclick="deleteGroup('${c.id}', '${g.id}')" class="text-red-600 hover:text-red-900 text-xs font-bold">Borrar</button>
                                     </div>
                                 </div>
-                            `}).join("")}
+                            `;
+        }).join("")}
                     </div>
-                `,t.innerHTML+=`
+                `;
+      }
+      container.innerHTML += `
                 <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-5 space-y-4">
                     <div class="flex items-center justify-between border-b pb-2">
-                        <h3 class="font-bold text-gray-800 text-lg">${e.name}</h3>
+                        <h3 class="font-bold text-gray-800 text-lg">${c.name}</h3>
                         <div class="flex gap-3">
-                            <button onclick="openCourseSubjects('${e.id}')" class="text-indigo-600 hover:text-indigo-800 text-xs font-bold flex items-center gap-1">\u{1F4DA} Asignaturas</button>
-                            <button onclick="openGroupModal('${e.id}')" class="text-emerald-600 hover:text-emerald-800 text-xs font-bold">+ A\xF1adir Grupo</button>
-                            <button onclick="openFormModal('course', '${e.id}')" class="text-indigo-600 hover:text-indigo-900 text-xs font-bold">Editar Curso</button>
-                            <button onclick="deleteCourse('${e.id}')" class="text-red-600 hover:text-red-900 text-xs font-bold">Eliminar Curso</button>
+                            <button onclick="openCourseSubjects('${c.id}')" class="text-indigo-600 hover:text-indigo-800 text-xs font-bold flex items-center gap-1">\u{1F4DA} Asignaturas</button>
+                            <button onclick="openGroupModal('${c.id}')" class="text-emerald-600 hover:text-emerald-800 text-xs font-bold">+ A\xF1adir Grupo</button>
+                            <button onclick="openFormModal('course', '${c.id}')" class="text-indigo-600 hover:text-indigo-900 text-xs font-bold">Editar Curso</button>
+                            <button onclick="deleteCourse('${c.id}')" class="text-red-600 hover:text-red-900 text-xs font-bold">Eliminar Curso</button>
                         </div>
                     </div>
-                    ${s}
+                    ${groupsHtml}
                 </div>
-            `})}catch(t){console.error(t),c("Error","No se pudieron cargar los cursos","error")}}async function Z(t){if(confirm("\xBFEst\xE1s seguro de que deseas eliminar este curso y todos sus grupos?"))try{await o.API.deleteCourse(t),c("\xC9xito","Curso eliminado correctamente","success"),T()}catch{c("Error","No se pudo eliminar el curso","error")}}async function ee(t,e){if(confirm("\xBFEst\xE1s seguro de que deseas eliminar este grupo?"))try{let s=o.courses.find(n=>n.id===t);if(!s)return;let r=s.groups.filter(n=>n.id!==e);await o.API.updateCourseGroup(t,r),c("\xC9xito","Grupo eliminado correctamente","success"),T()}catch{c("Error","No se pudo eliminar el grupo","error")}}async function te(){let t=document.getElementById("assignments-list");if(t){t.innerHTML="";try{if(o.courses=await o.API.getCourses(),o.subjects=await o.API.getSubjects(),o.teachers=await o.API.getTeachers(),o.courses.length===0){t.innerHTML='<div class="text-center p-8 bg-gray-50 rounded-xl border border-dashed border-gray-300 text-gray-400 italic">No hay asignaciones cargadas. Cree cursos y grupos primero.</div>';return}o.courses.forEach(e=>{let s=o.subjects.filter(n=>n.courseId===e.id);if(e.groups.length===0)return;let r="";e.groups.forEach(n=>{let a="";s.length===0?a='<p class="text-xs text-gray-400 italic py-2">No hay asignaturas en este curso.</p>':s.forEach(i=>{let d=n.assignments[i.id]||"",l=o.teachers.filter(u=>u.subjects.includes(i.id));a+=`
+            `;
+    });
+  } catch (err) {
+    console.error(err);
+    showToast("Error", "No se pudieron cargar los cursos", "error");
+  }
+}
+async function deleteCourse(id) {
+  if (confirm("\xBFEst\xE1s seguro de que deseas eliminar este curso y todos sus grupos?")) {
+    try {
+      await AppData.API.deleteCourse(id);
+      showToast("\xC9xito", "Curso eliminado correctamente", "success");
+      renderCourses();
+    } catch (err) {
+      showToast("Error", "No se pudo eliminar el curso", "error");
+    }
+  }
+}
+async function deleteGroup(courseId, groupId) {
+  if (confirm("\xBFEst\xE1s seguro de que deseas eliminar este grupo?")) {
+    try {
+      const course = AppData.courses.find((x) => x.id === courseId);
+      if (!course) return;
+      const updatedGroups = course.groups.filter((g) => g.id !== groupId);
+      await AppData.API.updateCourseGroup(courseId, updatedGroups);
+      showToast("\xC9xito", "Grupo eliminado correctamente", "success");
+      renderCourses();
+    } catch (err) {
+      showToast("Error", "No se pudo eliminar el grupo", "error");
+    }
+  }
+}
+
+// Web/src/assignments.ts
+async function renderAssignmentsList() {
+  const container = document.getElementById("assignments-list");
+  if (!container) return;
+  container.innerHTML = "";
+  try {
+    AppData.courses = await AppData.API.getCourses();
+    AppData.subjects = await AppData.API.getSubjects();
+    AppData.teachers = await AppData.API.getTeachers();
+    if (AppData.courses.length === 0) {
+      container.innerHTML = '<div class="text-center p-8 bg-gray-50 rounded-xl border border-dashed border-gray-300 text-gray-400 italic">No hay asignaciones cargadas. Cree cursos y grupos primero.</div>';
+      return;
+    }
+    AppData.courses.forEach((c) => {
+      const courseSubjects = AppData.subjects.filter((s) => s.courseId === c.id);
+      if (c.groups.length === 0) return;
+      let groupsAssignmentsHtml = "";
+      c.groups.forEach((g) => {
+        let subjectsListHtml = "";
+        if (courseSubjects.length === 0) {
+          subjectsListHtml = '<p class="text-xs text-gray-400 italic py-2">No hay asignaturas en este curso.</p>';
+        } else {
+          courseSubjects.forEach((s) => {
+            const assignedTeacherId = g.assignments[s.id] || "";
+            const qualifiedTeachers = AppData.teachers.filter((t) => t.subjects.includes(s.id));
+            subjectsListHtml += `
                             <div class="flex flex-col gap-1.5 pb-3 border-b border-gray-100 last:border-b-0 last:pb-0">
-                                <span class="text-sm font-semibold text-gray-700 truncate block" title="${i.name}">${i.name} (${S(i.hours)}h)</span>
-                                <select onchange="updateAssignment('${e.id}', '${n.id}', '${i.id}', this.value)" class="w-full text-xs border border-gray-300 rounded-lg p-2 bg-white hover:border-slate-400 focus:border-indigo-500 outline-none transition-colors">
+                                <span class="text-sm font-semibold text-gray-700 truncate block" title="${s.name}">${s.name} (${formatHours(s.hours)}h)</span>
+                                <select onchange="updateAssignment('${c.id}', '${g.id}', '${s.id}', this.value)" class="w-full text-xs border border-gray-300 rounded-lg p-2 bg-white hover:border-slate-400 focus:border-indigo-500 outline-none transition-colors">
                                     <option value="">-- Sin asignar --</option>
-                                    ${o.teachers.map(u=>{let g=l.some(p=>p.id===u.id)?u.name:`${u.name} (No especialista)`;return`<option value="${u.id}" ${d===u.id?"selected":""}>${g}</option>`}).join("")}
+                                    ${AppData.teachers.map((t) => {
+              const isQualified = qualifiedTeachers.some((qt) => qt.id === t.id);
+              const label = isQualified ? t.name : `${t.name} (No especialista)`;
+              return `<option value="${t.id}" ${assignedTeacherId === t.id ? "selected" : ""}>${label}</option>`;
+            }).join("")}
                                 </select>
                             </div>
-                        `}),r+=`
-                    <div id="group-card-${e.id}-${n.id}" class="bg-gray-50 rounded-xl p-4 border border-gray-200 shadow-sm space-y-3">
+                        `;
+          });
+        }
+        groupsAssignmentsHtml += `
+                    <div id="group-card-${c.id}-${g.id}" class="bg-gray-50 rounded-xl p-4 border border-gray-200 shadow-sm space-y-3">
                         <div class="flex items-center justify-between border-b pb-2">
-                            <h4 class="font-bold text-gray-800 text-sm">Grupo ${n.name}</h4>
-                            <button onclick="clearGroupAssignments('${e.id}', '${n.id}')" class="text-rose-600 hover:text-rose-800 text-xs font-semibold flex items-center gap-0.5" title="Poner todas las asignaturas de este grupo sin asignar">
+                            <h4 class="font-bold text-gray-800 text-sm">Grupo ${g.name}</h4>
+                            <button onclick="clearGroupAssignments('${c.id}', '${g.id}')" class="text-rose-600 hover:text-rose-800 text-xs font-semibold flex items-center gap-0.5" title="Poner todas las asignaturas de este grupo sin asignar">
                                 <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
                                 Vaciar Grupo
                             </button>
                         </div>
                         <div class="space-y-3">
-                            ${a}
+                            ${subjectsListHtml}
                         </div>
                     </div>
-                `}),t.innerHTML+=`
-                <div id="course-card-${e.id}" class="mb-8 bg-white p-5 rounded-xl border border-gray-200 shadow-sm space-y-4">
+                `;
+      });
+      container.innerHTML += `
+                <div id="course-card-${c.id}" class="mb-8 bg-white p-5 rounded-xl border border-gray-200 shadow-sm space-y-4">
                     <div class="flex items-center justify-between border-b pb-2">
-                        <h3 class="font-bold text-gray-800 text-lg">${e.name}</h3>
-                        <button onclick="clearCourseAssignments('${e.id}')" class="text-rose-700 hover:text-rose-900 bg-rose-50 hover:bg-rose-100 px-2.5 py-1 rounded-lg text-xs font-bold flex items-center gap-1 border border-rose-200 transition-colors" title="Poner todas las asignaciones de todos los grupos de este curso sin asignar">
+                        <h3 class="font-bold text-gray-800 text-lg">${c.name}</h3>
+                        <button onclick="clearCourseAssignments('${c.id}')" class="text-rose-700 hover:text-rose-900 bg-rose-50 hover:bg-rose-100 px-2.5 py-1 rounded-lg text-xs font-bold flex items-center gap-1 border border-rose-200 transition-colors" title="Poner todas las asignaciones de todos los grupos de este curso sin asignar">
                             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
                             Vaciar Curso
                         </button>
                     </div>
                     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        ${r}
+                        ${groupsAssignmentsHtml}
                     </div>
                 </div>
-            `})}catch(e){console.error(e),c("Error","No se pudieron cargar las asignaciones","error")}}}async function se(t,e,s,r){try{let n=o.courses.find(i=>i.id===t);if(!n)return;let a=n.groups.find(i=>i.id===e);if(!a)return;r===""?delete a.assignments[s]:a.assignments[s]=r,await o.API.updateCourseGroup(t,n.groups),c("\xC9xito","Asignaci\xF3n actualizada","success")}catch{c("Error","No se pudo guardar la asignaci\xF3n","error")}}async function re(t,e){try{let s=o.courses.find(a=>a.id===t);if(!s)return;let r=s.groups.find(a=>a.id===e);if(!r||!confirm(`\xBFEst\xE1s seguro de que deseas poner todas las asignaturas del grupo "${r.name}" sin asignar?`))return;r.assignments={},await o.API.updateCourseGroup(t,s.groups);let n=document.getElementById(`group-card-${t}-${e}`);n&&n.querySelectorAll("select").forEach(i=>{i.value=""}),c("\xC9xito","Todas las asignaturas del grupo han sido puestas sin asignar","success")}catch{c("Error","No se pudo limpiar las asignaciones del grupo","error")}}async function oe(t){try{let e=o.courses.find(r=>r.id===t);if(!e||!confirm(`\xBFEst\xE1s seguro de que deseas poner todas las asignaturas de TODOS los grupos del curso "${e.name}" sin asignar?`))return;e.groups.forEach(r=>{r.assignments={}}),await o.API.updateCourseGroup(t,e.groups);let s=document.getElementById(`course-card-${t}`);s&&s.querySelectorAll("select").forEach(n=>{n.value=""}),c("\xC9xito","Todas las asignaturas del curso han sido puestas sin asignar","success")}catch{c("Error","No se pudo limpiar las asignaciones del curso","error")}}var O=null,C=[];function ne(t){let e=o.teachers.find(i=>i.id===t);if(!e)return;O=t,C=e.availability?[...e.availability]:[];let s=document.getElementById("availability-teacher-name");s&&(s.textContent=e.name);let r=document.getElementById("availability-grid-body");if(!r)return;r.innerHTML="",[{start:"09:00",end:"09:30"},{start:"09:30",end:"10:00"},{start:"10:00",end:"10:30"},{start:"10:30",end:"11:00"},{start:"11:00",end:"11:30"},{start:"11:30",end:"12:00"},{start:"12:30",end:"13:00"},{start:"13:00",end:"13:30"},{start:"13:30",end:"14:00"}].forEach((i,d)=>{let l="";for(let u=1;u<=5;u++){let m=C.some(f=>f.dayOfWeek===u&&f.startTime===i.start&&f.endTime===i.end),g=`cell-av-${u}-${d}`,p=m?"bg-red-500 hover:bg-red-600 text-white border-red-300 font-bold":"bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border-emerald-200",b=m?"NO DISPONIBLE":"DISPONIBLE";l+=`
+            `;
+    });
+  } catch (err) {
+    console.error(err);
+    showToast("Error", "No se pudieron cargar las asignaciones", "error");
+  }
+}
+async function updateAssignment(courseId, groupId, subjectId, teacherId) {
+  try {
+    const course = AppData.courses.find((x) => x.id === courseId);
+    if (!course) return;
+    const group = course.groups.find((g) => g.id === groupId);
+    if (!group) return;
+    if (teacherId === "") {
+      delete group.assignments[subjectId];
+    } else {
+      group.assignments[subjectId] = teacherId;
+    }
+    await AppData.API.updateCourseGroup(courseId, course.groups);
+    showToast("\xC9xito", "Asignaci\xF3n actualizada", "success");
+  } catch (err) {
+    showToast("Error", "No se pudo guardar la asignaci\xF3n", "error");
+  }
+}
+async function clearGroupAssignments(courseId, groupId) {
+  try {
+    const course = AppData.courses.find((x) => x.id === courseId);
+    if (!course) return;
+    const group = course.groups.find((g) => g.id === groupId);
+    if (!group) return;
+    if (!confirm(`\xBFEst\xE1s seguro de que deseas poner todas las asignaturas del grupo "${group.name}" sin asignar?`)) {
+      return;
+    }
+    group.assignments = {};
+    await AppData.API.updateCourseGroup(courseId, course.groups);
+    const groupCard = document.getElementById(`group-card-${courseId}-${groupId}`);
+    if (groupCard) {
+      const selects = groupCard.querySelectorAll("select");
+      selects.forEach((select) => {
+        select.value = "";
+      });
+    }
+    showToast("\xC9xito", "Todas las asignaturas del grupo han sido puestas sin asignar", "success");
+  } catch (err) {
+    showToast("Error", "No se pudo limpiar las asignaciones del grupo", "error");
+  }
+}
+async function clearCourseAssignments(courseId) {
+  try {
+    const course = AppData.courses.find((x) => x.id === courseId);
+    if (!course) return;
+    if (!confirm(`\xBFEst\xE1s seguro de que deseas poner todas las asignaturas de TODOS los grupos del curso "${course.name}" sin asignar?`)) {
+      return;
+    }
+    course.groups.forEach((g) => {
+      g.assignments = {};
+    });
+    await AppData.API.updateCourseGroup(courseId, course.groups);
+    const courseCard = document.getElementById(`course-card-${courseId}`);
+    if (courseCard) {
+      const selects = courseCard.querySelectorAll("select");
+      selects.forEach((select) => {
+        select.value = "";
+      });
+    }
+    showToast("\xC9xito", "Todas las asignaturas del curso han sido puestas sin asignar", "success");
+  } catch (err) {
+    showToast("Error", "No se pudo limpiar las asignaciones del curso", "error");
+  }
+}
+
+// Web/src/availability.ts
+var currentAvailabilityTeacherId = null;
+var currentTeacherAvailabilityList = [];
+function openAvailabilityModal(teacherId) {
+  const t = AppData.teachers.find((x) => x.id === teacherId);
+  if (!t) return;
+  currentAvailabilityTeacherId = teacherId;
+  currentTeacherAvailabilityList = t.availability ? [...t.availability] : [];
+  const nameEl = document.getElementById("availability-teacher-name");
+  if (nameEl) nameEl.textContent = t.name;
+  const tbody = document.getElementById("availability-grid-body");
+  if (!tbody) return;
+  tbody.innerHTML = "";
+  const timeSlots = [
+    { start: "09:00", end: "09:30" },
+    { start: "09:30", end: "10:00" },
+    { start: "10:00", end: "10:30" },
+    { start: "10:30", end: "11:00" },
+    { start: "11:00", end: "11:30" },
+    { start: "11:30", end: "12:00" },
+    { start: "12:30", end: "13:00" },
+    { start: "13:00", end: "13:30" },
+    { start: "13:30", end: "14:00" }
+  ];
+  timeSlots.forEach((slot, index) => {
+    let cellsHtml = "";
+    for (let day = 1; day <= 5; day++) {
+      const isUnavailable = currentTeacherAvailabilityList.some(
+        (av) => av.dayOfWeek === day && av.startTime === slot.start && av.endTime === slot.end
+      );
+      const cellId = `cell-av-${day}-${index}`;
+      const bgClass = isUnavailable ? "bg-red-500 hover:bg-red-600 text-white border-red-300 font-bold" : "bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border-emerald-200";
+      const textVal = isUnavailable ? "NO DISPONIBLE" : "DISPONIBLE";
+      cellsHtml += `
                 <td class="p-2 text-center border border-gray-200">
-                    <button type="button" id="${g}" 
-                        onclick="toggleAvailabilitySlot(${u}, '${i.start}', '${i.end}', '${g}')"
-                        class="w-full py-2 px-1 rounded text-[10px] tracking-wide transition-all ${p}">
-                        ${b}
+                    <button type="button" id="${cellId}" 
+                        onclick="toggleAvailabilitySlot(${day}, '${slot.start}', '${slot.end}', '${cellId}')"
+                        class="w-full py-2 px-1 rounded text-[10px] tracking-wide transition-all ${bgClass}">
+                        ${textVal}
                     </button>
                 </td>
-            `}r.innerHTML+=`
+            `;
+    }
+    tbody.innerHTML += `
             <tr class="hover:bg-gray-50">
-                <td class="p-3 border border-gray-200 font-semibold text-gray-700 text-center">${i.start} - ${i.end}</td>
-                ${l}
+                <td class="p-3 border border-gray-200 font-semibold text-gray-700 text-center">${slot.start} - ${slot.end}</td>
+                ${cellsHtml}
             </tr>
-        `});let a=document.getElementById("availability-modal");a&&a.classList.replace("hidden","flex")}function ae(t,e,s,r){let n=document.getElementById(r);if(!n)return;let a=C.findIndex(i=>i.dayOfWeek===t&&i.startTime===e&&i.endTime===s);a>-1?(C.splice(a,1),n.className="w-full py-2 px-1 rounded text-[10px] tracking-wide transition-all bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200",n.textContent="DISPONIBLE"):(C.push({dayOfWeek:t,startTime:e,endTime:s}),n.className="w-full py-2 px-1 rounded text-[10px] tracking-wide transition-all bg-red-500 hover:bg-red-600 text-white border border-red-300 font-bold",n.textContent="NO DISPONIBLE")}function _(){let t=document.getElementById("availability-modal");t&&t.classList.replace("flex","hidden")}async function ie(){if(!O)return;let t=o.teachers.find(e=>e.id===O);if(t){t.availability=C;try{await o.API.saveTeacher(t),c("\xC9xito","Disponibilidad docente guardada correctamente","success"),_(),I()}catch{c("Error","No se pudo guardar la disponibilidad","error")}}}function le(){let t=o.config;if(!t)return;let e=document.getElementById("settings-tiempo-minimo"),s=document.getElementById("settings-tiempo-maximo"),r=document.getElementById("settings-max-minutos-profesor"),n=document.getElementById("settings-priorizar-tutor"),a=document.getElementById("settings-priorizar-tutor-puntos"),i=document.getElementById("settings-bloques-60-puntos"),d=document.getElementById("settings-huecos-puntos"),l=document.getElementById("settings-compactar-temprano-puntos"),u=document.getElementById("settings-hora-inicio"),m=document.getElementById("settings-hora-fin"),g=document.getElementById("settings-recreo-inicio"),p=document.getElementById("settings-recreo-duracion"),b=document.getElementById("settings-respetar-especialidad"),f=document.getElementById("settings-respetar-limite-horas"),y=document.getElementById("settings-respetar-disponibilidad");if(e&&(e.value=t.tiempoMinimo.toString()),s&&(s.value=t.tiempoMaximo.toString()),r&&(r.value=t.minutosMaximosProfesor.toString()),n){n.checked=t.priorizarTutor;let w=document.getElementById("settings-tutor-points-container");w&&(w.style.display=t.priorizarTutor?"flex":"none"),n.onchange=()=>{w&&(w.style.display=n.checked?"flex":"none")}}a&&(a.value=t.priorizarTutorPuntos.toString()),i&&(i.value=t.fomentarBloques60Puntos.toString()),d&&(d.value=t.evitarHuecosPuntos.toString()),l&&(l.value=t.compactarTempranoPuntos.toString()),u&&(u.value=t.horaInicioClases),m&&(m.value=t.horaFinClases),g&&(g.value=t.horaInicioRecreo),p&&(p.value=t.duracionRecreo.toString()),b&&(b.checked=t.respetarEspecialidad),f&&(f.checked=t.respetarLimiteHoras),y&&(y.checked=t.respetarDisponibilidad)}async function de(){let t=document.getElementById("settings-tiempo-minimo"),e=document.getElementById("settings-tiempo-maximo"),s=document.getElementById("settings-max-minutos-profesor"),r=document.getElementById("settings-priorizar-tutor"),n=document.getElementById("settings-priorizar-tutor-puntos"),a=document.getElementById("settings-bloques-60-puntos"),i=document.getElementById("settings-huecos-puntos"),d=document.getElementById("settings-compactar-temprano-puntos"),l=document.getElementById("settings-hora-inicio"),u=document.getElementById("settings-hora-fin"),m=document.getElementById("settings-recreo-inicio"),g=document.getElementById("settings-recreo-duracion"),p=document.getElementById("settings-respetar-especialidad"),b=document.getElementById("settings-respetar-limite-horas"),f=document.getElementById("settings-respetar-disponibilidad"),y={priorizarTutor:r?r.checked:!1,tiempoMinimo:t?parseInt(t.value):30,tiempoMaximo:e?parseInt(e.value):60,minutosMaximosProfesor:s?parseInt(s.value):1500,priorizarTutorPuntos:n?parseInt(n.value):100,fomentarBloques60Puntos:a?parseInt(a.value):10,evitarHuecosPuntos:i?parseInt(i.value):50,compactarTempranoPuntos:d?parseInt(d.value):5,horaInicioClases:l?l.value:"09:00",horaFinClases:u?u.value:"14:00",horaInicioRecreo:m?m.value:"12:00",duracionRecreo:g?parseInt(g.value):30,respetarEspecialidad:p?p.checked:!0,respetarLimiteHoras:b?b.checked:!0,respetarDisponibilidad:f?f.checked:!0};try{o.config=await o.API.saveConfig(y),c("\xC9xito","Configuraci\xF3n de reglas guardada correctamente","success")}catch{c("Error","No se pudo guardar la configuraci\xF3n","error")}}var k={ok:'<svg class="w-5 h-5 text-emerald-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>',warning:'<svg class="w-5 h-5 text-amber-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>',error:'<svg class="w-5 h-5 text-red-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>'},ce={ok:{bg:"bg-emerald-50",border:"border-emerald-200",text:"text-emerald-700"},warning:{bg:"bg-amber-50",border:"border-amber-200",text:"text-amber-700"},error:{bg:"bg-red-50",border:"border-red-200",text:"text-red-700"}};function ye(t){let e=ce[t.status]||ce.ok,s=t.details.length>0?`<ul class="mt-2 ml-6 space-y-0.5 text-xs ${e.text} opacity-80">${t.details.map(r=>`<li class="list-disc">${r}</li>`).join("")}</ul>`:"";return`
-        <div class="flex items-start gap-3 p-3 rounded-lg ${e.bg} border ${e.border} transition-all duration-200">
-            ${k[t.status]||k.ok}
+        `;
+  });
+  const modal = document.getElementById("availability-modal");
+  if (modal) modal.classList.replace("hidden", "flex");
+}
+function toggleAvailabilitySlot(day, start, end, cellId) {
+  const btn = document.getElementById(cellId);
+  if (!btn) return;
+  const index = currentTeacherAvailabilityList.findIndex(
+    (av) => av.dayOfWeek === day && av.startTime === start && av.endTime === end
+  );
+  if (index > -1) {
+    currentTeacherAvailabilityList.splice(index, 1);
+    btn.className = "w-full py-2 px-1 rounded text-[10px] tracking-wide transition-all bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200";
+    btn.textContent = "DISPONIBLE";
+  } else {
+    currentTeacherAvailabilityList.push({ dayOfWeek: day, startTime: start, endTime: end });
+    btn.className = "w-full py-2 px-1 rounded text-[10px] tracking-wide transition-all bg-red-500 hover:bg-red-600 text-white border border-red-300 font-bold";
+    btn.textContent = "NO DISPONIBLE";
+  }
+}
+function closeAvailabilityModal() {
+  const modal = document.getElementById("availability-modal");
+  if (modal) modal.classList.replace("flex", "hidden");
+}
+async function saveAvailability() {
+  if (!currentAvailabilityTeacherId) return;
+  const t = AppData.teachers.find((x) => x.id === currentAvailabilityTeacherId);
+  if (!t) return;
+  t.availability = currentTeacherAvailabilityList;
+  try {
+    await AppData.API.saveTeacher(t);
+    showToast("\xC9xito", "Disponibilidad docente guardada correctamente", "success");
+    closeAvailabilityModal();
+    renderTeachers();
+  } catch (err) {
+    showToast("Error", "No se pudo guardar la disponibilidad", "error");
+  }
+}
+
+// Web/src/settings.ts
+function loadSettings() {
+  const conf = AppData.config;
+  if (!conf) return;
+  const elMinimo = document.getElementById("settings-tiempo-minimo");
+  const elMaximo = document.getElementById("settings-tiempo-maximo");
+  const elMaxProfe = document.getElementById("settings-max-minutos-profesor");
+  const elPriorizar = document.getElementById("settings-priorizar-tutor");
+  const elPriorizarPuntos = document.getElementById("settings-priorizar-tutor-puntos");
+  const elBloquesPuntos = document.getElementById("settings-bloques-60-puntos");
+  const elMinimizarAsig = document.getElementById("settings-minimizar-asignaturas");
+  const elLimiteTiempo = document.getElementById("settings-limite-tiempo");
+  const elTiempoEstancamiento = document.getElementById("settings-tiempo-estancamiento");
+  const elHoraInicio = document.getElementById("settings-hora-inicio");
+  const elHoraFin = document.getElementById("settings-hora-fin");
+  const elRecreoInicio = document.getElementById("settings-recreo-inicio");
+  const elRecreoDuracion = document.getElementById("settings-recreo-duracion");
+  const elRespEspecialidad = document.getElementById("settings-respetar-especialidad");
+  const elRespLimiteHoras = document.getElementById("settings-respetar-limite-horas");
+  const elRespDisponibilidad = document.getElementById("settings-respetar-disponibilidad");
+  if (elMinimo) elMinimo.value = conf.tiempoMinimo.toString();
+  if (elMaximo) elMaximo.value = conf.tiempoMaximo.toString();
+  if (elMaxProfe) elMaxProfe.value = conf.minutosMaximosProfesor.toString();
+  if (elPriorizar) {
+    elPriorizar.checked = conf.priorizarTutor;
+    const container = document.getElementById("settings-tutor-points-container");
+    if (container) {
+      container.style.display = conf.priorizarTutor ? "flex" : "none";
+    }
+    elPriorizar.onchange = () => {
+      if (container) container.style.display = elPriorizar.checked ? "flex" : "none";
+    };
+  }
+  if (elPriorizarPuntos) elPriorizarPuntos.value = conf.priorizarTutorPuntos.toString();
+  if (elBloquesPuntos) elBloquesPuntos.value = conf.fomentarBloques60Puntos.toString();
+  if (elMinimizarAsig) elMinimizarAsig.checked = conf.minimizarAsignaturasDistintas ?? true;
+  if (elLimiteTiempo) elLimiteTiempo.value = (conf.limiteTiempoSegundos ?? 18e3).toString();
+  if (elTiempoEstancamiento) elTiempoEstancamiento.value = (conf.tiempoEstancamientoSegundos ?? 60).toString();
+  if (elHoraInicio) elHoraInicio.value = conf.horaInicioClases;
+  if (elHoraFin) elHoraFin.value = conf.horaFinClases;
+  if (elRecreoInicio) elRecreoInicio.value = conf.horaInicioRecreo;
+  if (elRecreoDuracion) elRecreoDuracion.value = conf.duracionRecreo.toString();
+  if (elRespEspecialidad) elRespEspecialidad.checked = conf.respetarEspecialidad;
+  if (elRespLimiteHoras) elRespLimiteHoras.checked = conf.respetarLimiteHoras;
+  if (elRespDisponibilidad) elRespDisponibilidad.checked = conf.respetarDisponibilidad;
+}
+async function saveSettings() {
+  const elMinimo = document.getElementById("settings-tiempo-minimo");
+  const elMaximo = document.getElementById("settings-tiempo-maximo");
+  const elMaxProfe = document.getElementById("settings-max-minutos-profesor");
+  const elPriorizar = document.getElementById("settings-priorizar-tutor");
+  const elPriorizarPuntos = document.getElementById("settings-priorizar-tutor-puntos");
+  const elBloquesPuntos = document.getElementById("settings-bloques-60-puntos");
+  const elMinimizarAsig = document.getElementById("settings-minimizar-asignaturas");
+  const elLimiteTiempo = document.getElementById("settings-limite-tiempo");
+  const elTiempoEstancamiento = document.getElementById("settings-tiempo-estancamiento");
+  const elHoraInicio = document.getElementById("settings-hora-inicio");
+  const elHoraFin = document.getElementById("settings-hora-fin");
+  const elRecreoInicio = document.getElementById("settings-recreo-inicio");
+  const elRecreoDuracion = document.getElementById("settings-recreo-duracion");
+  const elRespEspecialidad = document.getElementById("settings-respetar-especialidad");
+  const elRespLimiteHoras = document.getElementById("settings-respetar-limite-horas");
+  const elRespDisponibilidad = document.getElementById("settings-respetar-disponibilidad");
+  const payload = {
+    priorizarTutor: elPriorizar ? elPriorizar.checked : false,
+    tiempoMinimo: elMinimo ? parseInt(elMinimo.value) : 30,
+    tiempoMaximo: elMaximo ? parseInt(elMaximo.value) : 60,
+    minutosMaximosProfesor: elMaxProfe ? parseInt(elMaxProfe.value) : 1500,
+    priorizarTutorPuntos: elPriorizarPuntos ? parseInt(elPriorizarPuntos.value) : 100,
+    fomentarBloques60Puntos: elBloquesPuntos ? parseInt(elBloquesPuntos.value) : 10,
+    minimizarAsignaturasDistintas: elMinimizarAsig ? elMinimizarAsig.checked : true,
+    limiteTiempoSegundos: elLimiteTiempo ? parseFloat(elLimiteTiempo.value) : 18e3,
+    tiempoEstancamientoSegundos: elTiempoEstancamiento ? parseFloat(elTiempoEstancamiento.value) : 60,
+    horaInicioClases: elHoraInicio ? elHoraInicio.value : "09:00",
+    horaFinClases: elHoraFin ? elHoraFin.value : "14:00",
+    horaInicioRecreo: elRecreoInicio ? elRecreoInicio.value : "12:00",
+    duracionRecreo: elRecreoDuracion ? parseInt(elRecreoDuracion.value) : 30,
+    respetarEspecialidad: elRespEspecialidad ? elRespEspecialidad.checked : true,
+    respetarLimiteHoras: elRespLimiteHoras ? elRespLimiteHoras.checked : true,
+    respetarDisponibilidad: elRespDisponibilidad ? elRespDisponibilidad.checked : true
+  };
+  try {
+    AppData.config = await AppData.API.saveConfig(payload);
+    showToast("\xC9xito", "Configuraci\xF3n de reglas guardada correctamente", "success");
+  } catch (err) {
+    showToast("Error", "No se pudo guardar la configuraci\xF3n", "error");
+  }
+}
+
+// Web/src/prevalidation.ts
+var STATUS_ICONS = {
+  ok: `<svg class="w-5 h-5 text-emerald-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>`,
+  warning: `<svg class="w-5 h-5 text-amber-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>`,
+  error: `<svg class="w-5 h-5 text-red-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>`
+};
+var STATUS_COLORS = {
+  ok: { bg: "bg-emerald-50", border: "border-emerald-200", text: "text-emerald-700" },
+  warning: { bg: "bg-amber-50", border: "border-amber-200", text: "text-amber-700" },
+  error: { bg: "bg-red-50", border: "border-red-200", text: "text-red-700" }
+};
+function renderCheck(check) {
+  const colors = STATUS_COLORS[check.status] || STATUS_COLORS.ok;
+  const detailsHtml = check.details.length > 0 ? `<ul class="mt-2 ml-6 space-y-0.5 text-xs ${colors.text} opacity-80">${check.details.map((d) => `<li class="list-disc">${d}</li>`).join("")}</ul>` : "";
+  return `
+        <div class="flex items-start gap-3 p-3 rounded-lg ${colors.bg} border ${colors.border} transition-all duration-200">
+            ${STATUS_ICONS[check.status] || STATUS_ICONS.ok}
             <div class="flex-1 min-w-0">
-                <div class="font-semibold text-sm ${e.text}">${t.name}</div>
-                <div class="text-xs text-gray-600 mt-0.5">${t.message}</div>
-                ${s}
+                <div class="font-semibold text-sm ${colors.text}">${check.name}</div>
+                <div class="text-xs text-gray-600 mt-0.5">${check.message}</div>
+                ${detailsHtml}
             </div>
         </div>
-    `}async function ue(){let t=document.getElementById("prevalidation-modal"),e=document.getElementById("prevalidation-body"),s=document.getElementById("prevalidation-summary");if(!(!t||!e||!s)){t.classList.remove("hidden"),t.classList.add("flex"),e.innerHTML=`
+    `;
+}
+async function runPrevalidation() {
+  const modal = document.getElementById("prevalidation-modal");
+  const body = document.getElementById("prevalidation-body");
+  const summary = document.getElementById("prevalidation-summary");
+  if (!modal || !body || !summary) return;
+  modal.classList.remove("hidden");
+  modal.classList.add("flex");
+  body.innerHTML = `
         <div class="flex items-center justify-center py-12">
             <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-indigo-600"></div>
             <span class="ml-3 text-gray-500 text-sm">Analizando viabilidad...</span>
         </div>
-    `,s.innerHTML="";try{let r=await o.API.getPrevalidation(),n=r.checks.filter(l=>l.status==="error").length,a=r.checks.filter(l=>l.status==="warning").length,i=r.checks.filter(l=>l.status==="ok").length;r.viable?s.innerHTML=`
+    `;
+  summary.innerHTML = "";
+  try {
+    const result = await AppData.API.getPrevalidation();
+    const errorCount = result.checks.filter((c) => c.status === "error").length;
+    const warnCount = result.checks.filter((c) => c.status === "warning").length;
+    const okCount = result.checks.filter((c) => c.status === "ok").length;
+    if (result.viable) {
+      summary.innerHTML = `
                 <div class="flex items-center gap-2 p-3 bg-emerald-50 border border-emerald-200 rounded-lg">
-                    ${k.ok}
+                    ${STATUS_ICONS.ok}
                     <span class="text-emerald-700 font-bold text-sm">Viable \u2014 Todos los chequeos superados</span>
-                    <span class="ml-auto text-xs text-emerald-600">${i} ok${a>0?`, ${a} avisos`:""}</span>
+                    <span class="ml-auto text-xs text-emerald-600">${okCount} ok${warnCount > 0 ? `, ${warnCount} avisos` : ""}</span>
                 </div>
-            `:s.innerHTML=`
+            `;
+    } else {
+      summary.innerHTML = `
                 <div class="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-lg">
-                    ${k.error}
-                    <span class="text-red-700 font-bold text-sm">No viable \u2014 Hay ${n} error(es) que impiden generar un horario correcto</span>
-                    <span class="ml-auto text-xs text-red-600">${n} errores, ${a} avisos</span>
+                    ${STATUS_ICONS.error}
+                    <span class="text-red-700 font-bold text-sm">No viable \u2014 Hay ${errorCount} error(es) que impiden generar un horario correcto</span>
+                    <span class="ml-auto text-xs text-red-600">${errorCount} errores, ${warnCount} avisos</span>
                 </div>
-            `;let d=[...r.checks].sort((l,u)=>{let m={error:0,warning:1,ok:2};return(m[l.status]??2)-(m[u.status]??2)});e.innerHTML=d.map(ye).join("")}catch(r){e.innerHTML=`
+            `;
+    }
+    const sorted = [...result.checks].sort((a, b) => {
+      const order = { error: 0, warning: 1, ok: 2 };
+      return (order[a.status] ?? 2) - (order[b.status] ?? 2);
+    });
+    body.innerHTML = sorted.map(renderCheck).join("");
+  } catch (err) {
+    body.innerHTML = `
             <div class="text-center py-8 text-red-500">
                 <p class="font-bold">Error al ejecutar la pre-validaci\xF3n</p>
-                <p class="text-sm text-gray-500 mt-1">${r}</p>
+                <p class="text-sm text-gray-500 mt-1">${err}</p>
             </div>
-        `}}}function me(){let t=document.getElementById("prevalidation-modal");t&&(t.classList.add("hidden"),t.classList.remove("flex"))}var o={API:new M,WS:new H,subjects:[],teachers:[],courses:[],scheduledClasses:[],calendarInstance:null,currentEventContext:null};o.currentCourseId=null;function R(t,e,s="",r=0,n=""){fetch("/api/v1/log",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({level:t,message:e,source:s,line:r,stack:n??""})}).catch(()=>{})}window.onerror=(t,e,s,r,n)=>(R("error",String(t),e??"",s??0,n?.stack??""),!1);window.addEventListener("unhandledrejection",t=>{let e=t.reason,s=e instanceof Error?e.message:String(e);R("error",`Unhandled Promise Rejection: ${s}`,"",0,e?.stack??"")});var ve=console.error.bind(console);console.error=(...t)=>{ve(...t);let e=t.map(r=>r instanceof Error?r.message:String(r)).join(" "),s=t.find(r=>r instanceof Error)?.stack??"";R("error",e,"console.error",0,s)};window.onload=async function(){try{o.subjects=await o.API.getSubjects(),o.teachers=await o.API.getTeachers(),o.courses=await o.API.getCourses(),o.scheduledClasses=await o.API.getSchedule(),o.config=await o.API.getConfig();let t=document.getElementById("app-loader");t&&(t.style.opacity="0",setTimeout(()=>t.remove(),300)),W(),q(),$(),o.WS.connect(),xe()}catch(t){console.error("Init Error:",t);let e=document.getElementById("loader-text");e&&(e.textContent="Error conectando con la API. Aseg\xFArese de que el servidor Ktor est\xE9 encendido.",e.className="mt-4 text-red-600 font-bold px-4 text-center")}};function xe(){let t=document.getElementById("btn-toggle-engine"),e=document.getElementById("ws-status");o.WS.on("connected",()=>{t&&(t.disabled=!1,t.classList.replace("bg-gray-400","bg-emerald-600"),t.classList.add("hover:bg-emerald-700"),t.classList.remove("cursor-not-allowed"));let s=document.getElementById("text-engine-btn");s&&(s.textContent="Generar (WS)"),e&&(e.innerHTML='<span class="relative flex h-2.5 w-2.5 mr-1.5"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span><span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span></span> Conectado')}),o.WS.on("disconnected",()=>{t&&(t.disabled=!0,t.classList.replace("bg-emerald-600","bg-gray-400"),t.classList.remove("hover:bg-emerald-700"),t.classList.add("cursor-not-allowed"));let s=document.getElementById("text-engine-btn");s&&(s.textContent="Conectando..."),e&&(e.innerHTML='<span class="relative flex h-2.5 w-2.5 mr-1.5"><span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500"></span></span> Desconectado')}),o.WS.on("scores_updated",s=>{let r=document.getElementById("score-hard"),n=document.getElementById("score-soft"),b=document.getElementById("score-bound"),bw=document.getElementById("score-bound-wrapper");r&&(r.textContent=s.hard.toString()),n&&(n.textContent=s.soft.toString());if(b&&bw){s.bound&&s.bound>0?(b.textContent=s.bound.toString(),bw.classList.remove("hidden")):bw.classList.add("hidden")}let a=document.getElementById("status-conflict"),i=document.getElementById("status-ok");a&&i&&(s.hard===0?(a.classList.replace("flex","hidden"),i.classList.replace("hidden","flex")):(i.classList.replace("flex","hidden"),a.classList.replace("hidden","flex")));let d=document.getElementById("conflict-tooltip-count"),l=document.getElementById("conflict-tooltip-list");if(d&&l){let u=s.conflictos||[];d.textContent=u.length.toString(),u.length===0?l.innerHTML='<span class="text-emerald-600 font-medium">\xA1Horario matem\xE1ticamente correcto!</span>':l.innerHTML='<ul class="list-disc pl-4 space-y-1 text-red-600 font-medium">'+u.map(m=>`<li>${m}</li>`).join("")+"</ul>"}}),o.WS.on("optimization_complete",()=>{ge(!0),c("\xA1Matem\xE1ticamente Correcto!","El servidor WS ha encontrado la disposici\xF3n perfecta.","success")}),o.WS.on("schedule_pushed",s=>{o.scheduledClasses=s,h()})}function ge(t=!1){try{let e=document.getElementById("btn-toggle-engine");if(!e)return;let s=document.getElementById("icon-stop"),r=document.getElementById("icon-play"),n=document.getElementById("text-engine-btn");o.WS.isOptimizing||t?(o.WS.sendCommand("STOP"),e.classList.replace("bg-red-600","bg-emerald-600"),e.classList.replace("hover:bg-red-700","hover:bg-emerald-700"),e.classList.remove("animate-pulse"),s&&s.classList.add("hidden"),r&&r.classList.remove("hidden"),n&&(n.textContent="Generar (WS)")):(o.WS.sendCommand("START"),e.classList.replace("bg-emerald-600","bg-red-600"),e.classList.replace("hover:bg-red-700","hover:bg-red-700"),e.classList.add("animate-pulse"),r&&r.classList.add("hidden"),s&&s.classList.remove("hidden"),n&&(n.textContent="Parar Motor"))}catch(e){console.error("Error in toggleOptimizationEngine:",e),c("Error","No se pudo iniciar el motor de optimizaci\xF3n","error")}}function Ee(t){document.querySelectorAll(".view-tab").forEach(n=>n.classList.remove("active"));let e=document.getElementById(`view-${t}`);e&&e.classList.add("active"),document.querySelectorAll(".nav-btn").forEach(n=>{n.classList.remove("bg-indigo-600","text-white","shadow-inner"),n.classList.add("text-slate-300")});let s=document.getElementById(`nav-${t}`);s&&(s.classList.remove("text-slate-300"),s.classList.add("bg-indigo-600","text-white","shadow-inner"));let r=document.getElementById("header-calendar");r&&(r.style.display=t==="calendar"?"flex":"none"),t==="subjects"&&B(),t==="teachers"&&I(),t==="courses"&&T(),t==="assignments"&&te(),t==="settings"&&le(),t==="calendar"&&setTimeout(()=>{o.calendarInstance&&o.calendarInstance.render(),q(),$()},50)}function q(){let t=document.getElementById("view-type-select"),e=document.getElementById("header-course-select"),s=document.getElementById("header-course-separator"),r=document.getElementById("view-entity-select");if(!t||!e||!r||!s)return;let n=t.value,a=e.value,i=r.value;n==="group"?(e.classList.remove("hidden"),s.classList.remove("hidden"),e.innerHTML="",o.courses.forEach(d=>e.innerHTML+=`<option value="${d.id}">${d.name}</option>`),a&&Array.from(e.options).some(d=>d.value===a)&&(e.value=a),j(i)):(e.classList.add("hidden"),s.classList.add("hidden"),r.innerHTML="",o.teachers.forEach(d=>r.innerHTML+=`<option value="${d.id}">${d.name}</option>`),i&&Array.from(r.options).some(d=>d.value===i)&&(r.value=i),h())}function Ie(){j(null)}Object.assign(window,{AppData:o,switchTab:Ee,updateEntitySelector:q,onHeaderCourseChange:Ie,toggleOptimizationEngine:ge,openFormModal:J,closeCrudModal:E,openGroupModal:Q,deleteSubject:X,deleteTeacher:Y,deleteCourse:Z,deleteGroup:ee,updateAssignment:se,saveNewClass:z,closeAddClassModal:D,openAddClassModal:A,onModalCourseChange:L,closeEventDetail:P,refreshCalendarView:h,updateDateRange:$,showToast:c,openCourseSubjects:K,openAvailabilityModal:ne,closeAvailabilityModal:_,saveAvailability:ie,saveSettings:de,clearGroupSchedule:V,clearGroupAssignments:re,clearCourseAssignments:oe,toggleAvailabilitySlot:ae,runPrevalidation:ue,closePrevalidation:me});})();
+        `;
+  }
+}
+function closePrevalidation() {
+  const modal = document.getElementById("prevalidation-modal");
+  if (modal) {
+    modal.classList.add("hidden");
+    modal.classList.remove("flex");
+  }
+}
+
+// Web/src/print.ts
+function printAllSchedules() {
+  if (!AppData.courses || AppData.courses.length === 0) {
+    showToast("Info", "No hay cursos ni grupos registrados para imprimir.", "info");
+    return;
+  }
+  let printArea = document.getElementById("print-area");
+  if (!printArea) {
+    printArea = document.createElement("div");
+    printArea.id = "print-area";
+    document.body.appendChild(printArea);
+  }
+  let startHour = 9;
+  let endHour = 14;
+  let slotMin = 30;
+  if (AppData.config) {
+    const partsStart = AppData.config.horaInicioClases.split(":");
+    const partsEnd = AppData.config.horaFinClases.split(":");
+    startHour = parseInt(partsStart[0]);
+    endHour = parseInt(partsEnd[0]);
+    slotMin = AppData.config.tiempoMinimo || 30;
+  }
+  const slots = [];
+  let currentMin = startHour * 60;
+  const finishMin = endHour * 60;
+  while (currentMin < finishMin) {
+    const nextMin = currentMin + slotMin;
+    const h1 = Math.floor(currentMin / 60).toString().padStart(2, "0");
+    const m1 = (currentMin % 60).toString().padStart(2, "0");
+    const h2 = Math.floor(nextMin / 60).toString().padStart(2, "0");
+    const m2 = (nextMin % 60).toString().padStart(2, "0");
+    slots.push({
+      startStr: `${h1}:${m1}`,
+      endStr: `${h2}:${m2}`,
+      startMin: currentMin,
+      endMin: nextMin
+    });
+    currentMin = nextMin;
+  }
+  const days = [
+    { id: 1, name: "Lunes" },
+    { id: 2, name: "Martes" },
+    { id: 3, name: "Mi\xE9rcoles" },
+    { id: 4, name: "Jueves" },
+    { id: 5, name: "Viernes" }
+  ];
+  let html = "";
+  AppData.courses.forEach((course) => {
+    course.groups.forEach((group) => {
+      const groupClasses = AppData.scheduledClasses.filter((c) => c.groupId === group.id);
+      html += `
+                <div class="print-page">
+                    <div class="flex justify-between items-center mb-2 border-b-2 border-indigo-600 pb-1">
+                        <div>
+                            <h1 class="text-xl font-bold text-gray-900 leading-tight">${course.name} - Grupo ${group.name}</h1>
+                            <p class="text-[10px] text-gray-500 font-medium uppercase tracking-wider">Horario Lectivo Oficial \u2022 EduSchedule</p>
+                        </div>
+                        <div class="text-right">
+                            <span class="text-[10px] font-semibold px-2.5 py-0.5 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-full">Clases: ${groupClasses.length}</span>
+                        </div>
+                    </div>
+
+                    <table class="w-full border-collapse border border-gray-300 text-xs table-fixed">
+                        <thead>
+                            <tr class="bg-slate-800 text-white font-bold border-b border-gray-300">
+                                <th class="p-1 border border-gray-300 w-20 text-center text-[10px]">Hora</th>
+                                ${days.map((d) => `<th class="p-1 border border-gray-300 text-center text-[11px]">${d.name}</th>`).join("")}
+                            </tr>
+                        </thead>
+                        <tbody>
+            `;
+      slots.forEach((slot) => {
+        let isRecess = false;
+        if (AppData.config) {
+          const rParts = AppData.config.horaInicioRecreo.split(":");
+          const rStart = parseInt(rParts[0]) * 60 + parseInt(rParts[1]);
+          const rEnd = rStart + AppData.config.duracionRecreo;
+          if (slot.startMin >= rStart && slot.startMin < rEnd) {
+            isRecess = true;
+          }
+        }
+        if (isRecess) {
+          html += `
+                        <tr class="bg-gray-100 text-gray-500 font-semibold">
+                            <td class="p-1 border border-gray-300 text-center font-mono text-[9px]">${slot.startStr} - ${slot.endStr}</td>
+                            <td colspan="5" class="p-1 border border-gray-300 text-center bg-gray-100 text-slate-500 text-[10px]">\u2615 Recreo</td>
+                        </tr>
+                    `;
+          return;
+        }
+        html += `<tr>`;
+        html += `<td class="p-1 border border-gray-300 text-center font-mono text-[9px] font-medium bg-gray-50">${slot.startStr} - ${slot.endStr}</td>`;
+        days.forEach((day) => {
+          const matchCls = groupClasses.find((cls) => {
+            const dt = new Date(cls.start);
+            const dNum = dt.getDay();
+            if (dNum !== day.id) return false;
+            const cMin = dt.getHours() * 60 + dt.getMinutes();
+            return cMin === slot.startMin;
+          });
+          if (matchCls) {
+            const subject = AppData.subjects.find((s) => s.id === matchCls.subjectId);
+            const teacher = AppData.teachers.find((t) => t.id === matchCls.teacherId);
+            const bgColor = getSubjectColor(matchCls.subjectId);
+            const pinIcon = matchCls.isPinned ? "\u{1F4CC} " : "";
+            html += `
+                            <td class="p-1 border border-gray-300 align-top text-white font-medium shadow-inner" style="background-color: ${bgColor} !important; color: white !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important;">
+                                <div class="font-bold text-[10px] truncate leading-tight">${pinIcon}${subject ? subject.name : "Clase"}</div>
+                                ${teacher ? `<div class="text-[9px] opacity-95 truncate leading-tight font-normal">Prof: ${teacher.name}</div>` : ""}
+                            </td>
+                        `;
+          } else {
+            html += `<td class="p-1 border border-gray-300 text-center text-gray-300 bg-white text-[9px]">--</td>`;
+          }
+        });
+        html += `</tr>`;
+      });
+      html += `
+                        </tbody>
+                    </table>
+                </div>
+            `;
+    });
+  });
+  printArea.innerHTML = html;
+  showToast("Imprimiendo", "Preparando impresi\xF3n A4 Horizontal con colores por asignatura...", "info");
+  setTimeout(() => {
+    window.print();
+  }, 300);
+}
+
+// Web/src/Datos.ts
+var AppData = {
+  API: new ApiService(),
+  WS: new EngineWebSocket(),
+  subjects: [],
+  teachers: [],
+  courses: [],
+  scheduledClasses: [],
+  calendarInstance: null,
+  currentEventContext: null
+};
+AppData.currentCourseId = null;
+function sendErrorToServer(level, message, source = "", line = 0, stack = "") {
+  fetch("/api/v1/log", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ level, message, source, line, stack: stack ?? "" })
+  }).catch(() => {
+  });
+}
+window.onerror = (msg, src, lineno, _col, err) => {
+  sendErrorToServer("error", String(msg), src ?? "", lineno ?? 0, err?.stack ?? "");
+  return false;
+};
+window.addEventListener("unhandledrejection", (e) => {
+  const err = e.reason;
+  const msg = err instanceof Error ? err.message : String(err);
+  sendErrorToServer("error", `Unhandled Promise Rejection: ${msg}`, "", 0, err?.stack ?? "");
+});
+var _originalConsoleError = console.error.bind(console);
+console.error = (...args) => {
+  _originalConsoleError(...args);
+  const message = args.map((a) => a instanceof Error ? a.message : String(a)).join(" ");
+  const stack = args.find((a) => a instanceof Error)?.stack ?? "";
+  sendErrorToServer("error", message, "console.error", 0, stack);
+};
+window.onload = async function() {
+  try {
+    AppData.subjects = await AppData.API.getSubjects();
+    AppData.teachers = await AppData.API.getTeachers();
+    AppData.courses = await AppData.API.getCourses();
+    AppData.scheduledClasses = await AppData.API.getSchedule();
+    AppData.config = await AppData.API.getConfig();
+    const loader = document.getElementById("app-loader");
+    if (loader) {
+      loader.style.opacity = "0";
+      setTimeout(() => loader.remove(), 300);
+    }
+    initCalendar();
+    updateEntitySelector2();
+    updateDateRange();
+    AppData.WS.connect();
+    setupWebSocketsListeners();
+  } catch (err) {
+    console.error("Init Error:", err);
+    const loaderText = document.getElementById("loader-text");
+    if (loaderText) {
+      loaderText.textContent = "Error conectando con la API. Aseg\xFArese de que el servidor Ktor est\xE9 encendido.";
+      loaderText.className = "mt-4 text-red-600 font-bold px-4 text-center";
+    }
+  }
+};
+function setupWebSocketsListeners() {
+  const btn = document.getElementById("btn-toggle-engine");
+  const wsStatus = document.getElementById("ws-status");
+  AppData.WS.on("connected", () => {
+    if (btn) {
+      btn.disabled = false;
+      btn.classList.replace("bg-gray-400", "bg-emerald-600");
+      btn.classList.add("hover:bg-emerald-700");
+      btn.classList.remove("cursor-not-allowed");
+    }
+    const textBtn = document.getElementById("text-engine-btn");
+    if (textBtn) textBtn.textContent = "Generar (WS)";
+    if (wsStatus) {
+      wsStatus.innerHTML = '<span class="relative flex h-2.5 w-2.5 mr-1.5"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span><span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span></span> Conectado';
+    }
+  });
+  AppData.WS.on("disconnected", () => {
+    if (btn) {
+      btn.disabled = true;
+      btn.classList.replace("bg-emerald-600", "bg-gray-400");
+      btn.classList.remove("hover:bg-emerald-700");
+      btn.classList.add("cursor-not-allowed");
+    }
+    const textBtn = document.getElementById("text-engine-btn");
+    if (textBtn) textBtn.textContent = "Conectando...";
+    if (wsStatus) {
+      wsStatus.innerHTML = '<span class="relative flex h-2.5 w-2.5 mr-1.5"><span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500"></span></span> Desconectado';
+    }
+  });
+  AppData.WS.on("scores_updated", (scores) => {
+    const elHard = document.getElementById("score-hard");
+    const elSoft = document.getElementById("score-soft");
+    const elTooltipText = document.getElementById("score-soft-tooltip-text");
+    if (elHard) elHard.textContent = scores.hard.toString();
+    if (elSoft) {
+      const pct = scores.porcentaje !== void 0 && !isNaN(scores.porcentaje) ? Math.min(100, Math.max(0, scores.porcentaje)).toFixed(1) + "%" : "0.0%";
+      elSoft.textContent = pct;
+    }
+    if (elTooltipText) {
+      const rawObj = scores.rawObjective || scores.soft || 0;
+      const boundVal = scores.bound || 0;
+      elTooltipText.innerHTML = `Puntos: <b class="text-white">${rawObj.toLocaleString()}</b> / <b class="text-indigo-400">${boundVal.toLocaleString()}</b> pts`;
+    }
+    const stConflict = document.getElementById("status-conflict");
+    const stOk = document.getElementById("status-ok");
+    if (stConflict && stOk) {
+      if (scores.hard === 0) {
+        stConflict.classList.replace("flex", "hidden");
+        stOk.classList.replace("hidden", "flex");
+      } else {
+        stOk.classList.replace("flex", "hidden");
+        stConflict.classList.replace("hidden", "flex");
+      }
+    }
+    const elCount = document.getElementById("conflict-tooltip-count");
+    const elList = document.getElementById("conflict-tooltip-list");
+    if (elCount && elList) {
+      const list = scores.conflictos || [];
+      elCount.textContent = list.length.toString();
+      if (list.length === 0) {
+        elList.innerHTML = '<span class="text-emerald-600 font-medium">\xA1Horario matem\xE1ticamente correcto!</span>';
+      } else {
+        elList.innerHTML = '<ul class="list-disc pl-4 space-y-1 text-red-600 font-medium">' + list.map((c) => `<li>${c}</li>`).join("") + "</ul>";
+      }
+    }
+  });
+  AppData.WS.on("optimization_complete", () => {
+    toggleOptimizationEngine(true);
+    showToast("\xA1Matem\xE1ticamente Correcto!", "El servidor WS ha encontrado la disposici\xF3n perfecta.", "success");
+  });
+  AppData.WS.on("schedule_pushed", (newScheduleFromDB) => {
+    AppData.scheduledClasses = newScheduleFromDB;
+    refreshCalendarView();
+  });
+}
+function toggleOptimizationEngine(forceStop = false) {
+  try {
+    const btn = document.getElementById("btn-toggle-engine");
+    if (!btn) return;
+    const iconStop = document.getElementById("icon-stop");
+    const iconPlay = document.getElementById("icon-play");
+    const textEngineBtn = document.getElementById("text-engine-btn");
+    if (AppData.WS.isOptimizing || forceStop) {
+      AppData.WS.sendCommand("STOP");
+      btn.classList.replace("bg-red-600", "bg-emerald-600");
+      btn.classList.replace("hover:bg-red-700", "hover:bg-emerald-700");
+      btn.classList.remove("animate-pulse");
+      if (iconStop) iconStop.classList.add("hidden");
+      if (iconPlay) iconPlay.classList.remove("hidden");
+      if (textEngineBtn) textEngineBtn.textContent = "Generar (WS)";
+    } else {
+      AppData.WS.sendCommand("START");
+      btn.classList.replace("bg-emerald-600", "bg-red-600");
+      btn.classList.replace("hover:bg-red-700", "hover:bg-red-700");
+      btn.classList.add("animate-pulse");
+      if (iconPlay) iconPlay.classList.add("hidden");
+      if (iconStop) iconStop.classList.remove("hidden");
+      if (textEngineBtn) textEngineBtn.textContent = "Parar Motor";
+    }
+  } catch (err) {
+    console.error("Error in toggleOptimizationEngine:", err);
+    showToast("Error", "No se pudo iniciar el motor de optimizaci\xF3n", "error");
+  }
+}
+function switchTab(tabId) {
+  document.querySelectorAll(".view-tab").forEach((el) => el.classList.remove("active"));
+  const targetTab = document.getElementById(`view-${tabId}`);
+  if (targetTab) targetTab.classList.add("active");
+  document.querySelectorAll(".nav-btn").forEach((btn) => {
+    btn.classList.remove("bg-indigo-600", "text-white", "shadow-inner");
+    btn.classList.add("text-slate-300");
+  });
+  const activeBtn = document.getElementById(`nav-${tabId}`);
+  if (activeBtn) {
+    activeBtn.classList.remove("text-slate-300");
+    activeBtn.classList.add("bg-indigo-600", "text-white", "shadow-inner");
+  }
+  const headerCalendar = document.getElementById("header-calendar");
+  if (headerCalendar) {
+    headerCalendar.style.display = tabId === "calendar" ? "flex" : "none";
+  }
+  if (tabId === "subjects") renderSubjects();
+  if (tabId === "teachers") renderTeachers();
+  if (tabId === "courses") renderCourses();
+  if (tabId === "assignments") renderAssignmentsList();
+  if (tabId === "settings") loadSettings();
+  if (tabId === "calendar") {
+    setTimeout(() => {
+      if (AppData.calendarInstance) AppData.calendarInstance.render();
+      updateEntitySelector2();
+      updateDateRange();
+    }, 50);
+  }
+}
+function updateEntitySelector2() {
+  const typeSelect = document.getElementById("view-type-select");
+  const courseSelect = document.getElementById("header-course-select");
+  const courseSeparator = document.getElementById("header-course-separator");
+  const entitySelect = document.getElementById("view-entity-select");
+  if (!typeSelect || !courseSelect || !entitySelect || !courseSeparator) return;
+  const type = typeSelect.value;
+  const currentCourseValue = courseSelect.value;
+  const currentValue = entitySelect.value;
+  if (type === "group") {
+    courseSelect.classList.remove("hidden");
+    courseSeparator.classList.remove("hidden");
+    courseSelect.innerHTML = "";
+    AppData.courses.forEach((c) => courseSelect.innerHTML += `<option value="${c.id}">${c.name}</option>`);
+    if (currentCourseValue && Array.from(courseSelect.options).some((opt) => opt.value === currentCourseValue)) {
+      courseSelect.value = currentCourseValue;
+    }
+    onHeaderCourseChange(currentValue);
+  } else {
+    courseSelect.classList.add("hidden");
+    courseSeparator.classList.add("hidden");
+    entitySelect.innerHTML = "";
+    AppData.teachers.forEach((t) => entitySelect.innerHTML += `<option value="${t.id}">${t.name}</option>`);
+    if (currentValue && Array.from(entitySelect.options).some((opt) => opt.value === currentValue)) {
+      entitySelect.value = currentValue;
+    }
+    refreshCalendarView();
+  }
+}
+function onHeaderCourseChangeWrapper() {
+  onHeaderCourseChange(null);
+}
+Object.assign(window, {
+  AppData,
+  switchTab,
+  updateEntitySelector: updateEntitySelector2,
+  onHeaderCourseChange: onHeaderCourseChangeWrapper,
+  toggleOptimizationEngine,
+  openFormModal,
+  closeCrudModal,
+  openGroupModal,
+  deleteSubject,
+  deleteTeacher,
+  deleteCourse,
+  deleteGroup,
+  updateAssignment,
+  saveNewClass,
+  closeAddClassModal,
+  openAddClassModal,
+  onModalCourseChange,
+  closeEventDetail,
+  refreshCalendarView,
+  updateDateRange,
+  showToast,
+  openCourseSubjects,
+  openAvailabilityModal,
+  closeAvailabilityModal,
+  saveAvailability,
+  saveSettings,
+  clearGroupSchedule,
+  clearGroupAssignments,
+  clearCourseAssignments,
+  toggleAvailabilitySlot,
+  runPrevalidation,
+  closePrevalidation,
+  toggleColorMode,
+  printAllSchedules
+});
+export {
+  AppData,
+  setupWebSocketsListeners,
+  switchTab,
+  toggleOptimizationEngine,
+  updateEntitySelector2 as updateEntitySelector
+};

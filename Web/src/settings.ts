@@ -11,8 +11,9 @@ export function loadSettings(): void {
     const elPriorizar = document.getElementById('settings-priorizar-tutor') as HTMLInputElement;
     const elPriorizarPuntos = document.getElementById('settings-priorizar-tutor-puntos') as HTMLInputElement;
     const elBloquesPuntos = document.getElementById('settings-bloques-60-puntos') as HTMLInputElement;
-    const elHuecosPuntos = document.getElementById('settings-huecos-puntos') as HTMLInputElement;
-    const elCompactarPuntos = document.getElementById('settings-compactar-temprano-puntos') as HTMLInputElement;
+    const elMinimizarAsig = document.getElementById('settings-minimizar-asignaturas') as HTMLInputElement;
+    const elLimiteTiempo = document.getElementById('settings-limite-tiempo') as HTMLInputElement;
+    const elTiempoEstancamiento = document.getElementById('settings-tiempo-estancamiento') as HTMLInputElement;
 
     const elHoraInicio = document.getElementById('settings-hora-inicio') as HTMLInputElement;
     const elHoraFin = document.getElementById('settings-hora-fin') as HTMLInputElement;
@@ -40,8 +41,9 @@ export function loadSettings(): void {
     
     if (elPriorizarPuntos) elPriorizarPuntos.value = conf.priorizarTutorPuntos.toString();
     if (elBloquesPuntos) elBloquesPuntos.value = conf.fomentarBloques60Puntos.toString();
-    if (elHuecosPuntos) elHuecosPuntos.value = conf.evitarHuecosPuntos.toString();
-    if (elCompactarPuntos) elCompactarPuntos.value = conf.compactarTempranoPuntos.toString();
+    if (elMinimizarAsig) elMinimizarAsig.checked = conf.minimizarAsignaturasDistintas ?? true;
+    if (elLimiteTiempo) elLimiteTiempo.value = (conf.limiteTiempoSegundos ?? 18000).toString();
+    if (elTiempoEstancamiento) elTiempoEstancamiento.value = (conf.tiempoEstancamientoSegundos ?? 60).toString();
 
     if (elHoraInicio) elHoraInicio.value = conf.horaInicioClases;
     if (elHoraFin) elHoraFin.value = conf.horaFinClases;
@@ -60,8 +62,9 @@ export async function saveSettings(): Promise<void> {
     const elPriorizar = document.getElementById('settings-priorizar-tutor') as HTMLInputElement;
     const elPriorizarPuntos = document.getElementById('settings-priorizar-tutor-puntos') as HTMLInputElement;
     const elBloquesPuntos = document.getElementById('settings-bloques-60-puntos') as HTMLInputElement;
-    const elHuecosPuntos = document.getElementById('settings-huecos-puntos') as HTMLInputElement;
-    const elCompactarPuntos = document.getElementById('settings-compactar-temprano-puntos') as HTMLInputElement;
+    const elMinimizarAsig = document.getElementById('settings-minimizar-asignaturas') as HTMLInputElement;
+    const elLimiteTiempo = document.getElementById('settings-limite-tiempo') as HTMLInputElement;
+    const elTiempoEstancamiento = document.getElementById('settings-tiempo-estancamiento') as HTMLInputElement;
 
     const elHoraInicio = document.getElementById('settings-hora-inicio') as HTMLInputElement;
     const elHoraFin = document.getElementById('settings-hora-fin') as HTMLInputElement;
@@ -79,8 +82,9 @@ export async function saveSettings(): Promise<void> {
         minutosMaximosProfesor: elMaxProfe ? parseInt(elMaxProfe.value) : 1500,
         priorizarTutorPuntos: elPriorizarPuntos ? parseInt(elPriorizarPuntos.value) : 100,
         fomentarBloques60Puntos: elBloquesPuntos ? parseInt(elBloquesPuntos.value) : 10,
-        evitarHuecosPuntos: elHuecosPuntos ? parseInt(elHuecosPuntos.value) : 50,
-        compactarTempranoPuntos: elCompactarPuntos ? parseInt(elCompactarPuntos.value) : 5,
+        minimizarAsignaturasDistintas: elMinimizarAsig ? elMinimizarAsig.checked : true,
+        limiteTiempoSegundos: elLimiteTiempo ? parseFloat(elLimiteTiempo.value) : 18000.0,
+        tiempoEstancamientoSegundos: elTiempoEstancamiento ? parseFloat(elTiempoEstancamiento.value) : 60.0,
 
         horaInicioClases: elHoraInicio ? elHoraInicio.value : "09:00",
         horaFinClases: elHoraFin ? elHoraFin.value : "14:00",

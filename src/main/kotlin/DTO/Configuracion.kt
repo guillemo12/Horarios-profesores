@@ -10,8 +10,9 @@ data class Configuracion(
     val minutosMaximosProfesor: Int = 1500,
     val priorizarTutorPuntos: Int = 100,
     val fomentarBloques60Puntos: Int = 10,
-    val evitarHuecosPuntos: Int = 50,
-    val compactarTempranoPuntos: Int = 5,
+    val minimizarAsignaturasDistintas: Boolean = true,
+    val limiteTiempoSegundos: Double = 18000.0,
+    val tiempoEstancamientoSegundos: Double = 60.0,
     
     // Rango horario y recreo
     val horaInicioClases: String = "09:00",

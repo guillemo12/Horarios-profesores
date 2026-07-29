@@ -16,8 +16,9 @@ class ConfiguracionEntity(id: EntityID<Int>) : IntEntity(id) {
     var minutosMaximosProfesor by ConfiguracionTable.minutosMaximosProfesor
     var priorizarTutorPuntos by ConfiguracionTable.priorizarTutorPuntos
     var fomentarBloques60Puntos by ConfiguracionTable.fomentarBloques60Puntos
-    var evitarHuecosPuntos by ConfiguracionTable.evitarHuecosPuntos
-    var compactarTempranoPuntos by ConfiguracionTable.compactarTempranoPuntos
+    var minimizarAsignaturasDistintas by ConfiguracionTable.minimizarAsignaturasDistintas
+    var limiteTiempoSegundos by ConfiguracionTable.limiteTiempoSegundos
+    var tiempoEstancamientoSegundos by ConfiguracionTable.tiempoEstancamientoSegundos
 
     // Horas y Recreo
     var horaInicioClases by ConfiguracionTable.horaInicioClases

@@ -1,7 +1,7 @@
 import { AppDataState, Subject, Teacher, Course, ScheduledClass } from './types';
 import { ApiService } from './api';
 import { EngineWebSocket } from './websocket';
-import { initCalendar, updateDateRange, refreshCalendarView, openAddClassModal, closeAddClassModal, onModalCourseChange, saveNewClass, openEventDetail, closeEventDetail, onHeaderCourseChange, clearGroupSchedule } from './calendar';
+import { initCalendar, updateDateRange, refreshCalendarView, openAddClassModal, closeAddClassModal, onModalCourseChange, saveNewClass, openEventDetail, closeEventDetail, onHeaderCourseChange, clearGroupSchedule, toggleColorMode } from './calendar';
 import { 
     openFormModal, closeCrudModal, openGroupModal, deleteSubject, deleteTeacher, deleteCourse, deleteGroup, 
     renderSubjects, renderTeachers, renderCourses, openCourseSubjects
@@ -10,6 +10,7 @@ import { renderAssignmentsList, updateAssignment, clearGroupAssignments, clearCo
 import { openAvailabilityModal, closeAvailabilityModal, saveAvailability, toggleAvailabilitySlot } from './availability';
 import { loadSettings, saveSettings } from './settings';
 import { runPrevalidation, closePrevalidation } from './prevalidation';
+import { printAllSchedules } from './print';
 import { showToast } from './utils';
 
 export const AppData: AppDataState = { 
@@ -118,11 +119,25 @@ export function setupWebSocketsListeners(): void {
         }
     });
 
-    AppData.WS.on('scores_updated', (scores: { hard: number, soft: number, conflictos?: string[] }) => {
+    AppData.WS.on('scores_updated', (scores: { hard: number, soft: number, bound: number, rawObjective?: number, porcentaje?: number, conflictos?: string[] }) => {
         const elHard = document.getElementById('score-hard');
         const elSoft = document.getElementById('score-soft');
+        const elTooltipText = document.getElementById('score-soft-tooltip-text');
+
         if (elHard) elHard.textContent = scores.hard.toString();
-        if (elSoft) elSoft.textContent = scores.soft.toString();
+        
+        if (elSoft) {
+            const pct = (scores.porcentaje !== undefined && !isNaN(scores.porcentaje))
+                ? Math.min(100, Math.max(0, scores.porcentaje)).toFixed(1) + '%'
+                : '0.0%';
+            elSoft.textContent = pct;
+        }
+
+        if (elTooltipText) {
+            const rawObj = scores.rawObjective || scores.soft || 0;
+            const boundVal = scores.bound || 0;
+            elTooltipText.innerHTML = `Puntos: <b class="text-white">${rawObj.toLocaleString()}</b> / <b class="text-indigo-400">${boundVal.toLocaleString()}</b> pts`;
+        }
         
         const stConflict = document.getElementById('status-conflict');
         const stOk = document.getElementById('status-ok');
@@ -305,5 +320,7 @@ Object.assign(window, {
     clearCourseAssignments,
     toggleAvailabilitySlot,
     runPrevalidation,
-    closePrevalidation
+    closePrevalidation,
+    toggleColorMode,
+    printAllSchedules
 });

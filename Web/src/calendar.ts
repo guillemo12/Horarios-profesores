@@ -59,6 +59,17 @@ export function initCalendar(): void {
         template: {
             weekDayName(model: any) {
                 return `<span class="toastui-calendar-day-name-item">${model.dayName}</span>`;
+            },
+            time(event: any) {
+                if (event.calendarId === 'recess') {
+                    return `<div class="p-1 font-semibold text-slate-500 text-xs">☕ Recreo</div>`;
+                }
+                return `
+                    <div class="p-1 flex flex-col justify-center h-full overflow-hidden text-white leading-tight">
+                        <div class="font-bold text-xs truncate">${event.title}</div>
+                        ${event.body ? `<div class="text-[11px] font-medium opacity-90 truncate mt-0.5">${event.body}</div>` : ''}
+                    </div>
+                `;
             }
         }
     });
@@ -176,7 +187,14 @@ export function openAddClassModal(startDate: Date | null = null, endDate: Date |
     }
 
     const modal = document.getElementById('add-class-modal');
-    if (modal) modal.classList.replace('hidden', 'flex');
+    if (modal) {
+        modal.classList.replace('hidden', 'flex');
+        modal.onclick = (e: MouseEvent) => {
+            if (e.target === modal) {
+                closeAddClassModal();
+            }
+        };
+    }
 }
 
 export function onModalCourseChange(): void {
@@ -248,6 +266,50 @@ export async function saveNewClass(): Promise<void> {
     AppData.WS.sendCommand('MANUAL_EDIT', { id: nuevaClase.id }); 
 }
 
+const SUBJECT_PALETTE = [
+    '#4f46e5', // Indigo
+    '#0284c7', // Sky Blue
+    '#059669', // Emerald
+    '#d97706', // Amber
+    '#dc2626', // Red
+    '#7c3aed', // Purple
+    '#db2777', // Pink
+    '#2563eb', // Blue
+    '#0d9488', // Teal
+    '#ca8a04', // Yellow
+    '#ea580c', // Orange
+    '#e11d48', // Rose
+    '#9333ea', // Violet
+    '#16a34a'  // Green
+];
+
+export function getSubjectColor(subjectId: string): string {
+    if (!subjectId) return '#4f46e5';
+    let hash = 0;
+    for (let i = 0; i < subjectId.length; i++) {
+        hash = subjectId.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    const idx = Math.abs(hash) % SUBJECT_PALETTE.length;
+    return SUBJECT_PALETTE[idx];
+}
+
+export function toggleColorMode(): void {
+    if (!AppData.colorMode) AppData.colorMode = 'teacher';
+    AppData.colorMode = AppData.colorMode === 'teacher' ? 'subject' : 'teacher';
+
+    const btnText = document.getElementById('btn-color-mode-text');
+    if (btnText) {
+        btnText.textContent = AppData.colorMode === 'teacher' ? 'Color: Profesor' : 'Color: Asignatura';
+    }
+
+    const btnIcon = document.getElementById('btn-color-mode-icon');
+    if (btnIcon) {
+        btnIcon.textContent = AppData.colorMode === 'teacher' ? '🎨' : '📚';
+    }
+
+    refreshCalendarView();
+}
+
 export function refreshCalendarView(): void {
     const typeSelect = document.getElementById('view-type-select') as HTMLSelectElement;
     const entitySelect = document.getElementById('view-entity-select') as HTMLSelectElement;
@@ -263,6 +325,8 @@ export function refreshCalendarView(): void {
     }
     if (!entityId) return;
 
+    const colorMode = AppData.colorMode || 'teacher';
+
     const events = AppData.scheduledClasses.filter(cls => {
         if (type === 'teacher') return cls.teacherId === entityId;
         if (type === 'group') return cls.groupId === entityId;
@@ -272,18 +336,30 @@ export function refreshCalendarView(): void {
         const teacher = AppData.teachers.find(t => t.id === cls.teacherId);
         const course = AppData.courses.find(c => c.groups.some(g => g.id === cls.groupId));
         const group = course ? course.groups.find(g => g.id === cls.groupId) : null;
+
+        const pin = cls.isPinned ? '📌 ' : '';
+        const subjectTitle = subject ? `${pin}${subject.name}` : 'Clase API';
+        
+        // En vista de Grupo mostramos el Profesor abajo. En vista de Profesor mostramos el Grupo abajo.
+        const subtitle = (type === 'group')
+            ? (teacher ? `Prof: ${teacher.name}` : '')
+            : (course && group ? `${course.name} - G.${group.name}` : (teacher ? `Prof: ${teacher.name}` : ''));
+
+        const eventBgColor = (colorMode === 'subject')
+            ? getSubjectColor(cls.subjectId)
+            : (teacher ? teacher.color : '#4f46e5');
         
         return {
             id: cls.id, 
             calendarId: cls.teacherId, 
-            title: subject ? (cls.isPinned ? `📌 ${subject.name}` : subject.name) : 'Clase API',
-            body: `${course ? course.name : ''} ${group ? ' - G.' + group.name : ''}<br/>Prof: ${teacher ? teacher.name : ''}`,
+            title: subjectTitle,
+            body: subtitle,
             start: cls.start, 
             end: cls.end, 
             isReadOnly: cls.isPinned || false,
-            backgroundColor: teacher ? teacher.color : '#cbd5e1', 
+            backgroundColor: eventBgColor, 
             color: '#ffffff',
-            customStyle: { borderRadius: '6px', border: 'none', padding: '4px' }
+            customStyle: { borderRadius: '6px', border: 'none', padding: '2px' }
         };
     });
 
@@ -306,8 +382,13 @@ export function openEventDetail(event: any): void {
     const titleEl = document.getElementById('event-detail-title');
     if (titleEl) titleEl.textContent = subject.name;
     
+    const colorMode = AppData.colorMode || 'teacher';
+    const headerColor = (colorMode === 'subject')
+        ? getSubjectColor(cls.subjectId)
+        : teacher.color;
+
     const headerEl = document.getElementById('event-detail-header');
-    if (headerEl) headerEl.style.backgroundColor = teacher.color;
+    if (headerEl) headerEl.style.backgroundColor = headerColor;
     
     const bodyEl = document.getElementById('event-detail-body');
     if (bodyEl) {
@@ -345,7 +426,14 @@ export function openEventDetail(event: any): void {
     }
 
     const modal = document.getElementById('event-detail-modal');
-    if (modal) modal.classList.replace('hidden', 'flex');
+    if (modal) {
+        modal.classList.replace('hidden', 'flex');
+        modal.onclick = (e: MouseEvent) => {
+            if (e.target === modal) {
+                closeEventDetail();
+            }
+        };
+    }
 }
 
 export function closeEventDetail(): void { 

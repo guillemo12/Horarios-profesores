@@ -53,8 +53,9 @@ export interface Configuracion {
     minutosMaximosProfesor: number;
     priorizarTutorPuntos: number;
     fomentarBloques60Puntos: number;
-    evitarHuecosPuntos: number;
-    compactarTempranoPuntos: number;
+    minimizarAsignaturasDistintas?: boolean;
+    limiteTiempoSegundos?: number;
+    tiempoEstancamientoSegundos?: number;
     
     // Rango horario y recreo
     horaInicioClases: string;
@@ -86,6 +87,7 @@ export interface AppDataState {
     scheduledClasses: ScheduledClass[];
     calendarInstance: any;
     currentEventContext: any;
+    colorMode?: 'teacher' | 'subject';
     config?: Configuracion;
 }
 

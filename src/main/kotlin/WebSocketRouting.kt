@@ -104,8 +104,9 @@ fun Application.configureSockets() {
                                                 minutosMaximosProfesor = it.minutosMaximosProfesor,
                                                 priorizarTutorPuntos = it.priorizarTutorPuntos,
                                                 fomentarBloques60Puntos = it.fomentarBloques60Puntos,
-                                                evitarHuecosPuntos = it.evitarHuecosPuntos,
-                                                compactarTempranoPuntos = it.compactarTempranoPuntos,
+                                                minimizarAsignaturasDistintas = it.minimizarAsignaturasDistintas,
+                                                limiteTiempoSegundos = it.limiteTiempoSegundos,
+                                                tiempoEstancamientoSegundos = it.tiempoEstancamientoSegundos,
                                                 horaInicioClases = it.horaInicioClases.format(fmt),
                                                 horaFinClases = it.horaFinClases.format(fmt),
                                                 horaInicioRecreo = it.horaInicioRecreo.format(fmt),
@@ -121,8 +122,8 @@ fun Application.configureSockets() {
                                             minutosMaximosProfesor = 1500,
                                             priorizarTutorPuntos = 100,
                                             fomentarBloques60Puntos = 10,
-                                            evitarHuecosPuntos = 50,
-                                            compactarTempranoPuntos = 5,
+                                            limiteTiempoSegundos = 18000.0,
+                                            tiempoEstancamientoSegundos = 60.0,
                                             horaInicioClases = "09:00",
                                             horaFinClases = "14:00",
                                             horaInicioRecreo = "12:00",
@@ -253,7 +254,8 @@ fun Application.configureSockets() {
                                     val workerJob = launch(Dispatchers.IO) {
                                         for (progress in progressChannel) {
                                             val jsonConflictos = progress.conflictos.joinToString(",") { "\"${it.replace("\"", "\\\"")}\"" }
-                                            val scoreMsg = """{"type":"scores_updated","hard":${progress.hardScore},"soft":${progress.softScore},"bound":${progress.bestBound},"conflictos":[$jsonConflictos]}"""
+                                            val pct = if (progress.bestBound > 0) minOf(100.0, (progress.rawObjective.toDouble() / progress.bestBound.toDouble()) * 100.0) else 0.0
+                                            val scoreMsg = """{"type":"scores_updated","hard":${progress.hardScore},"soft":${progress.softScore},"bound":${progress.bestBound},"rawObjective":${progress.rawObjective},"porcentaje":$pct,"conflictos":[$jsonConflictos]}"""
 
                                             val dtos = progress.solvedLessons
                                                 .filter { it.timeSlot != null && it.profesor != null }
@@ -295,7 +297,7 @@ fun Application.configureSockets() {
                                                 lessons = leccionesSinAsignar,
                                                 teachers = profesorList,
                                                 config = config,
-                                                timeLimitSeconds = 360000.0,
+                                                timeLimitSeconds = if (config.limiteTiempoSegundos > 0) config.limiteTiempoSegundos else 360000.0,
                                                 onProgress = { progress ->
                                                     progressChannel.trySend(progress)
                                                 },
@@ -374,7 +376,8 @@ fun Application.configureSockets() {
                                                     }
                                                     val scheduleJson = Json.encodeToString(finalDtos)
                                                     val jsonConflictos = Json.encodeToString(resultado.conflictos)
-                                                    val scoreMsg = """{"type":"scores_updated","hard":${resultado.hardScore},"soft":${resultado.softScore},"bound":${resultado.bestBound},"conflictos":$jsonConflictos}"""
+                                                    val pct = if (resultado.bestBound > 0) minOf(100.0, (resultado.rawObjective.toDouble() / resultado.bestBound.toDouble()) * 100.0) else 100.0
+                                                    val scoreMsg = """{"type":"scores_updated","hard":${resultado.hardScore},"soft":${resultado.softScore},"bound":${resultado.bestBound},"rawObjective":${resultado.rawObjective},"porcentaje":$pct,"conflictos":$jsonConflictos}"""
                                                     send(Frame.Text(scoreMsg))
                                                     send(Frame.Text("""{"type":"schedule_pushed","schedule":$scheduleJson}"""))
                                                     send(Frame.Text("""{"type":"optimization_complete"}"""))

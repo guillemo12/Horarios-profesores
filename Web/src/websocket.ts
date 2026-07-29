@@ -38,7 +38,7 @@ export class EngineWebSocket {
             try {
                 const msg = JSON.parse(event.data);
                 if (msg.type === 'scores_updated') {
-                    this._trigger('scores_updated', { hard: msg.hard, soft: msg.soft, bound: msg.bound, conflictos: msg.conflictos });
+                    this._trigger('scores_updated', msg);
                 } else if (msg.type === 'schedule_pushed') {
                     this._trigger('schedule_pushed', msg.schedule);
                 } else if (msg.type === 'optimization_complete') {

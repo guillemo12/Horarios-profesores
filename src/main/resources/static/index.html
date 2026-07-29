@@ -33,6 +33,54 @@
         /* Loader Overlay */
         #app-loader { transition: opacity 0.3s ease; }
 
+        /* Estilos de Impresión / PDF */
+        @media print {
+            @page {
+                size: A4 landscape;
+                margin: 8mm;
+            }
+
+            html, body {
+                background: white !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+
+            body > *:not(#print-area) {
+                display: none !important;
+            }
+
+            #print-area {
+                display: block !important;
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 100% !important;
+                background: white !important;
+                color: black !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+
+            .print-page {
+                page-break-after: always !important;
+                break-after: page !important;
+                page-break-inside: avoid !important;
+                break-inside: avoid !important;
+                width: 100% !important;
+                box-sizing: border-box !important;
+                padding: 0.5rem !important;
+                margin: 0 !important;
+            }
+        }
+        @media screen {
+            #print-area {
+                display: none !important;
+            }
+        }
+
         /* Mostrar tooltip de conflictos */
         #status-conflict:hover #conflict-tooltip {
             display: block !important;
@@ -102,8 +150,16 @@
                 </div>
             </div>
 
-            <!-- Botones de Acción (Añadir Clase) -->
+            <!-- Botones de Acción (Imprimir PDF, Alternar Modo Color y Añadir Clase) -->
             <div class="hidden lg:flex items-center gap-3 flex-shrink-0">
+                <button onclick="printAllSchedules()" id="btn-print-pdf" class="flex items-center gap-1.5 bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors shadow-sm whitespace-nowrap flex-shrink-0" title="Imprimir y exportar a PDF todos los calendarios de todos los cursos">
+                    <span>🖨️</span>
+                    <span>Imprimir PDF</span>
+                </button>
+                <button onclick="toggleColorMode()" id="btn-color-mode" class="flex items-center gap-1.5 bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors shadow-sm whitespace-nowrap flex-shrink-0" title="Alternar colores entre Profesor y Asignatura">
+                    <span id="btn-color-mode-icon">🎨</span>
+                    <span id="btn-color-mode-text">Color: Profesor</span>
+                </button>
                 <button onclick="openAddClassModal()" class="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 rounded-lg text-sm font-medium transition-colors shadow-sm whitespace-nowrap flex-shrink-0">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
                     Añadir Clase
@@ -140,11 +196,18 @@
                         <span class="text-xs font-bold uppercase tracking-wider">Válido</span>
                     </div>
                     <div class="w-px h-6 bg-gray-200 mx-1"></div>
-                    <div class="flex flex-col items-end" title="Puntos Soft y Límite Teórico Máximo (Optimizador WS)">
-                        <div class="flex items-center gap-1.5">
-                            <span class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Soft</span>
-                            <span id="score-soft" class="text-blue-600 text-sm font-bold">0</span>
-                            <span id="score-bound-wrapper" class="text-xs text-gray-400 font-semibold hidden">/ <span id="score-bound" class="text-indigo-500 font-bold">...</span></span>
+                    <div class="relative group flex flex-col items-end cursor-help">
+                        <div class="flex items-center gap-1.5 px-2 py-0.5 bg-blue-50 border border-blue-200 rounded-md">
+                            <span class="text-[10px] font-bold text-blue-500 uppercase tracking-wider">Optimizado</span>
+                            <span id="score-soft" class="text-blue-700 text-xs font-extrabold">0.0%</span>
+                        </div>
+                        <!-- Tooltip al pasar el ratón -->
+                        <div class="absolute top-full right-0 hidden group-hover:block pt-2 z-[100]">
+                            <div class="bg-gray-900 text-white rounded-lg px-3 py-2 text-xs shadow-xl whitespace-nowrap border border-gray-800">
+                                <div id="score-soft-tooltip-text" class="font-medium text-slate-200">
+                                    Puntos: <b class="text-white">0</b> / <b class="text-indigo-400">0</b> pts
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -317,27 +380,36 @@
                                 </div>
                             </div>
 
-                            <!-- Evitar Huecos Libres (Gaps) -->
-                            <div class="p-4 bg-slate-50 rounded-lg border border-slate-100 flex items-center justify-between" title="Penaliza al motor por cada hueco libre o 'hora muerta' en medio del horario de un grupo escolar durante su jornada de clases.">
+                            <!-- Minimizar Asignaturas Distintas por Profesor -->
+                            <div class="p-4 bg-slate-50 rounded-lg border border-slate-100 flex items-center justify-between" title="Fomenta que los profesores impartan el menor número de asignaturas distintas posible, concentrando sus clases.">
                                 <div class="flex flex-col pr-4">
-                                    <span class="text-sm font-semibold text-gray-800">Evitar Huecos Libres (Gaps)</span>
-                                    <span class="text-xs text-gray-500">Penalizar horas muertas intermedias para los alumnos.</span>
+                                    <span class="text-sm font-semibold text-gray-800">Minimizar Asignaturas Distintas por Docente</span>
+                                    <span class="text-xs text-gray-500">Buscar que los profesores impartan menos variedad de materias distintas.</span>
+                                </div>
+                                <input type="checkbox" id="settings-minimizar-asignaturas" class="w-4 h-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded">
+                            </div>
+
+                            <!-- Tiempo Límite de Optimización -->
+                            <div class="p-4 bg-slate-50 rounded-lg border border-slate-100 flex items-center justify-between" title="Tiempo máximo en segundos que el motor Google OR-Tools buscará el horario óptimo (0 = Ilimitado).">
+                                <div class="flex flex-col pr-4">
+                                    <span class="text-sm font-semibold text-gray-800">Tiempo Máximo de Optimización (s)</span>
+                                    <span class="text-xs text-gray-500">Tope máximo de ejecución en segundos (indica 0 para ilimitado).</span>
                                 </div>
                                 <div class="w-40">
-                                    <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Penalización (Soft)</label>
-                                    <input type="number" id="settings-huecos-puntos" min="0" max="1000" class="w-full border border-gray-300 rounded-lg p-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500" required>
+                                    <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Segundos (0=∞)</label>
+                                    <input type="number" id="settings-limite-tiempo" min="0" max="86400" class="w-full border border-gray-300 rounded-lg p-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500" required>
                                 </div>
                             </div>
 
-                            <!-- Compactar Temprano (Gravedad) -->
-                            <div class="p-4 bg-slate-50 rounded-lg border border-slate-100 flex items-center justify-between" title="Penaliza las asignaturas programadas tarde en la jornada, empujando ('gravedad') las clases hacia las primeras horas de la mañana.">
+                            <!-- Tiempo de Estancamiento -->
+                            <div class="p-4 bg-slate-50 rounded-lg border border-slate-100 flex items-center justify-between" title="Si pasan estos segundos sin que el motor consiga colocar ni una clase más, se detiene automáticamente y guarda el mejor horario encontrado (0 = Desactivado).">
                                 <div class="flex flex-col pr-4">
-                                    <span class="text-sm font-semibold text-gray-800">Compactar Temprano (Gravedad Mañana)</span>
-                                    <span class="text-xs text-gray-500">Concentrar las materias en las primeras franjas del día.</span>
+                                    <span class="text-sm font-semibold text-gray-800">Parada por Estancamiento (s)</span>
+                                    <span class="text-xs text-gray-500">Detener si pasan estos segundos sin mejorar (0 para desactivar).</span>
                                 </div>
                                 <div class="w-40">
-                                    <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Multiplicador (Soft)</label>
-                                    <input type="number" id="settings-compactar-temprano-puntos" min="0" max="100" class="w-full border border-gray-300 rounded-lg p-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500" required>
+                                    <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Segundos (0=Off)</label>
+                                    <input type="number" id="settings-tiempo-estancamiento" min="0" max="3600" class="w-full border border-gray-300 rounded-lg p-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500" required>
                                 </div>
                             </div>
 

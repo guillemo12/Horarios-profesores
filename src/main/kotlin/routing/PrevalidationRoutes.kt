@@ -114,13 +114,26 @@ fun Route.configRoutes() {
                     tiempoMaximo = 60
                     respetarEspecialidad = true
                     respetarLimiteHoras = true
+                    limiteTiempoSegundos = 18000.0
+                    tiempoEstancamientoSegundos = 60.0
                 }
                 Configuracion(
                     priorizarTutor = c.priorizarTutor,
                     tiempoMinimo = c.tiempoMinimo,
                     tiempoMaximo = c.tiempoMaximo,
+                    minutosMaximosProfesor = c.minutosMaximosProfesor,
+                    priorizarTutorPuntos = c.priorizarTutorPuntos,
+                    fomentarBloques60Puntos = c.fomentarBloques60Puntos,
+                    minimizarAsignaturasDistintas = c.minimizarAsignaturasDistintas,
+                    limiteTiempoSegundos = c.limiteTiempoSegundos,
+                    tiempoEstancamientoSegundos = c.tiempoEstancamientoSegundos,
+                    horaInicioClases = c.horaInicioClases.toString(),
+                    horaFinClases = c.horaFinClases.toString(),
+                    horaInicioRecreo = c.horaInicioRecreo.toString(),
+                    duracionRecreo = c.duracionRecreo,
                     respetarEspecialidad = c.respetarEspecialidad,
-                    respetarLimiteHoras = c.respetarLimiteHoras
+                    respetarLimiteHoras = c.respetarLimiteHoras,
+                    respetarDisponibilidad = c.respetarDisponibilidad
                 )
             }
             call.respond(dto)
@@ -135,19 +148,40 @@ fun Route.configRoutes() {
                     tiempoMaximo = dto.tiempoMaximo
                     respetarEspecialidad = dto.respetarEspecialidad
                     respetarLimiteHoras = dto.respetarLimiteHoras
+                    limiteTiempoSegundos = dto.limiteTiempoSegundos
+                    tiempoEstancamientoSegundos = dto.tiempoEstancamientoSegundos
+                    minimizarAsignaturasDistintas = dto.minimizarAsignaturasDistintas
                 }
                 c.priorizarTutor = dto.priorizarTutor
                 c.tiempoMinimo = dto.tiempoMinimo
                 c.tiempoMaximo = dto.tiempoMaximo
+                c.minutosMaximosProfesor = dto.minutosMaximosProfesor
+                c.priorizarTutorPuntos = dto.priorizarTutorPuntos
+                c.fomentarBloques60Puntos = dto.fomentarBloques60Puntos
+                c.minimizarAsignaturasDistintas = dto.minimizarAsignaturasDistintas
+                c.limiteTiempoSegundos = dto.limiteTiempoSegundos
+                c.tiempoEstancamientoSegundos = dto.tiempoEstancamientoSegundos
                 c.respetarEspecialidad = dto.respetarEspecialidad
                 c.respetarLimiteHoras = dto.respetarLimiteHoras
+                c.respetarDisponibilidad = dto.respetarDisponibilidad
 
                 Configuracion(
                     priorizarTutor = c.priorizarTutor,
                     tiempoMinimo = c.tiempoMinimo,
                     tiempoMaximo = c.tiempoMaximo,
+                    minutosMaximosProfesor = c.minutosMaximosProfesor,
+                    priorizarTutorPuntos = c.priorizarTutorPuntos,
+                    fomentarBloques60Puntos = c.fomentarBloques60Puntos,
+                    minimizarAsignaturasDistintas = c.minimizarAsignaturasDistintas,
+                    limiteTiempoSegundos = c.limiteTiempoSegundos,
+                    tiempoEstancamientoSegundos = c.tiempoEstancamientoSegundos,
+                    horaInicioClases = c.horaInicioClases.toString(),
+                    horaFinClases = c.horaFinClases.toString(),
+                    horaInicioRecreo = c.horaInicioRecreo.toString(),
+                    duracionRecreo = c.duracionRecreo,
                     respetarEspecialidad = c.respetarEspecialidad,
-                    respetarLimiteHoras = c.respetarLimiteHoras
+                    respetarLimiteHoras = c.respetarLimiteHoras,
+                    respetarDisponibilidad = c.respetarDisponibilidad
                 )
             }
             call.respond(updated)
