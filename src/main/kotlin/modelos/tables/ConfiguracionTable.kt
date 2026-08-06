@@ -15,6 +15,7 @@ object ConfiguracionTable : IntIdTable("tabla_configuracion") {
     val priorizarTutorPuntos = integer("priorizar_tutor_puntos").default(100)
     val fomentarBloques60Puntos = integer("fomentar_bloques_60_puntos").default(10)
     val minimizarAsignaturasDistintas = bool("minimizar_asignaturas_distintas").default(true)
+    val minimizarAsignaturasPuntos = integer("minimizar_asignaturas_puntos").default(50)
     val limiteTiempoSegundos = double("limite_tiempo_segundos").default(18000.0)
     val tiempoEstancamientoSegundos = double("tiempo_estancamiento_segundos").default(60.0)
 

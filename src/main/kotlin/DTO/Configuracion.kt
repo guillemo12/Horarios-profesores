@@ -11,6 +11,7 @@ data class Configuracion(
     val priorizarTutorPuntos: Int = 100,
     val fomentarBloques60Puntos: Int = 10,
     val minimizarAsignaturasDistintas: Boolean = true,
+    val minimizarAsignaturasPuntos: Int = 50,
     val limiteTiempoSegundos: Double = 18000.0,
     val tiempoEstancamientoSegundos: Double = 60.0,
     

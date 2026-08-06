@@ -125,6 +125,7 @@ fun Route.configRoutes() {
                     priorizarTutorPuntos = c.priorizarTutorPuntos,
                     fomentarBloques60Puntos = c.fomentarBloques60Puntos,
                     minimizarAsignaturasDistintas = c.minimizarAsignaturasDistintas,
+                    minimizarAsignaturasPuntos = c.minimizarAsignaturasPuntos,
                     limiteTiempoSegundos = c.limiteTiempoSegundos,
                     tiempoEstancamientoSegundos = c.tiempoEstancamientoSegundos,
                     horaInicioClases = c.horaInicioClases.toString(),
@@ -151,6 +152,7 @@ fun Route.configRoutes() {
                     limiteTiempoSegundos = dto.limiteTiempoSegundos
                     tiempoEstancamientoSegundos = dto.tiempoEstancamientoSegundos
                     minimizarAsignaturasDistintas = dto.minimizarAsignaturasDistintas
+                    minimizarAsignaturasPuntos = dto.minimizarAsignaturasPuntos
                 }
                 c.priorizarTutor = dto.priorizarTutor
                 c.tiempoMinimo = dto.tiempoMinimo
@@ -159,6 +161,7 @@ fun Route.configRoutes() {
                 c.priorizarTutorPuntos = dto.priorizarTutorPuntos
                 c.fomentarBloques60Puntos = dto.fomentarBloques60Puntos
                 c.minimizarAsignaturasDistintas = dto.minimizarAsignaturasDistintas
+                c.minimizarAsignaturasPuntos = dto.minimizarAsignaturasPuntos
                 c.limiteTiempoSegundos = dto.limiteTiempoSegundos
                 c.tiempoEstancamientoSegundos = dto.tiempoEstancamientoSegundos
                 c.respetarEspecialidad = dto.respetarEspecialidad
@@ -173,6 +176,7 @@ fun Route.configRoutes() {
                     priorizarTutorPuntos = c.priorizarTutorPuntos,
                     fomentarBloques60Puntos = c.fomentarBloques60Puntos,
                     minimizarAsignaturasDistintas = c.minimizarAsignaturasDistintas,
+                    minimizarAsignaturasPuntos = c.minimizarAsignaturasPuntos,
                     limiteTiempoSegundos = c.limiteTiempoSegundos,
                     tiempoEstancamientoSegundos = c.tiempoEstancamientoSegundos,
                     horaInicioClases = c.horaInicioClases.toString(),

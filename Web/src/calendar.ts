@@ -364,6 +364,76 @@ export function refreshCalendarView(): void {
     });
 
     if (AppData.calendarInstance) AppData.calendarInstance.createEvents(events);
+
+    // Actualizar Tarjeta de Resumen Docente
+    const summaryCard = document.getElementById('teacher-summary-card');
+    const summaryContent = document.getElementById('teacher-summary-content');
+
+    if (type === 'teacher' && entityId) {
+        const teacher = AppData.teachers.find(t => t.id === entityId);
+        if (teacher && summaryCard && summaryContent) {
+            const teacherClasses = AppData.scheduledClasses.filter(c => c.teacherId === entityId);
+            const totalHours = teacherClasses.reduce((sum, c) => sum + c.duration, 0);
+
+            const map = new Map<string, { courseName: string, groupName: string, subjectName: string, hours: number }>();
+            teacherClasses.forEach(cls => {
+                const subject = AppData.subjects.find(s => s.id === cls.subjectId);
+                const course = AppData.courses.find(c => c.groups.some(g => g.id === cls.groupId));
+                const group = course ? course.groups.find(g => g.id === cls.groupId) : null;
+
+                const cName = course ? course.name : 'Curso';
+                const gName = group ? group.name : 'Grupo';
+                const sName = subject ? subject.name : 'Asignatura';
+                const key = `${cName}_${gName}_${sName}`;
+
+                if (!map.has(key)) {
+                    map.set(key, { courseName: cName, groupName: gName, subjectName: sName, hours: 0 });
+                }
+                map.get(key)!.hours += cls.duration;
+            });
+
+            const maxHours = teacher.maxHours || (AppData.config ? Math.round(AppData.config.minutosMaximosProfesor / 60) : 25);
+            const items = Array.from(map.values());
+
+            let summaryHtml = `
+                <div class="flex flex-wrap items-center justify-between gap-4 mb-3 border-b border-gray-100 pb-2">
+                    <div class="flex items-center gap-2">
+                        <span class="w-3.5 h-3.5 rounded-full shadow-sm" style="background-color: ${teacher.color};"></span>
+                        <h4 class="font-bold text-gray-800 text-sm">Resumen Docente: ${teacher.name}</h4>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="text-xs text-gray-500 font-medium">Carga Lectiva Asignada:</span>
+                        <span class="text-xs font-bold px-2.5 py-1 ${totalHours <= maxHours ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-amber-50 text-amber-700 border border-amber-200'} rounded-full">
+                            ${totalHours.toFixed(1)}h / ${maxHours}h max
+                        </span>
+                    </div>
+                </div>
+            `;
+
+            if (items.length === 0) {
+                summaryHtml += `<p class="text-xs text-gray-400 italic">No tiene clases asignadas en el horario actual.</p>`;
+            } else {
+                summaryHtml += `<div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5">`;
+                items.forEach(item => {
+                    summaryHtml += `
+                        <div class="p-2.5 bg-slate-50 border border-slate-200 rounded-lg flex flex-col justify-between hover:bg-slate-100 transition-colors">
+                            <span class="text-xs font-bold text-slate-800 truncate">${item.courseName} - G.${item.groupName}</span>
+                            <div class="flex justify-between items-center mt-1 text-[11px]">
+                                <span class="text-indigo-600 font-semibold truncate">${item.subjectName}</span>
+                                <span class="font-bold text-slate-700 bg-white px-1.5 py-0.5 rounded border border-slate-200">${item.hours.toFixed(1)}h</span>
+                            </div>
+                        </div>
+                    `;
+                });
+                summaryHtml += `</div>`;
+            }
+
+            summaryContent.innerHTML = summaryHtml;
+            summaryCard.classList.remove('hidden');
+        }
+    } else {
+        if (summaryCard) summaryCard.classList.add('hidden');
+    }
 }
 
 export function openEventDetail(event: any): void {

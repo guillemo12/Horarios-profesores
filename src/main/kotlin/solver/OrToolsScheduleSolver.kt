@@ -314,7 +314,7 @@ object OrToolsScheduleSolver {
             for (i in 0 until daySlots.size - 1) {
                 val s1 = daySlots[i]
                 val s2 = daySlots[i + 1]
-                if (s2.value.indiceDeFranja == s1.value.indiceDeFranja + 1) {
+                if (s2.value.indiceDeFranja == s1.value.indiceDeFranja + 1 && s1.value.endTime == s2.value.startTime) {
                     for ((uKey, _) in unitsMap) {
                         val z1 = zVars[Pair(uKey, s1.index)]
                         val z2 = zVars[Pair(uKey, s2.index)]
@@ -353,7 +353,7 @@ object OrToolsScheduleSolver {
 
         // 4. Minimizar número de asignaturas distintas por profesor si está activado
         if (config.minimizarAsignaturasDistintas) {
-            val W_SUBJ_BONUS = 50L
+            val W_SUBJ_BONUS = config.minimizarAsignaturasPuntos.toLong()
             for (pIdx in 0 until numTeachers) {
                 val teacherObj = teachers[pIdx]
                 for (subjName in teacherObj.asignaturas) {

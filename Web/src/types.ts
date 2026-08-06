@@ -54,6 +54,7 @@ export interface Configuracion {
     priorizarTutorPuntos: number;
     fomentarBloques60Puntos: number;
     minimizarAsignaturasDistintas?: boolean;
+    minimizarAsignaturasPuntos?: number;
     limiteTiempoSegundos?: number;
     tiempoEstancamientoSegundos?: number;
     

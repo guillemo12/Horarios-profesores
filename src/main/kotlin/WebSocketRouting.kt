@@ -95,7 +95,7 @@ fun Application.configureSockets() {
                                     activeJobs[this]?.cancel()
 
                                     val config = transaction {
-                                        val fmt = java.time.format.DateTimeFormatter.ofPattern("HH:mm")
+                                        val fmt = DateTimeFormatter.ofPattern("HH:mm")
                                         ConfiguracionEntity.all().firstOrNull()?.let {
                                             Configuracion(
                                                 priorizarTutor = it.priorizarTutor,
@@ -105,6 +105,7 @@ fun Application.configureSockets() {
                                                 priorizarTutorPuntos = it.priorizarTutorPuntos,
                                                 fomentarBloques60Puntos = it.fomentarBloques60Puntos,
                                                 minimizarAsignaturasDistintas = it.minimizarAsignaturasDistintas,
+                                                minimizarAsignaturasPuntos = it.minimizarAsignaturasPuntos,
                                                 limiteTiempoSegundos = it.limiteTiempoSegundos,
                                                 tiempoEstancamientoSegundos = it.tiempoEstancamientoSegundos,
                                                 horaInicioClases = it.horaInicioClases.format(fmt),

@@ -244,5 +244,20 @@ fun main(args: Array<String>) {
     }
 
 
+    Thread {
+        try {
+            Thread.sleep(1500)
+            if (java.awt.Desktop.isDesktopSupported() && java.awt.Desktop.getDesktop().isSupported(java.awt.Desktop.Action.BROWSE)) {
+                java.awt.Desktop.getDesktop().browse(java.net.URI("http://localhost:8080"))
+            } else {
+                Runtime.getRuntime().exec(arrayOf("cmd", "/c", "start", "http://localhost:8080"))
+            }
+        } catch (_: Exception) {
+            try {
+                Runtime.getRuntime().exec(arrayOf("cmd", "/c", "start", "http://localhost:8080"))
+            } catch (_: Exception) {}
+        }
+    }.start()
+
     io.ktor.server.netty.EngineMain.main(args)
 }

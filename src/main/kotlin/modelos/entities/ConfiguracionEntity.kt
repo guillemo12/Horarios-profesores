@@ -17,6 +17,7 @@ class ConfiguracionEntity(id: EntityID<Int>) : IntEntity(id) {
     var priorizarTutorPuntos by ConfiguracionTable.priorizarTutorPuntos
     var fomentarBloques60Puntos by ConfiguracionTable.fomentarBloques60Puntos
     var minimizarAsignaturasDistintas by ConfiguracionTable.minimizarAsignaturasDistintas
+    var minimizarAsignaturasPuntos by ConfiguracionTable.minimizarAsignaturasPuntos
     var limiteTiempoSegundos by ConfiguracionTable.limiteTiempoSegundos
     var tiempoEstancamientoSegundos by ConfiguracionTable.tiempoEstancamientoSegundos
 

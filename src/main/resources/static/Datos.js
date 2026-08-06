@@ -478,6 +478,66 @@ function refreshCalendarView() {
     };
   });
   if (AppData.calendarInstance) AppData.calendarInstance.createEvents(events);
+  const summaryCard = document.getElementById("teacher-summary-card");
+  const summaryContent = document.getElementById("teacher-summary-content");
+  if (type === "teacher" && entityId) {
+    const teacher = AppData.teachers.find((t) => t.id === entityId);
+    if (teacher && summaryCard && summaryContent) {
+      const teacherClasses = AppData.scheduledClasses.filter((c) => c.teacherId === entityId);
+      const totalHours = teacherClasses.reduce((sum, c) => sum + c.duration, 0);
+      const map = /* @__PURE__ */ new Map();
+      teacherClasses.forEach((cls) => {
+        const subject = AppData.subjects.find((s) => s.id === cls.subjectId);
+        const course = AppData.courses.find((c) => c.groups.some((g) => g.id === cls.groupId));
+        const group = course ? course.groups.find((g) => g.id === cls.groupId) : null;
+        const cName = course ? course.name : "Curso";
+        const gName = group ? group.name : "Grupo";
+        const sName = subject ? subject.name : "Asignatura";
+        const key = `${cName}_${gName}_${sName}`;
+        if (!map.has(key)) {
+          map.set(key, { courseName: cName, groupName: gName, subjectName: sName, hours: 0 });
+        }
+        map.get(key).hours += cls.duration;
+      });
+      const maxHours = teacher.maxHours || (AppData.config ? Math.round(AppData.config.minutosMaximosProfesor / 60) : 25);
+      const items = Array.from(map.values());
+      let summaryHtml = `
+                <div class="flex flex-wrap items-center justify-between gap-4 mb-3 border-b border-gray-100 pb-2">
+                    <div class="flex items-center gap-2">
+                        <span class="w-3.5 h-3.5 rounded-full shadow-sm" style="background-color: ${teacher.color};"></span>
+                        <h4 class="font-bold text-gray-800 text-sm">Resumen Docente: ${teacher.name}</h4>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="text-xs text-gray-500 font-medium">Carga Lectiva Asignada:</span>
+                        <span class="text-xs font-bold px-2.5 py-1 ${totalHours <= maxHours ? "bg-emerald-50 text-emerald-700 border border-emerald-200" : "bg-amber-50 text-amber-700 border border-amber-200"} rounded-full">
+                            ${totalHours.toFixed(1)}h / ${maxHours}h max
+                        </span>
+                    </div>
+                </div>
+            `;
+      if (items.length === 0) {
+        summaryHtml += `<p class="text-xs text-gray-400 italic">No tiene clases asignadas en el horario actual.</p>`;
+      } else {
+        summaryHtml += `<div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5">`;
+        items.forEach((item) => {
+          summaryHtml += `
+                        <div class="p-2.5 bg-slate-50 border border-slate-200 rounded-lg flex flex-col justify-between hover:bg-slate-100 transition-colors">
+                            <span class="text-xs font-bold text-slate-800 truncate">${item.courseName} - G.${item.groupName}</span>
+                            <div class="flex justify-between items-center mt-1 text-[11px]">
+                                <span class="text-indigo-600 font-semibold truncate">${item.subjectName}</span>
+                                <span class="font-bold text-slate-700 bg-white px-1.5 py-0.5 rounded border border-slate-200">${item.hours.toFixed(1)}h</span>
+                            </div>
+                        </div>
+                    `;
+        });
+        summaryHtml += `</div>`;
+      }
+      summaryContent.innerHTML = summaryHtml;
+      summaryCard.classList.remove("hidden");
+    }
+  } else {
+    if (summaryCard) summaryCard.classList.add("hidden");
+  }
 }
 function openEventDetail(event) {
   const cls = AppData.scheduledClasses.find((c) => c.id === event.id);
@@ -1265,6 +1325,7 @@ function loadSettings() {
   const elPriorizarPuntos = document.getElementById("settings-priorizar-tutor-puntos");
   const elBloquesPuntos = document.getElementById("settings-bloques-60-puntos");
   const elMinimizarAsig = document.getElementById("settings-minimizar-asignaturas");
+  const elMinimizarAsigPuntos = document.getElementById("settings-minimizar-asignaturas-puntos");
   const elLimiteTiempo = document.getElementById("settings-limite-tiempo");
   const elTiempoEstancamiento = document.getElementById("settings-tiempo-estancamiento");
   const elHoraInicio = document.getElementById("settings-hora-inicio");
@@ -1289,7 +1350,17 @@ function loadSettings() {
   }
   if (elPriorizarPuntos) elPriorizarPuntos.value = conf.priorizarTutorPuntos.toString();
   if (elBloquesPuntos) elBloquesPuntos.value = conf.fomentarBloques60Puntos.toString();
-  if (elMinimizarAsig) elMinimizarAsig.checked = conf.minimizarAsignaturasDistintas ?? true;
+  if (elMinimizarAsig) {
+    elMinimizarAsig.checked = conf.minimizarAsignaturasDistintas ?? true;
+    const container = document.getElementById("settings-minimizar-asignaturas-points-container");
+    if (container) {
+      container.style.display = elMinimizarAsig.checked ? "flex" : "none";
+    }
+    elMinimizarAsig.onchange = () => {
+      if (container) container.style.display = elMinimizarAsig.checked ? "flex" : "none";
+    };
+  }
+  if (elMinimizarAsigPuntos) elMinimizarAsigPuntos.value = (conf.minimizarAsignaturasPuntos ?? 50).toString();
   if (elLimiteTiempo) elLimiteTiempo.value = (conf.limiteTiempoSegundos ?? 18e3).toString();
   if (elTiempoEstancamiento) elTiempoEstancamiento.value = (conf.tiempoEstancamientoSegundos ?? 60).toString();
   if (elHoraInicio) elHoraInicio.value = conf.horaInicioClases;
@@ -1308,6 +1379,7 @@ async function saveSettings() {
   const elPriorizarPuntos = document.getElementById("settings-priorizar-tutor-puntos");
   const elBloquesPuntos = document.getElementById("settings-bloques-60-puntos");
   const elMinimizarAsig = document.getElementById("settings-minimizar-asignaturas");
+  const elMinimizarAsigPuntos = document.getElementById("settings-minimizar-asignaturas-puntos");
   const elLimiteTiempo = document.getElementById("settings-limite-tiempo");
   const elTiempoEstancamiento = document.getElementById("settings-tiempo-estancamiento");
   const elHoraInicio = document.getElementById("settings-hora-inicio");
@@ -1325,6 +1397,7 @@ async function saveSettings() {
     priorizarTutorPuntos: elPriorizarPuntos ? parseInt(elPriorizarPuntos.value) : 100,
     fomentarBloques60Puntos: elBloquesPuntos ? parseInt(elBloquesPuntos.value) : 10,
     minimizarAsignaturasDistintas: elMinimizarAsig ? elMinimizarAsig.checked : true,
+    minimizarAsignaturasPuntos: elMinimizarAsigPuntos ? parseInt(elMinimizarAsigPuntos.value) : 50,
     limiteTiempoSegundos: elLimiteTiempo ? parseFloat(elLimiteTiempo.value) : 18e3,
     tiempoEstancamientoSegundos: elTiempoEstancamiento ? parseFloat(elTiempoEstancamiento.value) : 60,
     horaInicioClases: elHoraInicio ? elHoraInicio.value : "09:00",
@@ -1550,8 +1623,86 @@ function printAllSchedules() {
             `;
     });
   });
+  AppData.teachers.forEach((teacher) => {
+    const teacherClasses = AppData.scheduledClasses.filter((c) => c.teacherId === teacher.id);
+    const totalHours = teacherClasses.reduce((sum, c) => sum + c.duration, 0);
+    html += `
+            <div class="print-page">
+                <div class="flex justify-between items-center mb-2 border-b-2 border-indigo-600 pb-1">
+                    <div>
+                        <h1 class="text-xl font-bold text-gray-900 leading-tight">Horario Personal Docente: ${teacher.name}</h1>
+                        <p class="text-[10px] text-gray-500 font-medium uppercase tracking-wider">Horario Individual \u2022 EduSchedule</p>
+                    </div>
+                    <div class="text-right">
+                        <span class="text-[10px] font-semibold px-2.5 py-0.5 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-full">Jornada: ${totalHours.toFixed(1)}h</span>
+                    </div>
+                </div>
+
+                <table class="w-full border-collapse border border-gray-300 text-xs table-fixed">
+                    <thead>
+                        <tr class="bg-slate-800 text-white font-bold border-b border-gray-300">
+                            <th class="p-1 border border-gray-300 w-20 text-center text-[10px]">Hora</th>
+                            ${days.map((d) => `<th class="p-1 border border-gray-300 text-center text-[11px]">${d.name}</th>`).join("")}
+                        </tr>
+                    </thead>
+                    <tbody>
+        `;
+    slots.forEach((slot) => {
+      let isRecess = false;
+      if (AppData.config) {
+        const rParts = AppData.config.horaInicioRecreo.split(":");
+        const rStart = parseInt(rParts[0]) * 60 + parseInt(rParts[1]);
+        const rEnd = rStart + AppData.config.duracionRecreo;
+        if (slot.startMin >= rStart && slot.startMin < rEnd) {
+          isRecess = true;
+        }
+      }
+      if (isRecess) {
+        html += `
+                    <tr class="bg-gray-100 text-gray-500 font-semibold">
+                        <td class="p-1 border border-gray-300 text-center font-mono text-[9px]">${slot.startStr} - ${slot.endStr}</td>
+                        <td colspan="5" class="p-1 border border-gray-300 text-center bg-gray-100 text-slate-500 text-[10px]">\u2615 Recreo</td>
+                    </tr>
+                `;
+        return;
+      }
+      html += `<tr>`;
+      html += `<td class="p-1 border border-gray-300 text-center font-mono text-[9px] font-medium bg-gray-50">${slot.startStr} - ${slot.endStr}</td>`;
+      days.forEach((day) => {
+        const matchCls = teacherClasses.find((cls) => {
+          const dt = new Date(cls.start);
+          const dNum = dt.getDay();
+          if (dNum !== day.id) return false;
+          const cMin = dt.getHours() * 60 + dt.getMinutes();
+          return cMin === slot.startMin;
+        });
+        if (matchCls) {
+          const subject = AppData.subjects.find((s) => s.id === matchCls.subjectId);
+          const course = AppData.courses.find((c) => c.groups.some((g) => g.id === matchCls.groupId));
+          const group = course ? course.groups.find((g) => g.id === matchCls.groupId) : null;
+          const groupLabel = course && group ? `${course.name} G.${group.name}` : "";
+          const bgColor = getSubjectColor(matchCls.subjectId);
+          const pinIcon = matchCls.isPinned ? "\u{1F4CC} " : "";
+          html += `
+                        <td class="p-1 border border-gray-300 align-top text-white font-medium shadow-inner" style="background-color: ${bgColor} !important; color: white !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important;">
+                            <div class="font-bold text-[10px] truncate leading-tight">${pinIcon}${subject ? subject.name : "Clase"}</div>
+                            ${groupLabel ? `<div class="text-[9px] opacity-95 truncate leading-tight font-normal">${groupLabel}</div>` : ""}
+                        </td>
+                    `;
+        } else {
+          html += `<td class="p-1 border border-gray-300 text-center text-gray-300 bg-white text-[9px]">--</td>`;
+        }
+      });
+      html += `</tr>`;
+    });
+    html += `
+                    </tbody>
+                </table>
+            </div>
+        `;
+  });
   printArea.innerHTML = html;
-  showToast("Imprimiendo", "Preparando impresi\xF3n A4 Horizontal con colores por asignatura...", "info");
+  showToast("Imprimiendo", "Preparando documento A4 Horizontal con horarios de grupos y profesores...", "info");
   setTimeout(() => {
     window.print();
   }, 300);

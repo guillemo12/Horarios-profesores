@@ -12,6 +12,7 @@ export function loadSettings(): void {
     const elPriorizarPuntos = document.getElementById('settings-priorizar-tutor-puntos') as HTMLInputElement;
     const elBloquesPuntos = document.getElementById('settings-bloques-60-puntos') as HTMLInputElement;
     const elMinimizarAsig = document.getElementById('settings-minimizar-asignaturas') as HTMLInputElement;
+    const elMinimizarAsigPuntos = document.getElementById('settings-minimizar-asignaturas-puntos') as HTMLInputElement;
     const elLimiteTiempo = document.getElementById('settings-limite-tiempo') as HTMLInputElement;
     const elTiempoEstancamiento = document.getElementById('settings-tiempo-estancamiento') as HTMLInputElement;
 
@@ -41,7 +42,19 @@ export function loadSettings(): void {
     
     if (elPriorizarPuntos) elPriorizarPuntos.value = conf.priorizarTutorPuntos.toString();
     if (elBloquesPuntos) elBloquesPuntos.value = conf.fomentarBloques60Puntos.toString();
-    if (elMinimizarAsig) elMinimizarAsig.checked = conf.minimizarAsignaturasDistintas ?? true;
+
+    if (elMinimizarAsig) {
+        elMinimizarAsig.checked = conf.minimizarAsignaturasDistintas ?? true;
+        const container = document.getElementById('settings-minimizar-asignaturas-points-container');
+        if (container) {
+            container.style.display = elMinimizarAsig.checked ? 'flex' : 'none';
+        }
+        elMinimizarAsig.onchange = () => {
+            if (container) container.style.display = elMinimizarAsig.checked ? 'flex' : 'none';
+        };
+    }
+    if (elMinimizarAsigPuntos) elMinimizarAsigPuntos.value = (conf.minimizarAsignaturasPuntos ?? 50).toString();
+
     if (elLimiteTiempo) elLimiteTiempo.value = (conf.limiteTiempoSegundos ?? 18000).toString();
     if (elTiempoEstancamiento) elTiempoEstancamiento.value = (conf.tiempoEstancamientoSegundos ?? 60).toString();
 
@@ -63,6 +76,7 @@ export async function saveSettings(): Promise<void> {
     const elPriorizarPuntos = document.getElementById('settings-priorizar-tutor-puntos') as HTMLInputElement;
     const elBloquesPuntos = document.getElementById('settings-bloques-60-puntos') as HTMLInputElement;
     const elMinimizarAsig = document.getElementById('settings-minimizar-asignaturas') as HTMLInputElement;
+    const elMinimizarAsigPuntos = document.getElementById('settings-minimizar-asignaturas-puntos') as HTMLInputElement;
     const elLimiteTiempo = document.getElementById('settings-limite-tiempo') as HTMLInputElement;
     const elTiempoEstancamiento = document.getElementById('settings-tiempo-estancamiento') as HTMLInputElement;
 
@@ -83,6 +97,7 @@ export async function saveSettings(): Promise<void> {
         priorizarTutorPuntos: elPriorizarPuntos ? parseInt(elPriorizarPuntos.value) : 100,
         fomentarBloques60Puntos: elBloquesPuntos ? parseInt(elBloquesPuntos.value) : 10,
         minimizarAsignaturasDistintas: elMinimizarAsig ? elMinimizarAsig.checked : true,
+        minimizarAsignaturasPuntos: elMinimizarAsigPuntos ? parseInt(elMinimizarAsigPuntos.value) : 50,
         limiteTiempoSegundos: elLimiteTiempo ? parseFloat(elLimiteTiempo.value) : 18000.0,
         tiempoEstancamientoSegundos: elTiempoEstancamiento ? parseFloat(elTiempoEstancamiento.value) : 60.0,
 
