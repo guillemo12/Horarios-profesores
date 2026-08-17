@@ -139,9 +139,6 @@ jobs:
           jpackage --name backend_ktor --input build/libs --main-jar "horarios-profesores-all.jar" --main-class io.ktor.server.netty.EngineMain --type app-image --dest Proyecto_Horarios/src-tauri
           chmod -R 755 Proyecto_Horarios/src-tauri/backend_ktor
 
-      - name: Install Tauri CLI
-        run: npm install -g @tauri-apps/cli@latest
-
       - name: Build Tauri Desktop App (Linux)
         if: matrix.platform == 'linux'
         working-directory: Proyecto_Horarios
@@ -172,15 +169,35 @@ jobs:
           }
           powershell -ExecutionPolicy Bypass -File .\build_single_exe.ps1
 
+      - name: Stage Windows Release Files
+        if: matrix.platform == 'windows'
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Path "dist\windows_release" -Force
+          if (Test-Path "EduSchedule_Unico.exe") {
+            Copy-Item "EduSchedule_Unico.exe" -Destination "dist\windows_release\"
+          }
+          Get-ChildItem -Path "Proyecto_Horarios\src-tauri\target\release\bundle\nsis" -Filter "*.exe" -ErrorAction SilentlyContinue | ForEach-Object {
+            Copy-Item $_.FullName -Destination "dist\windows_release\"
+          }
+          Get-ChildItem -Path "Proyecto_Horarios\src-tauri\target\release\bundle\msi" -Filter "*.msi" -ErrorAction SilentlyContinue | ForEach-Object {
+            Copy-Item $_.FullName -Destination "dist\windows_release\"
+          }
+
+      - name: Stage Linux Release Files
+        if: matrix.platform == 'linux'
+        shell: bash
+        run: |
+          mkdir -p dist/linux_release
+          cp Proyecto_Horarios/src-tauri/target/release/bundle/appimage/*.AppImage dist/linux_release/ 2>/dev/null || true
+          cp Proyecto_Horarios/src-tauri/target/release/bundle/deb/*.deb dist/linux_release/ 2>/dev/null || true
+
       - name: Upload Windows Artifacts
         if: matrix.platform == 'windows'
         uses: actions/upload-artifact@v4
         with:
           name: EduSchedule-Windows
-          path: |
-            EduSchedule_Unico.exe
-            Proyecto_Horarios/src-tauri/target/release/bundle/nsis/*.exe
-            Proyecto_Horarios/src-tauri/target/release/bundle/msi/*.msi
+          path: dist/windows_release/*
 
       - name: Upload Linux Artifacts
         if: matrix.platform == 'linux'
@@ -188,9 +205,7 @@ jobs:
         with:
           name: EduSchedule-Linux
           if-no-files-found: warn
-          path: |
-            Proyecto_Horarios/src-tauri/target/release/bundle/appimage/*.AppImage
-            Proyecto_Horarios/src-tauri/target/release/bundle/deb/*.deb
+          path: dist/linux_release/*
 
   release:
     name: Publish GitHub Release
@@ -205,6 +220,6 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            EduSchedule-Windows/*
-            EduSchedule-Linux/*
+            EduSchedule-Windows/**/*
+            EduSchedule-Linux/**/*
           generate_release_notes: true
