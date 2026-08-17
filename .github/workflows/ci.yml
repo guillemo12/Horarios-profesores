@@ -1,0 +1,47 @@
+name: CI & Tests
+
+on:
+  pull_request:
+    branches:
+      - master
+  workflow_dispatch:
+
+jobs:
+  test-backend:
+    name: Backend Tests & Build (JVM)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+          cache: 'gradle'
+
+      - name: Make gradlew executable
+        run: chmod +x ./gradlew
+
+      - name: Run Backend Unit & Integration Tests
+        run: ./gradlew test --info --no-daemon
+
+      - name: Verify Backend Build
+        run: ./gradlew build -x test --no-daemon
+
+  test-frontend:
+    name: Frontend Bundle Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Test Frontend Bundle with esbuild
+        run: |
+          npx -y esbuild Web/src/Datos.ts --bundle --outfile=src/main/resources/static/Datos.js --format=iife

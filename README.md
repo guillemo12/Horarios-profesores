@@ -16,6 +16,7 @@
   <img src="https://img.shields.io/badge/Google_OR--Tools-CP--SAT-4285F4.svg?logo=google&logoColor=white" alt="OR-Tools" />
   <img src="https://img.shields.io/badge/TypeScript-5.0-3178C6.svg?logo=typescript&logoColor=white" alt="TypeScript" />
   <img src="https://img.shields.io/badge/Platform-Windows%20|%20Linux-0078D6.svg" alt="Platforms" />
+  <img src="https://img.shields.io/badge/License-GPL--3.0-blue.svg" alt="License: GPL-3.0" />
   <img src="https://img.shields.io/github/v/release/guillemo12/Horarios-profesores?color=success&label=Release" alt="GitHub Release" />
 </p>
 
@@ -166,6 +167,13 @@ EduSchedule features an automated continuous delivery pipeline configured in [`.
 
 ---
 
+## 🤝 Contributing
+
+Contributions are welcome! Please check our [Contributing Guide](CONTRIBUTING.md) and [Code of Conduct](CODE_OF_CONDUCT.md) before submitting pull requests.
+
+---
+
 ## 📄 License
 
-This project is developed for educational schedule optimization and management. See the license file for further details.
+This project is licensed under the **GNU General Public License v3.0 (GPL-3.0)**. See the [LICENSE](LICENSE) file for details.
+
