@@ -11,6 +11,7 @@ import { openAvailabilityModal, closeAvailabilityModal, saveAvailability, toggle
 import { loadSettings, saveSettings } from './settings';
 import { runPrevalidation, closePrevalidation } from './prevalidation';
 import { printAllSchedules } from './print';
+import { checkForUpdates } from './updater';
 import { showToast } from './utils';
 
 export const AppData: AppDataState = { 
@@ -74,6 +75,10 @@ window.onload = async function(): Promise<void> {
         
         AppData.WS.connect();
         setupWebSocketsListeners();
+
+        setTimeout(() => {
+            checkForUpdates(true);
+        }, 2000);
 
     } catch (err) {
         console.error("Init Error:", err);
@@ -322,5 +327,6 @@ Object.assign(window, {
     runPrevalidation,
     closePrevalidation,
     toggleColorMode,
-    printAllSchedules
+    printAllSchedules,
+    checkForUpdates
 });

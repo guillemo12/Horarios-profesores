@@ -13,13 +13,45 @@ fn main() {
     tauri::Builder::default()
         // El evento "setup" ocurre justo al abrir el programa
         .setup(move |app| {
-            // Buscamos la carpeta de recursos empaquetada dinámicamente
-            let resource_path = app.path().resource_dir().unwrap()
-                .join("backend_ktor")
-                .join("backend_ktor.exe");
+            let resource_dir = app.path().resource_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
 
-            // Ejecutamos el servidor de forma invisible
-            let child = Command::new(resource_path).spawn().ok();
+            #[cfg(target_os = "windows")]
+            let backend_exe = {
+                let p1 = resource_dir.join("backend_ktor").join("backend_ktor.exe");
+                if p1.exists() {
+                    p1
+                } else {
+                    resource_dir.join("backend_ktor.exe")
+                }
+            };
+
+            #[cfg(not(target_os = "windows"))]
+            let backend_exe = {
+                let p1 = resource_dir.join("backend_ktor").join("bin").join("backend_ktor");
+                if p1.exists() {
+                    p1
+                } else {
+                    let p2 = resource_dir.join("backend_ktor").join("backend_ktor");
+                    if p2.exists() {
+                        p2
+                    } else {
+                        resource_dir.join("bin").join("backend_ktor")
+                    }
+                }
+            };
+
+            #[cfg(unix)]
+            {
+                use std::os::unix::fs::PermissionsExt;
+                if let Ok(metadata) = std::fs::metadata(&backend_exe) {
+                    let mut perms = metadata.permissions();
+                    perms.set_mode(0o755);
+                    let _ = std::fs::set_permissions(&backend_exe, perms);
+                }
+            }
+
+            println!("Iniciando backend desde: {:?}", backend_exe);
+            let child = Command::new(&backend_exe).spawn().ok();
 
             // Guardamos el proceso para poder matarlo luego
             if let Ok(mut process_lock) = ktor_process_setup.lock() {

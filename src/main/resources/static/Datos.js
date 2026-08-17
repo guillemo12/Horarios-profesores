@@ -1,507 +1,504 @@
-var __defProp = Object.defineProperty;
-var __defNormalProp = (obj, key, value) => key in obj ? __defProp(obj, key, { enumerable: true, configurable: true, writable: true, value }) : obj[key] = value;
-var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "symbol" ? key + "" : key, value);
-
-// Web/src/api.ts
-var ApiService = class {
-  constructor() {
-    __publicField(this, "baseUrl");
-    this.baseUrl = "/api/v1";
-  }
-  async _fetch(endpoint, method = "GET", payload = null) {
-    const url = `${this.baseUrl}/${endpoint}`;
-    const options = {
-      method,
-      headers: {
-        "Content-Type": "application/json"
+(() => {
+  // Web/src/api.ts
+  var ApiService = class {
+    baseUrl;
+    constructor() {
+      this.baseUrl = "/api/v1";
+    }
+    async _fetch(endpoint, method = "GET", payload = null) {
+      const url = `${this.baseUrl}/${endpoint}`;
+      const options = {
+        method,
+        headers: {
+          "Content-Type": "application/json"
+        }
+      };
+      if (payload) {
+        options.body = JSON.stringify(payload);
       }
-    };
-    if (payload) {
-      options.body = JSON.stringify(payload);
+      const response = await fetch(url, options);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      if (method === "DELETE") {
+        return { success: true };
+      }
+      return await response.json();
     }
-    const response = await fetch(url, options);
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+    async getConfig() {
+      return this._fetch("config");
     }
-    if (method === "DELETE") {
-      return { success: true };
+    async saveConfig(c) {
+      return this._fetch("config", "PUT", c);
     }
-    return await response.json();
-  }
-  async getConfig() {
-    return this._fetch("config");
-  }
-  async saveConfig(c) {
-    return this._fetch("config", "PUT", c);
-  }
-  async getSubjects() {
-    return this._fetch("subjects");
-  }
-  async saveSubject(s) {
-    return s.id ? this._fetch("subjects", "PUT", s) : this._fetch("subjects", "POST", s);
-  }
-  async deleteSubject(id) {
-    return this._fetch(`subjects/${id}`, "DELETE");
-  }
-  async getTeachers() {
-    return this._fetch("teachers");
-  }
-  async saveTeacher(t) {
-    return t.id ? this._fetch("teachers", "PUT", t) : this._fetch("teachers", "POST", t);
-  }
-  async deleteTeacher(id) {
-    return this._fetch(`teachers/${id}`, "DELETE");
-  }
-  async getCourses() {
-    return this._fetch("courses");
-  }
-  async saveCourse(c) {
-    return c.id ? this._fetch("courses", "PUT", c) : this._fetch("courses", "POST", c);
-  }
-  async deleteCourse(id) {
-    return this._fetch(`courses/${id}`, "DELETE");
-  }
-  async updateCourseGroup(courseId, newGroupsArray) {
-    return this._fetch(`courses/${courseId}/groups`, "PUT", newGroupsArray);
-  }
-  async getSchedule() {
-    return this._fetch("scheduledClasses");
-  }
-  async saveClass(cls) {
-    return this._fetch("scheduledClasses", "POST", cls);
-  }
-  async updateClass(cls) {
-    return this._fetch("scheduledClasses", "PUT", cls);
-  }
-  async deleteClass(id) {
-    return this._fetch(`scheduledClasses/${id}`, "DELETE");
-  }
-  async deleteGroupSchedule(groupId) {
-    return this._fetch(`scheduledClasses/group/${groupId}`, "DELETE");
-  }
-  async getPrevalidation() {
-    return this._fetch("prevalidation");
-  }
-};
+    async getSubjects() {
+      return this._fetch("subjects");
+    }
+    async saveSubject(s) {
+      return s.id ? this._fetch("subjects", "PUT", s) : this._fetch("subjects", "POST", s);
+    }
+    async deleteSubject(id) {
+      return this._fetch(`subjects/${id}`, "DELETE");
+    }
+    async getTeachers() {
+      return this._fetch("teachers");
+    }
+    async saveTeacher(t) {
+      return t.id ? this._fetch("teachers", "PUT", t) : this._fetch("teachers", "POST", t);
+    }
+    async deleteTeacher(id) {
+      return this._fetch(`teachers/${id}`, "DELETE");
+    }
+    async getCourses() {
+      return this._fetch("courses");
+    }
+    async saveCourse(c) {
+      return c.id ? this._fetch("courses", "PUT", c) : this._fetch("courses", "POST", c);
+    }
+    async deleteCourse(id) {
+      return this._fetch(`courses/${id}`, "DELETE");
+    }
+    async updateCourseGroup(courseId, newGroupsArray) {
+      return this._fetch(`courses/${courseId}/groups`, "PUT", newGroupsArray);
+    }
+    async getSchedule() {
+      return this._fetch("scheduledClasses");
+    }
+    async saveClass(cls) {
+      return this._fetch("scheduledClasses", "POST", cls);
+    }
+    async updateClass(cls) {
+      return this._fetch("scheduledClasses", "PUT", cls);
+    }
+    async deleteClass(id) {
+      return this._fetch(`scheduledClasses/${id}`, "DELETE");
+    }
+    async deleteGroupSchedule(groupId) {
+      return this._fetch(`scheduledClasses/group/${groupId}`, "DELETE");
+    }
+    async getPrevalidation() {
+      return this._fetch("prevalidation");
+    }
+  };
 
-// Web/src/utils.ts
-function showToast(title, message, type = "info") {
-  const container = document.getElementById("toast-container");
-  if (!container) return;
-  const toast = document.createElement("div");
-  let bgClass = type === "error" ? "border-red-500 text-red-500" : type === "success" ? "border-green-500 text-green-500" : type === "warning" ? "border-yellow-500 text-yellow-500" : "border-blue-500 text-blue-500";
-  toast.className = `bg-white border-l-4 ${bgClass} shadow-lg rounded-r-lg p-4 w-80 transform transition-all duration-300 translate-y-4 opacity-0 flex gap-3`;
-  toast.innerHTML = `<div><h4 class="text-sm font-bold text-gray-800">${title}</h4><p class="text-xs text-gray-600 mt-1">${message}</p></div>`;
-  container.appendChild(toast);
-  setTimeout(() => toast.classList.remove("translate-y-4", "opacity-0"), 10);
-  setTimeout(() => {
-    toast.classList.add("opacity-0", "translate-x-full");
-    setTimeout(() => toast.remove(), 300);
-  }, 4e3);
-}
-function formatHours(h) {
-  return Number(h.toFixed(2)).toString();
-}
-
-// Web/src/websocket.ts
-var EngineWebSocket = class {
-  constructor() {
-    __publicField(this, "isConnected");
-    __publicField(this, "isOptimizing");
-    __publicField(this, "wsUrl");
-    __publicField(this, "callbacks");
-    __publicField(this, "socket");
-    this.wsUrl = (window.location.protocol === "https:" ? "wss://" : "ws://") + window.location.host + "/ws";
-    this.isConnected = false;
-    this.isOptimizing = false;
-    this.callbacks = {};
-    this.socket = null;
+  // Web/src/utils.ts
+  function showToast(title, message, type = "info") {
+    const container = document.getElementById("toast-container");
+    if (!container) return;
+    const toast = document.createElement("div");
+    let bgClass = type === "error" ? "border-red-500 text-red-500" : type === "success" ? "border-green-500 text-green-500" : type === "warning" ? "border-yellow-500 text-yellow-500" : "border-blue-500 text-blue-500";
+    toast.className = `bg-white border-l-4 ${bgClass} shadow-lg rounded-r-lg p-4 w-80 transform transition-all duration-300 translate-y-4 opacity-0 flex gap-3`;
+    toast.innerHTML = `<div><h4 class="text-sm font-bold text-gray-800">${title}</h4><p class="text-xs text-gray-600 mt-1">${message}</p></div>`;
+    container.appendChild(toast);
+    setTimeout(() => toast.classList.remove("translate-y-4", "opacity-0"), 10);
+    setTimeout(() => {
+      toast.classList.add("opacity-0", "translate-x-full");
+      setTimeout(() => toast.remove(), 300);
+    }, 4e3);
   }
-  connect() {
-    this.socket = new WebSocket(this.wsUrl);
-    this.socket.onopen = () => {
-      this.isConnected = true;
-      this._trigger("connected");
-    };
-    this.socket.onclose = () => {
+  function formatHours(h) {
+    return Number(h.toFixed(2)).toString();
+  }
+
+  // Web/src/websocket.ts
+  var EngineWebSocket = class {
+    isConnected;
+    isOptimizing;
+    wsUrl;
+    callbacks;
+    socket;
+    constructor() {
+      this.wsUrl = (window.location.protocol === "https:" ? "wss://" : "ws://") + window.location.host + "/ws";
       this.isConnected = false;
-      this._trigger("disconnected");
-      setTimeout(() => this.connect(), 5e3);
-    };
-    this.socket.onerror = (err) => {
-      console.error("WebSocket error:", err);
-    };
-    this.socket.onmessage = (event) => {
+      this.isOptimizing = false;
+      this.callbacks = {};
+      this.socket = null;
+    }
+    connect() {
+      this.socket = new WebSocket(this.wsUrl);
+      this.socket.onopen = () => {
+        this.isConnected = true;
+        this._trigger("connected");
+      };
+      this.socket.onclose = () => {
+        this.isConnected = false;
+        this._trigger("disconnected");
+        setTimeout(() => this.connect(), 5e3);
+      };
+      this.socket.onerror = (err) => {
+        console.error("WebSocket error:", err);
+      };
+      this.socket.onmessage = (event) => {
+        try {
+          const msg = JSON.parse(event.data);
+          if (msg.type === "scores_updated") {
+            this._trigger("scores_updated", msg);
+          } else if (msg.type === "schedule_pushed") {
+            this._trigger("schedule_pushed", msg.schedule);
+          } else if (msg.type === "optimization_complete") {
+            this._trigger("optimization_complete");
+          } else if (msg.type === "optimization_stopped") {
+            this.isOptimizing = false;
+          }
+        } catch (err) {
+          console.error("Error parsing WS message:", err);
+        }
+      };
+    }
+    on(event, callback) {
+      this.callbacks[event] = callback;
+    }
+    _trigger(event, data) {
+      if (this.callbacks[event]) this.callbacks[event](data);
+    }
+    sendCommand(command, payload = {}) {
       try {
-        const msg = JSON.parse(event.data);
-        if (msg.type === "scores_updated") {
-          this._trigger("scores_updated", msg);
-        } else if (msg.type === "schedule_pushed") {
-          this._trigger("schedule_pushed", msg.schedule);
-        } else if (msg.type === "optimization_complete") {
-          this._trigger("optimization_complete");
-        } else if (msg.type === "optimization_stopped") {
+        if (!this.isConnected || !this.socket) {
+          showToast("Error", "WebSocket Desconectado", "error");
+          return;
+        }
+        this.socket.send(JSON.stringify({ command, payload }));
+        if (command === "START") {
+          this.isOptimizing = true;
+          showToast("Motor Iniciado", "Servidor analizando el \xE1rbol de posibilidades (WS)...", "info");
+        } else if (command === "STOP") {
           this.isOptimizing = false;
+          showToast("Motor Pausado", "Optimizaci\xF3n detenida.", "warning");
         }
       } catch (err) {
-        console.error("Error parsing WS message:", err);
+        console.error("Error sending WS command:", err);
+        showToast("Error de Comunicaci\xF3n", "No se pudo enviar el comando al servidor", "error");
+        throw err;
       }
-    };
-  }
-  on(event, callback) {
-    this.callbacks[event] = callback;
-  }
-  _trigger(event, data) {
-    if (this.callbacks[event]) this.callbacks[event](data);
-  }
-  sendCommand(command, payload = {}) {
-    try {
-      if (!this.isConnected || !this.socket) {
-        showToast("Error", "WebSocket Desconectado", "error");
-        return;
-      }
-      this.socket.send(JSON.stringify({ command, payload }));
-      if (command === "START") {
-        this.isOptimizing = true;
-        showToast("Motor Iniciado", "Servidor analizando el \xE1rbol de posibilidades (WS)...", "info");
-      } else if (command === "STOP") {
-        this.isOptimizing = false;
-        showToast("Motor Pausado", "Optimizaci\xF3n detenida.", "warning");
-      }
-    } catch (err) {
-      console.error("Error sending WS command:", err);
-      showToast("Error de Comunicaci\xF3n", "No se pudo enviar el comando al servidor", "error");
-      throw err;
     }
-  }
-};
-
-// Web/src/calendar.ts
-function updateDateRange() {
-  if (!AppData.calendarInstance) return;
-  const start = AppData.calendarInstance.getDateRangeStart();
-  const end = AppData.calendarInstance.getDateRangeEnd();
-  const formatDate = (date) => {
-    const d = typeof date.toDate === "function" ? date.toDate() : new Date(date);
-    const months = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
-    return `${d.getDate()} ${months[d.getMonth()]}`;
   };
-  const rangeEl = document.getElementById("calendar-date-range");
-  if (rangeEl) rangeEl.textContent = `${formatDate(start)} - ${formatDate(end)}`;
-}
-function onHeaderCourseChange(previousVal = null) {
-  const courseSelect = document.getElementById("header-course-select");
-  const select = document.getElementById("view-entity-select");
-  if (!courseSelect || !select) return;
-  const courseId = courseSelect.value;
-  select.innerHTML = "";
-  const course = AppData.courses.find((c) => c.id === courseId);
-  if (course) {
-    if (course.groups.length === 0) {
-      select.innerHTML = `<option value="">Sin grupos</option>`;
-    } else {
-      course.groups.forEach((g) => select.innerHTML += `<option value="${g.id}">Grupo ${g.name}</option>`);
+
+  // Web/src/calendar.ts
+  function updateDateRange() {
+    if (!AppData.calendarInstance) return;
+    const start = AppData.calendarInstance.getDateRangeStart();
+    const end = AppData.calendarInstance.getDateRangeEnd();
+    const formatDate = (date) => {
+      const d = typeof date.toDate === "function" ? date.toDate() : new Date(date);
+      const months = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
+      return `${d.getDate()} ${months[d.getMonth()]}`;
+    };
+    const rangeEl = document.getElementById("calendar-date-range");
+    if (rangeEl) rangeEl.textContent = `${formatDate(start)} - ${formatDate(end)}`;
+  }
+  function onHeaderCourseChange(previousVal = null) {
+    const courseSelect = document.getElementById("header-course-select");
+    const select = document.getElementById("view-entity-select");
+    if (!courseSelect || !select) return;
+    const courseId = courseSelect.value;
+    select.innerHTML = "";
+    const course = AppData.courses.find((c) => c.id === courseId);
+    if (course) {
+      if (course.groups.length === 0) {
+        select.innerHTML = `<option value="">Sin grupos</option>`;
+      } else {
+        course.groups.forEach((g) => select.innerHTML += `<option value="${g.id}">Grupo ${g.name}</option>`);
+      }
     }
+    if (previousVal && Array.from(select.options).some((opt) => opt.value === previousVal)) {
+      select.value = previousVal;
+    }
+    refreshCalendarView();
   }
-  if (previousVal && Array.from(select.options).some((opt) => opt.value === previousVal)) {
-    select.value = previousVal;
-  }
-  refreshCalendarView();
-}
-function initCalendar() {
-  if (typeof tui === "undefined") return;
-  const Calendar = tui.Calendar;
-  AppData.calendarInstance = new Calendar("#calendar", {
-    defaultView: "week",
-    useFormPopup: false,
-    useDetailPopup: false,
-    week: { taskView: false, eventView: ["time"], dayNames: ["Dom", "Lunes", "Martes", "Mi\xE9rcoles", "Jueves", "Viernes", "S\xE1b"], workweek: true, hourStart: 8, hourEnd: 15 },
-    calendars: [
-      { id: "default", name: "Clases", backgroundColor: "#4f46e5" },
-      { id: "pinned", name: "Fijadas", backgroundColor: "#059669" },
-      { id: "recess", name: "Recreo", backgroundColor: "#f1f5f9", borderColor: "#94a3b8", color: "#64748b" }
-    ],
-    template: {
-      weekDayName(model) {
-        return `<span class="toastui-calendar-day-name-item">${model.dayName}</span>`;
-      },
-      time(event) {
-        if (event.calendarId === "recess") {
-          return `<div class="p-1 font-semibold text-slate-500 text-xs">\u2615 Recreo</div>`;
-        }
-        return `
+  function initCalendar() {
+    if (typeof tui === "undefined") return;
+    const Calendar = tui.Calendar;
+    AppData.calendarInstance = new Calendar("#calendar", {
+      defaultView: "week",
+      useFormPopup: false,
+      useDetailPopup: false,
+      week: { taskView: false, eventView: ["time"], dayNames: ["Dom", "Lunes", "Martes", "Mi\xE9rcoles", "Jueves", "Viernes", "S\xE1b"], workweek: true, hourStart: 8, hourEnd: 15 },
+      calendars: [
+        { id: "default", name: "Clases", backgroundColor: "#4f46e5" },
+        { id: "pinned", name: "Fijadas", backgroundColor: "#059669" },
+        { id: "recess", name: "Recreo", backgroundColor: "#f1f5f9", borderColor: "#94a3b8", color: "#64748b" }
+      ],
+      template: {
+        weekDayName(model) {
+          return `<span class="toastui-calendar-day-name-item">${model.dayName}</span>`;
+        },
+        time(event) {
+          if (event.calendarId === "recess") {
+            return `<div class="p-1 font-semibold text-slate-500 text-xs">\u2615 Recreo</div>`;
+          }
+          return `
                     <div class="p-1 flex flex-col justify-center h-full overflow-hidden text-white leading-tight">
                         <div class="font-bold text-xs truncate">${event.title}</div>
                         ${event.body ? `<div class="text-[11px] font-medium opacity-90 truncate mt-0.5">${event.body}</div>` : ""}
                     </div>
                 `;
-      }
-    }
-  });
-  addRecessEvents();
-  AppData.calendarInstance.on("selectDateTime", function(info) {
-    AppData.calendarInstance.clearGridSelections();
-    let startObj = typeof info.start.toDate === "function" ? info.start.toDate() : new Date(info.start);
-    let endObj = typeof info.end.toDate === "function" ? info.end.toDate() : new Date(info.end);
-    openAddClassModal(startObj, endObj);
-  });
-  AppData.calendarInstance.on("beforeUpdateEvent", async function(info) {
-    const { event, changes } = info;
-    let cls = AppData.scheduledClasses.find((c) => c.id === event.id);
-    if (!cls) return;
-    if (cls.isPinned) {
-      showToast("Bloqueado", "No puedes mover ni alterar una clase que est\xE1 fijada (Pin).", "warning");
-      return;
-    }
-    let startCandidate = cls.start;
-    let endCandidate = cls.end;
-    if (changes.start) startCandidate = typeof changes.start.toDate === "function" ? changes.start.toDate() : new Date(changes.start);
-    if (changes.end) endCandidate = typeof changes.end.toDate === "function" ? changes.end.toDate() : new Date(changes.end);
-    if (overlapsRecess(new Date(startCandidate), new Date(endCandidate))) {
-      showToast("Error", "No se puede programar una clase durante el recreo (12:00 - 12:30).", "error");
-      refreshCalendarView();
-      return;
-    }
-    if (changes.start) cls.start = typeof changes.start.toDate === "function" ? changes.start.toDate() : new Date(changes.start);
-    if (changes.end) cls.end = typeof changes.end.toDate === "function" ? changes.end.toDate() : new Date(changes.end);
-    cls.duration = (new Date(cls.end).getTime() - new Date(cls.start).getTime()) / (1e3 * 60 * 60);
-    AppData.calendarInstance.updateEvent(event.id, event.calendarId, changes);
-    showToast("Sincronizando...", "Guardando nueva posici\xF3n en el servidor...", "info");
-    await AppData.API.updateClass(cls);
-    AppData.WS.sendCommand("MANUAL_EDIT", { id: cls.id, action: "moved" });
-  });
-  AppData.calendarInstance.on("clickEvent", (e) => openEventDetail(e.event));
-}
-function openAddClassModal(startDate = null, endDate = null) {
-  if (!startDate) {
-    const now = /* @__PURE__ */ new Date();
-    const diff = now.getDate() - now.getDay() + (now.getDay() === 0 ? -6 : 1);
-    startDate = new Date(now.setDate(diff));
-    startDate.setHours(9, 0, 0, 0);
-    endDate = new Date(startDate);
-    endDate.setHours(10, 0, 0, 0);
-  }
-  const formatTime = (date) => date.toTimeString().slice(0, 5);
-  document.getElementById("modal-class-start").value = startDate.toISOString();
-  document.getElementById("modal-class-end").value = endDate.toISOString();
-  document.getElementById("modal-time-start").value = formatTime(startDate);
-  document.getElementById("modal-time-end").value = formatTime(endDate);
-  const typeSelect = document.getElementById("view-type-select");
-  const headerCourseSelect = document.getElementById("header-course-select");
-  const viewEntitySelect = document.getElementById("view-entity-select");
-  const viewType = typeSelect?.value;
-  const viewCourse = headerCourseSelect?.value;
-  const viewEntity = viewEntitySelect?.value;
-  const subjSelect = document.getElementById("modal-subject");
-  const courseSelect = document.getElementById("modal-course");
-  const groupSelect = document.getElementById("modal-group");
-  const teacherSelect = document.getElementById("modal-teacher");
-  subjSelect.innerHTML = AppData.subjects.map((s) => `<option value="${s.id}">${s.name}</option>`).join("");
-  courseSelect.innerHTML = AppData.courses.map((c) => `<option value="${c.id}">${c.name}</option>`).join("");
-  teacherSelect.innerHTML = AppData.teachers.map((t) => `<option value="${t.id}">${t.name}</option>`).join("");
-  courseSelect.disabled = false;
-  groupSelect.disabled = false;
-  teacherSelect.disabled = false;
-  if (viewType === "group" && viewCourse) {
-    courseSelect.value = viewCourse;
-    courseSelect.disabled = true;
-    onModalCourseChange();
-    if (viewEntity) {
-      groupSelect.value = viewEntity;
-      groupSelect.disabled = true;
-    }
-  } else if (viewType === "teacher" && viewEntity) {
-    teacherSelect.value = viewEntity;
-    teacherSelect.disabled = true;
-    onModalCourseChange();
-    const teacherObj = AppData.teachers.find((t) => t.id === viewEntity);
-    if (teacherObj && teacherObj.subjects && teacherObj.subjects.length > 0) {
-      subjSelect.value = teacherObj.subjects[0];
-    }
-  } else {
-    onModalCourseChange();
-  }
-  const modal = document.getElementById("add-class-modal");
-  if (modal) {
-    modal.classList.replace("hidden", "flex");
-    modal.onclick = (e) => {
-      if (e.target === modal) {
-        closeAddClassModal();
-      }
-    };
-  }
-}
-function onModalCourseChange() {
-  const courseId = document.getElementById("modal-course").value;
-  const groupSelect = document.getElementById("modal-group");
-  groupSelect.innerHTML = "";
-  const course = AppData.courses.find((c) => c.id === courseId);
-  if (course && course.groups.length > 0) {
-    course.groups.forEach((g) => {
-      groupSelect.innerHTML += `<option value="${g.id}">Grupo ${g.name}</option>`;
-    });
-  } else {
-    groupSelect.innerHTML = `<option value="">(Sin grupos)</option>`;
-  }
-}
-function closeAddClassModal() {
-  const modal = document.getElementById("add-class-modal");
-  if (modal) modal.classList.replace("flex", "hidden");
-}
-async function saveNewClass() {
-  const baseStartStr = document.getElementById("modal-class-start").value;
-  const baseEndStr = document.getElementById("modal-class-end").value;
-  const baseStart = new Date(baseStartStr);
-  const baseEnd = new Date(baseEndStr);
-  const timeStartStr = document.getElementById("modal-time-start").value.split(":");
-  const timeEndStr = document.getElementById("modal-time-end").value.split(":");
-  baseStart.setHours(parseInt(timeStartStr[0]), parseInt(timeStartStr[1]), 0, 0);
-  baseEnd.setHours(parseInt(timeEndStr[0]), parseInt(timeEndStr[1]), 0, 0);
-  const subjId = document.getElementById("modal-subject").value;
-  const groupId = document.getElementById("modal-group").value;
-  const teacherId = document.getElementById("modal-teacher").value;
-  if (!groupId || !teacherId) {
-    showToast("Error", "Faltan datos por seleccionar (Grupo o Profesor)", "error");
-    return;
-  }
-  if (overlapsRecess(baseStart, baseEnd)) {
-    showToast("Error", "No se puede programar una clase durante el recreo (12:00 - 12:30).", "error");
-    return;
-  }
-  const durationInMs = baseEnd.getTime() - baseStart.getTime();
-  const durationInHours = durationInMs / (1e3 * 60 * 60);
-  let nuevaClase = {
-    id: "evt-" + Date.now(),
-    start: baseStart.toISOString(),
-    end: baseEnd.toISOString(),
-    duration: durationInHours,
-    subjectId: subjId,
-    groupId,
-    teacherId,
-    isPinned: false
-  };
-  showToast("Guardando...", "Enviando bloque a la base de datos API", "info");
-  await AppData.API.saveClass(nuevaClase);
-  AppData.scheduledClasses.push(nuevaClase);
-  closeAddClassModal();
-  refreshCalendarView();
-  AppData.WS.sendCommand("MANUAL_EDIT", { id: nuevaClase.id });
-}
-var SUBJECT_PALETTE = [
-  "#4f46e5",
-  // Indigo
-  "#0284c7",
-  // Sky Blue
-  "#059669",
-  // Emerald
-  "#d97706",
-  // Amber
-  "#dc2626",
-  // Red
-  "#7c3aed",
-  // Purple
-  "#db2777",
-  // Pink
-  "#2563eb",
-  // Blue
-  "#0d9488",
-  // Teal
-  "#ca8a04",
-  // Yellow
-  "#ea580c",
-  // Orange
-  "#e11d48",
-  // Rose
-  "#9333ea",
-  // Violet
-  "#16a34a"
-  // Green
-];
-function getSubjectColor(subjectId) {
-  if (!subjectId) return "#4f46e5";
-  let hash = 0;
-  for (let i = 0; i < subjectId.length; i++) {
-    hash = subjectId.charCodeAt(i) + ((hash << 5) - hash);
-  }
-  const idx = Math.abs(hash) % SUBJECT_PALETTE.length;
-  return SUBJECT_PALETTE[idx];
-}
-function toggleColorMode() {
-  if (!AppData.colorMode) AppData.colorMode = "teacher";
-  AppData.colorMode = AppData.colorMode === "teacher" ? "subject" : "teacher";
-  const btnText = document.getElementById("btn-color-mode-text");
-  if (btnText) {
-    btnText.textContent = AppData.colorMode === "teacher" ? "Color: Profesor" : "Color: Asignatura";
-  }
-  const btnIcon = document.getElementById("btn-color-mode-icon");
-  if (btnIcon) {
-    btnIcon.textContent = AppData.colorMode === "teacher" ? "\u{1F3A8}" : "\u{1F4DA}";
-  }
-  refreshCalendarView();
-}
-function refreshCalendarView() {
-  const typeSelect = document.getElementById("view-type-select");
-  const entitySelect = document.getElementById("view-entity-select");
-  if (!typeSelect || !entitySelect) return;
-  const type = typeSelect.value;
-  const entityId = entitySelect.value;
-  if (AppData.calendarInstance) {
-    AppData.calendarInstance.clear();
-    addRecessEvents();
-  }
-  if (!entityId) return;
-  const colorMode = AppData.colorMode || "teacher";
-  const events = AppData.scheduledClasses.filter((cls) => {
-    if (type === "teacher") return cls.teacherId === entityId;
-    if (type === "group") return cls.groupId === entityId;
-    return false;
-  }).map((cls) => {
-    const subject = AppData.subjects.find((s) => s.id === cls.subjectId);
-    const teacher = AppData.teachers.find((t) => t.id === cls.teacherId);
-    const course = AppData.courses.find((c) => c.groups.some((g) => g.id === cls.groupId));
-    const group = course ? course.groups.find((g) => g.id === cls.groupId) : null;
-    const pin = cls.isPinned ? "\u{1F4CC} " : "";
-    const subjectTitle = subject ? `${pin}${subject.name}` : "Clase API";
-    const subtitle = type === "group" ? teacher ? `Prof: ${teacher.name}` : "" : course && group ? `${course.name} - G.${group.name}` : teacher ? `Prof: ${teacher.name}` : "";
-    const eventBgColor = colorMode === "subject" ? getSubjectColor(cls.subjectId) : teacher ? teacher.color : "#4f46e5";
-    return {
-      id: cls.id,
-      calendarId: cls.teacherId,
-      title: subjectTitle,
-      body: subtitle,
-      start: cls.start,
-      end: cls.end,
-      isReadOnly: cls.isPinned || false,
-      backgroundColor: eventBgColor,
-      color: "#ffffff",
-      customStyle: { borderRadius: "6px", border: "none", padding: "2px" }
-    };
-  });
-  if (AppData.calendarInstance) AppData.calendarInstance.createEvents(events);
-  const summaryCard = document.getElementById("teacher-summary-card");
-  const summaryContent = document.getElementById("teacher-summary-content");
-  if (type === "teacher" && entityId) {
-    const teacher = AppData.teachers.find((t) => t.id === entityId);
-    if (teacher && summaryCard && summaryContent) {
-      const teacherClasses = AppData.scheduledClasses.filter((c) => c.teacherId === entityId);
-      const totalHours = teacherClasses.reduce((sum, c) => sum + c.duration, 0);
-      const map = /* @__PURE__ */ new Map();
-      teacherClasses.forEach((cls) => {
-        const subject = AppData.subjects.find((s) => s.id === cls.subjectId);
-        const course = AppData.courses.find((c) => c.groups.some((g) => g.id === cls.groupId));
-        const group = course ? course.groups.find((g) => g.id === cls.groupId) : null;
-        const cName = course ? course.name : "Curso";
-        const gName = group ? group.name : "Grupo";
-        const sName = subject ? subject.name : "Asignatura";
-        const key = `${cName}_${gName}_${sName}`;
-        if (!map.has(key)) {
-          map.set(key, { courseName: cName, groupName: gName, subjectName: sName, hours: 0 });
         }
-        map.get(key).hours += cls.duration;
+      }
+    });
+    addRecessEvents();
+    AppData.calendarInstance.on("selectDateTime", function(info) {
+      AppData.calendarInstance.clearGridSelections();
+      let startObj = typeof info.start.toDate === "function" ? info.start.toDate() : new Date(info.start);
+      let endObj = typeof info.end.toDate === "function" ? info.end.toDate() : new Date(info.end);
+      openAddClassModal(startObj, endObj);
+    });
+    AppData.calendarInstance.on("beforeUpdateEvent", async function(info) {
+      const { event, changes } = info;
+      let cls = AppData.scheduledClasses.find((c) => c.id === event.id);
+      if (!cls) return;
+      if (cls.isPinned) {
+        showToast("Bloqueado", "No puedes mover ni alterar una clase que est\xE1 fijada (Pin).", "warning");
+        return;
+      }
+      let startCandidate = cls.start;
+      let endCandidate = cls.end;
+      if (changes.start) startCandidate = typeof changes.start.toDate === "function" ? changes.start.toDate() : new Date(changes.start);
+      if (changes.end) endCandidate = typeof changes.end.toDate === "function" ? changes.end.toDate() : new Date(changes.end);
+      if (overlapsRecess(new Date(startCandidate), new Date(endCandidate))) {
+        showToast("Error", "No se puede programar una clase durante el recreo (12:00 - 12:30).", "error");
+        refreshCalendarView();
+        return;
+      }
+      if (changes.start) cls.start = typeof changes.start.toDate === "function" ? changes.start.toDate() : new Date(changes.start);
+      if (changes.end) cls.end = typeof changes.end.toDate === "function" ? changes.end.toDate() : new Date(changes.end);
+      cls.duration = (new Date(cls.end).getTime() - new Date(cls.start).getTime()) / (1e3 * 60 * 60);
+      AppData.calendarInstance.updateEvent(event.id, event.calendarId, changes);
+      showToast("Sincronizando...", "Guardando nueva posici\xF3n en el servidor...", "info");
+      await AppData.API.updateClass(cls);
+      AppData.WS.sendCommand("MANUAL_EDIT", { id: cls.id, action: "moved" });
+    });
+    AppData.calendarInstance.on("clickEvent", (e) => openEventDetail(e.event));
+  }
+  function openAddClassModal(startDate = null, endDate = null) {
+    if (!startDate) {
+      const now = /* @__PURE__ */ new Date();
+      const diff = now.getDate() - now.getDay() + (now.getDay() === 0 ? -6 : 1);
+      startDate = new Date(now.setDate(diff));
+      startDate.setHours(9, 0, 0, 0);
+      endDate = new Date(startDate);
+      endDate.setHours(10, 0, 0, 0);
+    }
+    const formatTime = (date) => date.toTimeString().slice(0, 5);
+    document.getElementById("modal-class-start").value = startDate.toISOString();
+    document.getElementById("modal-class-end").value = endDate.toISOString();
+    document.getElementById("modal-time-start").value = formatTime(startDate);
+    document.getElementById("modal-time-end").value = formatTime(endDate);
+    const typeSelect = document.getElementById("view-type-select");
+    const headerCourseSelect = document.getElementById("header-course-select");
+    const viewEntitySelect = document.getElementById("view-entity-select");
+    const viewType = typeSelect?.value;
+    const viewCourse = headerCourseSelect?.value;
+    const viewEntity = viewEntitySelect?.value;
+    const subjSelect = document.getElementById("modal-subject");
+    const courseSelect = document.getElementById("modal-course");
+    const groupSelect = document.getElementById("modal-group");
+    const teacherSelect = document.getElementById("modal-teacher");
+    subjSelect.innerHTML = AppData.subjects.map((s) => `<option value="${s.id}">${s.name}</option>`).join("");
+    courseSelect.innerHTML = AppData.courses.map((c) => `<option value="${c.id}">${c.name}</option>`).join("");
+    teacherSelect.innerHTML = AppData.teachers.map((t) => `<option value="${t.id}">${t.name}</option>`).join("");
+    courseSelect.disabled = false;
+    groupSelect.disabled = false;
+    teacherSelect.disabled = false;
+    if (viewType === "group" && viewCourse) {
+      courseSelect.value = viewCourse;
+      courseSelect.disabled = true;
+      onModalCourseChange();
+      if (viewEntity) {
+        groupSelect.value = viewEntity;
+        groupSelect.disabled = true;
+      }
+    } else if (viewType === "teacher" && viewEntity) {
+      teacherSelect.value = viewEntity;
+      teacherSelect.disabled = true;
+      onModalCourseChange();
+      const teacherObj = AppData.teachers.find((t) => t.id === viewEntity);
+      if (teacherObj && teacherObj.subjects && teacherObj.subjects.length > 0) {
+        subjSelect.value = teacherObj.subjects[0];
+      }
+    } else {
+      onModalCourseChange();
+    }
+    const modal = document.getElementById("add-class-modal");
+    if (modal) {
+      modal.classList.replace("hidden", "flex");
+      modal.onclick = (e) => {
+        if (e.target === modal) {
+          closeAddClassModal();
+        }
+      };
+    }
+  }
+  function onModalCourseChange() {
+    const courseId = document.getElementById("modal-course").value;
+    const groupSelect = document.getElementById("modal-group");
+    groupSelect.innerHTML = "";
+    const course = AppData.courses.find((c) => c.id === courseId);
+    if (course && course.groups.length > 0) {
+      course.groups.forEach((g) => {
+        groupSelect.innerHTML += `<option value="${g.id}">Grupo ${g.name}</option>`;
       });
-      const maxHours = teacher.maxHours || (AppData.config ? Math.round(AppData.config.minutosMaximosProfesor / 60) : 25);
-      const items = Array.from(map.values());
-      let summaryHtml = `
+    } else {
+      groupSelect.innerHTML = `<option value="">(Sin grupos)</option>`;
+    }
+  }
+  function closeAddClassModal() {
+    const modal = document.getElementById("add-class-modal");
+    if (modal) modal.classList.replace("flex", "hidden");
+  }
+  async function saveNewClass() {
+    const baseStartStr = document.getElementById("modal-class-start").value;
+    const baseEndStr = document.getElementById("modal-class-end").value;
+    const baseStart = new Date(baseStartStr);
+    const baseEnd = new Date(baseEndStr);
+    const timeStartStr = document.getElementById("modal-time-start").value.split(":");
+    const timeEndStr = document.getElementById("modal-time-end").value.split(":");
+    baseStart.setHours(parseInt(timeStartStr[0]), parseInt(timeStartStr[1]), 0, 0);
+    baseEnd.setHours(parseInt(timeEndStr[0]), parseInt(timeEndStr[1]), 0, 0);
+    const subjId = document.getElementById("modal-subject").value;
+    const groupId = document.getElementById("modal-group").value;
+    const teacherId = document.getElementById("modal-teacher").value;
+    if (!groupId || !teacherId) {
+      showToast("Error", "Faltan datos por seleccionar (Grupo o Profesor)", "error");
+      return;
+    }
+    if (overlapsRecess(baseStart, baseEnd)) {
+      showToast("Error", "No se puede programar una clase durante el recreo (12:00 - 12:30).", "error");
+      return;
+    }
+    const durationInMs = baseEnd.getTime() - baseStart.getTime();
+    const durationInHours = durationInMs / (1e3 * 60 * 60);
+    let nuevaClase = {
+      id: "evt-" + Date.now(),
+      start: baseStart.toISOString(),
+      end: baseEnd.toISOString(),
+      duration: durationInHours,
+      subjectId: subjId,
+      groupId,
+      teacherId,
+      isPinned: false
+    };
+    showToast("Guardando...", "Enviando bloque a la base de datos API", "info");
+    await AppData.API.saveClass(nuevaClase);
+    AppData.scheduledClasses.push(nuevaClase);
+    closeAddClassModal();
+    refreshCalendarView();
+    AppData.WS.sendCommand("MANUAL_EDIT", { id: nuevaClase.id });
+  }
+  var SUBJECT_PALETTE = [
+    "#4f46e5",
+    // Indigo
+    "#0284c7",
+    // Sky Blue
+    "#059669",
+    // Emerald
+    "#d97706",
+    // Amber
+    "#dc2626",
+    // Red
+    "#7c3aed",
+    // Purple
+    "#db2777",
+    // Pink
+    "#2563eb",
+    // Blue
+    "#0d9488",
+    // Teal
+    "#ca8a04",
+    // Yellow
+    "#ea580c",
+    // Orange
+    "#e11d48",
+    // Rose
+    "#9333ea",
+    // Violet
+    "#16a34a"
+    // Green
+  ];
+  function getSubjectColor(subjectId) {
+    if (!subjectId) return "#4f46e5";
+    let hash = 0;
+    for (let i = 0; i < subjectId.length; i++) {
+      hash = subjectId.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    const idx = Math.abs(hash) % SUBJECT_PALETTE.length;
+    return SUBJECT_PALETTE[idx];
+  }
+  function toggleColorMode() {
+    if (!AppData.colorMode) AppData.colorMode = "teacher";
+    AppData.colorMode = AppData.colorMode === "teacher" ? "subject" : "teacher";
+    const btnText = document.getElementById("btn-color-mode-text");
+    if (btnText) {
+      btnText.textContent = AppData.colorMode === "teacher" ? "Color: Profesor" : "Color: Asignatura";
+    }
+    const btnIcon = document.getElementById("btn-color-mode-icon");
+    if (btnIcon) {
+      btnIcon.textContent = AppData.colorMode === "teacher" ? "\u{1F3A8}" : "\u{1F4DA}";
+    }
+    refreshCalendarView();
+  }
+  function refreshCalendarView() {
+    const typeSelect = document.getElementById("view-type-select");
+    const entitySelect = document.getElementById("view-entity-select");
+    if (!typeSelect || !entitySelect) return;
+    const type = typeSelect.value;
+    const entityId = entitySelect.value;
+    if (AppData.calendarInstance) {
+      AppData.calendarInstance.clear();
+      addRecessEvents();
+    }
+    if (!entityId) return;
+    const colorMode = AppData.colorMode || "teacher";
+    const events = AppData.scheduledClasses.filter((cls) => {
+      if (type === "teacher") return cls.teacherId === entityId;
+      if (type === "group") return cls.groupId === entityId;
+      return false;
+    }).map((cls) => {
+      const subject = AppData.subjects.find((s) => s.id === cls.subjectId);
+      const teacher = AppData.teachers.find((t) => t.id === cls.teacherId);
+      const course = AppData.courses.find((c) => c.groups.some((g) => g.id === cls.groupId));
+      const group = course ? course.groups.find((g) => g.id === cls.groupId) : null;
+      const pin = cls.isPinned ? "\u{1F4CC} " : "";
+      const subjectTitle = subject ? `${pin}${subject.name}` : "Clase API";
+      const subtitle = type === "group" ? teacher ? `Prof: ${teacher.name}` : "" : course && group ? `${course.name} - G.${group.name}` : teacher ? `Prof: ${teacher.name}` : "";
+      const eventBgColor = colorMode === "subject" ? getSubjectColor(cls.subjectId) : teacher ? teacher.color : "#4f46e5";
+      return {
+        id: cls.id,
+        calendarId: cls.teacherId,
+        title: subjectTitle,
+        body: subtitle,
+        start: cls.start,
+        end: cls.end,
+        isReadOnly: cls.isPinned || false,
+        backgroundColor: eventBgColor,
+        color: "#ffffff",
+        customStyle: { borderRadius: "6px", border: "none", padding: "2px" }
+      };
+    });
+    if (AppData.calendarInstance) AppData.calendarInstance.createEvents(events);
+    const summaryCard = document.getElementById("teacher-summary-card");
+    const summaryContent = document.getElementById("teacher-summary-content");
+    if (type === "teacher" && entityId) {
+      const teacher = AppData.teachers.find((t) => t.id === entityId);
+      if (teacher && summaryCard && summaryContent) {
+        const teacherClasses = AppData.scheduledClasses.filter((c) => c.teacherId === entityId);
+        const totalHours = teacherClasses.reduce((sum, c) => sum + c.duration, 0);
+        const map = /* @__PURE__ */ new Map();
+        teacherClasses.forEach((cls) => {
+          const subject = AppData.subjects.find((s) => s.id === cls.subjectId);
+          const course = AppData.courses.find((c) => c.groups.some((g) => g.id === cls.groupId));
+          const group = course ? course.groups.find((g) => g.id === cls.groupId) : null;
+          const cName = course ? course.name : "Curso";
+          const gName = group ? group.name : "Grupo";
+          const sName = subject ? subject.name : "Asignatura";
+          const key = `${cName}_${gName}_${sName}`;
+          if (!map.has(key)) {
+            map.set(key, { courseName: cName, groupName: gName, subjectName: sName, hours: 0 });
+          }
+          map.get(key).hours += cls.duration;
+        });
+        const maxHours = teacher.maxHours || (AppData.config ? Math.round(AppData.config.minutosMaximosProfesor / 60) : 25);
+        const items = Array.from(map.values());
+        let summaryHtml = `
                 <div class="flex flex-wrap items-center justify-between gap-4 mb-3 border-b border-gray-100 pb-2">
                     <div class="flex items-center gap-2">
                         <span class="w-3.5 h-3.5 rounded-full shadow-sm" style="background-color: ${teacher.color};"></span>
@@ -515,12 +512,12 @@ function refreshCalendarView() {
                     </div>
                 </div>
             `;
-      if (items.length === 0) {
-        summaryHtml += `<p class="text-xs text-gray-400 italic">No tiene clases asignadas en el horario actual.</p>`;
-      } else {
-        summaryHtml += `<div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5">`;
-        items.forEach((item) => {
-          summaryHtml += `
+        if (items.length === 0) {
+          summaryHtml += `<p class="text-xs text-gray-400 italic">No tiene clases asignadas en el horario actual.</p>`;
+        } else {
+          summaryHtml += `<div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5">`;
+          items.forEach((item) => {
+            summaryHtml += `
                         <div class="p-2.5 bg-slate-50 border border-slate-200 rounded-lg flex flex-col justify-between hover:bg-slate-100 transition-colors">
                             <span class="text-xs font-bold text-slate-800 truncate">${item.courseName} - G.${item.groupName}</span>
                             <div class="flex justify-between items-center mt-1 text-[11px]">
@@ -529,179 +526,179 @@ function refreshCalendarView() {
                             </div>
                         </div>
                     `;
-        });
-        summaryHtml += `</div>`;
+          });
+          summaryHtml += `</div>`;
+        }
+        summaryContent.innerHTML = summaryHtml;
+        summaryCard.classList.remove("hidden");
       }
-      summaryContent.innerHTML = summaryHtml;
-      summaryCard.classList.remove("hidden");
+    } else {
+      if (summaryCard) summaryCard.classList.add("hidden");
     }
-  } else {
-    if (summaryCard) summaryCard.classList.add("hidden");
   }
-}
-function openEventDetail(event) {
-  const cls = AppData.scheduledClasses.find((c) => c.id === event.id);
-  if (!cls) return;
-  const subject = AppData.subjects.find((s) => s.id === cls.subjectId);
-  const teacher = AppData.teachers.find((t) => t.id === cls.teacherId);
-  if (!subject || !teacher) return;
-  const course = AppData.courses.find((c) => c.groups.some((g) => g.id === cls.groupId));
-  const group = course ? course.groups.find((g) => g.id === cls.groupId) : null;
-  const courseGroupName = course && group ? `${course.name} - Grupo ${group.name}` : "Sin grupo";
-  const titleEl = document.getElementById("event-detail-title");
-  if (titleEl) titleEl.textContent = subject.name;
-  const colorMode = AppData.colorMode || "teacher";
-  const headerColor = colorMode === "subject" ? getSubjectColor(cls.subjectId) : teacher.color;
-  const headerEl = document.getElementById("event-detail-header");
-  if (headerEl) headerEl.style.backgroundColor = headerColor;
-  const bodyEl = document.getElementById("event-detail-body");
-  if (bodyEl) {
-    bodyEl.innerHTML = `
+  function openEventDetail(event) {
+    const cls = AppData.scheduledClasses.find((c) => c.id === event.id);
+    if (!cls) return;
+    const subject = AppData.subjects.find((s) => s.id === cls.subjectId);
+    const teacher = AppData.teachers.find((t) => t.id === cls.teacherId);
+    if (!subject || !teacher) return;
+    const course = AppData.courses.find((c) => c.groups.some((g) => g.id === cls.groupId));
+    const group = course ? course.groups.find((g) => g.id === cls.groupId) : null;
+    const courseGroupName = course && group ? `${course.name} - Grupo ${group.name}` : "Sin grupo";
+    const titleEl = document.getElementById("event-detail-title");
+    if (titleEl) titleEl.textContent = subject.name;
+    const colorMode = AppData.colorMode || "teacher";
+    const headerColor = colorMode === "subject" ? getSubjectColor(cls.subjectId) : teacher.color;
+    const headerEl = document.getElementById("event-detail-header");
+    if (headerEl) headerEl.style.backgroundColor = headerColor;
+    const bodyEl = document.getElementById("event-detail-body");
+    if (bodyEl) {
+      bodyEl.innerHTML = `
             <p class="text-sm mb-1.5">Curso/Grupo: <b>${courseGroupName}</b></p>
             <p class="text-sm">Impartida por: <b>${teacher.name}</b></p>
         `;
-  }
-  const pinBtn = document.getElementById("btn-pin-event");
-  if (pinBtn) {
-    pinBtn.innerText = cls.isPinned ? "Desfijar" : "Fijar (Pin)";
-    pinBtn.onclick = async () => {
-      cls.isPinned = !cls.isPinned;
-      try {
-        await AppData.API.updateClass(cls);
-      } catch (err) {
-        console.error("Error al actualizar estado del pin:", err);
-      }
-      AppData.WS.sendCommand("PIN_UPDATE", { id: cls.id, state: cls.isPinned });
-      closeEventDetail();
-      refreshCalendarView();
-    };
-  }
-  const delBtn = document.getElementById("btn-delete-event");
-  if (delBtn) {
-    delBtn.onclick = async () => {
-      await AppData.API.deleteClass(cls.id);
-      AppData.scheduledClasses = AppData.scheduledClasses.filter((c) => c.id !== cls.id);
-      AppData.WS.sendCommand("MANUAL_EDIT", { delete: cls.id });
-      closeEventDetail();
-      refreshCalendarView();
-    };
-  }
-  const modal = document.getElementById("event-detail-modal");
-  if (modal) {
-    modal.classList.replace("hidden", "flex");
-    modal.onclick = (e) => {
-      if (e.target === modal) {
+    }
+    const pinBtn = document.getElementById("btn-pin-event");
+    if (pinBtn) {
+      pinBtn.innerText = cls.isPinned ? "Desfijar" : "Fijar (Pin)";
+      pinBtn.onclick = async () => {
+        cls.isPinned = !cls.isPinned;
+        try {
+          await AppData.API.updateClass(cls);
+        } catch (err) {
+          console.error("Error al actualizar estado del pin:", err);
+        }
+        AppData.WS.sendCommand("PIN_UPDATE", { id: cls.id, state: cls.isPinned });
         closeEventDetail();
-      }
-    };
+        refreshCalendarView();
+      };
+    }
+    const delBtn = document.getElementById("btn-delete-event");
+    if (delBtn) {
+      delBtn.onclick = async () => {
+        await AppData.API.deleteClass(cls.id);
+        AppData.scheduledClasses = AppData.scheduledClasses.filter((c) => c.id !== cls.id);
+        AppData.WS.sendCommand("MANUAL_EDIT", { delete: cls.id });
+        closeEventDetail();
+        refreshCalendarView();
+      };
+    }
+    const modal = document.getElementById("event-detail-modal");
+    if (modal) {
+      modal.classList.replace("hidden", "flex");
+      modal.onclick = (e) => {
+        if (e.target === modal) {
+          closeEventDetail();
+        }
+      };
+    }
   }
-}
-function closeEventDetail() {
-  const modal = document.getElementById("event-detail-modal");
-  if (modal) modal.classList.replace("flex", "hidden");
-}
-function overlapsRecess(start, end) {
-  const startHour = start.getHours();
-  const startMin = start.getMinutes();
-  const endHour = end.getHours();
-  const endMin = end.getMinutes();
-  const startMinutes = startHour * 60 + startMin;
-  const endMinutes = endHour * 60 + endMin;
-  let recessStart = 12 * 60;
-  let recessDuration = 30;
-  if (AppData.config) {
-    const parts = AppData.config.horaInicioRecreo.split(":");
-    recessStart = parseInt(parts[0]) * 60 + parseInt(parts[1]);
-    recessDuration = AppData.config.duracionRecreo;
+  function closeEventDetail() {
+    const modal = document.getElementById("event-detail-modal");
+    if (modal) modal.classList.replace("flex", "hidden");
   }
-  const recessEnd = recessStart + recessDuration;
-  return startMinutes < recessEnd && endMinutes > recessStart;
-}
-function addRecessEvents() {
-  if (!AppData.calendarInstance) return;
-  const today = /* @__PURE__ */ new Date();
-  const dayOfWeek = today.getDay();
-  const diff = today.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1);
-  const monday = new Date(today);
-  monday.setDate(diff);
-  monday.setHours(0, 0, 0, 0);
-  let startHour = 12;
-  let startMin = 0;
-  let duration = 30;
-  if (AppData.config) {
-    const parts = AppData.config.horaInicioRecreo.split(":");
-    startHour = parseInt(parts[0]);
-    startMin = parseInt(parts[1]);
-    duration = AppData.config.duracionRecreo;
+  function overlapsRecess(start, end) {
+    const startHour = start.getHours();
+    const startMin = start.getMinutes();
+    const endHour = end.getHours();
+    const endMin = end.getMinutes();
+    const startMinutes = startHour * 60 + startMin;
+    const endMinutes = endHour * 60 + endMin;
+    let recessStart = 12 * 60;
+    let recessDuration = 30;
+    if (AppData.config) {
+      const parts = AppData.config.horaInicioRecreo.split(":");
+      recessStart = parseInt(parts[0]) * 60 + parseInt(parts[1]);
+      recessDuration = AppData.config.duracionRecreo;
+    }
+    const recessEnd = recessStart + recessDuration;
+    return startMinutes < recessEnd && endMinutes > recessStart;
   }
-  for (let i = 0; i < 5; i++) {
-    const day = new Date(monday);
-    day.setDate(monday.getDate() + i);
-    const start = new Date(day);
-    start.setHours(startHour, startMin, 0, 0);
-    const end = new Date(start);
-    end.setMinutes(start.getMinutes() + duration);
-    AppData.calendarInstance.createEvents([{
-      id: `recess-${i}`,
-      calendarId: "recess",
-      title: "\u2615 Recreo",
-      start: start.toISOString(),
-      end: end.toISOString(),
-      isReadOnly: true,
-      isAllDay: false,
-      backgroundColor: "#f1f5f9",
-      borderColor: "#94a3b8",
-      color: "#64748b"
-    }]);
+  function addRecessEvents() {
+    if (!AppData.calendarInstance) return;
+    const today = /* @__PURE__ */ new Date();
+    const dayOfWeek = today.getDay();
+    const diff = today.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1);
+    const monday = new Date(today);
+    monday.setDate(diff);
+    monday.setHours(0, 0, 0, 0);
+    let startHour = 12;
+    let startMin = 0;
+    let duration = 30;
+    if (AppData.config) {
+      const parts = AppData.config.horaInicioRecreo.split(":");
+      startHour = parseInt(parts[0]);
+      startMin = parseInt(parts[1]);
+      duration = AppData.config.duracionRecreo;
+    }
+    for (let i = 0; i < 5; i++) {
+      const day = new Date(monday);
+      day.setDate(monday.getDate() + i);
+      const start = new Date(day);
+      start.setHours(startHour, startMin, 0, 0);
+      const end = new Date(start);
+      end.setMinutes(start.getMinutes() + duration);
+      AppData.calendarInstance.createEvents([{
+        id: `recess-${i}`,
+        calendarId: "recess",
+        title: "\u2615 Recreo",
+        start: start.toISOString(),
+        end: end.toISOString(),
+        isReadOnly: true,
+        isAllDay: false,
+        backgroundColor: "#f1f5f9",
+        borderColor: "#94a3b8",
+        color: "#64748b"
+      }]);
+    }
   }
-}
-async function clearGroupSchedule() {
-  const typeSelect = document.getElementById("view-type-select");
-  const entitySelect = document.getElementById("view-entity-select");
-  if (!typeSelect || !entitySelect) return;
-  if (typeSelect.value !== "group") {
-    showToast("Info", "Por favor, selecciona la vista de 'Grupo' para vaciar un horario espec\xEDfico.", "info");
-    return;
+  async function clearGroupSchedule() {
+    const typeSelect = document.getElementById("view-type-select");
+    const entitySelect = document.getElementById("view-entity-select");
+    if (!typeSelect || !entitySelect) return;
+    if (typeSelect.value !== "group") {
+      showToast("Info", "Por favor, selecciona la vista de 'Grupo' para vaciar un horario espec\xEDfico.", "info");
+      return;
+    }
+    const groupId = entitySelect.value;
+    if (!groupId) {
+      showToast("Info", "No hay ning\xFAn grupo seleccionado.", "info");
+      return;
+    }
+    const groupObj = AppData.courses.flatMap((c) => c.groups).find((g) => g.id === groupId);
+    const groupName = groupObj ? groupObj.name : "este grupo";
+    if (!confirm(`\xBFEst\xE1s seguro de que deseas vaciar todas las clases programadas para el grupo "${groupName}"?`)) {
+      return;
+    }
+    try {
+      showToast("Limpiando...", "Eliminando clases de la base de datos...", "info");
+      await AppData.API.deleteGroupSchedule(groupId);
+      AppData.scheduledClasses = AppData.scheduledClasses.filter((c) => c.groupId !== groupId);
+      refreshCalendarView();
+      showToast("\xC9xito", "El horario del grupo se ha vaciado.", "success");
+      AppData.WS.sendCommand("MANUAL_EDIT", { action: "cleared", groupId });
+    } catch (err) {
+      console.error("Error clearing schedule:", err);
+      showToast("Error", "No se pudo limpiar el horario.", "error");
+    }
   }
-  const groupId = entitySelect.value;
-  if (!groupId) {
-    showToast("Info", "No hay ning\xFAn grupo seleccionado.", "info");
-    return;
-  }
-  const groupObj = AppData.courses.flatMap((c) => c.groups).find((g) => g.id === groupId);
-  const groupName = groupObj ? groupObj.name : "este grupo";
-  if (!confirm(`\xBFEst\xE1s seguro de que deseas vaciar todas las clases programadas para el grupo "${groupName}"?`)) {
-    return;
-  }
-  try {
-    showToast("Limpiando...", "Eliminando clases de la base de datos...", "info");
-    await AppData.API.deleteGroupSchedule(groupId);
-    AppData.scheduledClasses = AppData.scheduledClasses.filter((c) => c.groupId !== groupId);
-    refreshCalendarView();
-    showToast("\xC9xito", "El horario del grupo se ha vaciado.", "success");
-    AppData.WS.sendCommand("MANUAL_EDIT", { action: "cleared", groupId });
-  } catch (err) {
-    console.error("Error clearing schedule:", err);
-    showToast("Error", "No se pudo limpiar el horario.", "error");
-  }
-}
 
-// Web/src/crud.ts
-var currentCrudType = "";
-var currentCrudId = null;
-var currentCourseIdForGroup = "";
-var currentGroupIdForGroup = null;
-function openFormModal(type, id = null) {
-  currentCrudType = type;
-  currentCrudId = id;
-  const titleEl = document.getElementById("crud-modal-title");
-  const bodyEl = document.getElementById("crud-modal-body");
-  if (!titleEl || !bodyEl) return;
-  if (type === "subject") {
-    titleEl.textContent = id ? "Editar Asignatura" : "Nueva Asignatura";
-    const s = id ? AppData.subjects.find((x) => x.id === id) : null;
-    const currentCourseId = AppData.currentCourseId;
-    bodyEl.innerHTML = `
+  // Web/src/crud.ts
+  var currentCrudType = "";
+  var currentCrudId = null;
+  var currentCourseIdForGroup = "";
+  var currentGroupIdForGroup = null;
+  function openFormModal(type, id = null) {
+    currentCrudType = type;
+    currentCrudId = id;
+    const titleEl = document.getElementById("crud-modal-title");
+    const bodyEl = document.getElementById("crud-modal-body");
+    if (!titleEl || !bodyEl) return;
+    if (type === "subject") {
+      titleEl.textContent = id ? "Editar Asignatura" : "Nueva Asignatura";
+      const s = id ? AppData.subjects.find((x) => x.id === id) : null;
+      const currentCourseId = AppData.currentCourseId;
+      bodyEl.innerHTML = `
             <form id="form-crud" class="space-y-4">
                 <div>
                     <label class="block text-sm font-semibold text-gray-700 mb-1">Nombre de la Asignatura</label>
@@ -721,14 +718,14 @@ function openFormModal(type, id = null) {
                     <label class="block text-sm font-semibold text-gray-700 mb-1">Profesores Cualificados (Especialistas)</label>
                     <div class="border border-gray-300 rounded-lg p-3 max-h-40 overflow-y-auto space-y-2 bg-gray-50">
                         ${AppData.teachers.map((t) => {
-      const isChecked = s?.teachers?.includes(t.id) || false;
-      return `
+        const isChecked = s?.teachers?.includes(t.id) || false;
+        return `
                                 <label class="flex items-center gap-2 cursor-pointer text-sm">
                                     <input type="checkbox" name="crud-subject-teachers" value="${t.id}" ${isChecked ? "checked" : ""} class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500">
                                     <span>${t.name}</span>
                                 </label>
                             `;
-    }).join("")}
+      }).join("")}
                     </div>
                 </div>
                 <div class="flex justify-end gap-2 pt-2">
@@ -737,10 +734,10 @@ function openFormModal(type, id = null) {
                 </div>
             </form>
         `;
-  } else if (type === "teacher") {
-    titleEl.textContent = id ? "Editar Profesor" : "Nuevo Profesor";
-    const t = id ? AppData.teachers.find((x) => x.id === id) : null;
-    bodyEl.innerHTML = `
+    } else if (type === "teacher") {
+      titleEl.textContent = id ? "Editar Profesor" : "Nuevo Profesor";
+      const t = id ? AppData.teachers.find((x) => x.id === id) : null;
+      bodyEl.innerHTML = `
             <form id="form-crud" class="space-y-4">
                 <div>
                     <label class="block text-sm font-semibold text-gray-700 mb-1">Nombre del Profesor</label>
@@ -774,10 +771,10 @@ function openFormModal(type, id = null) {
                 </div>
             </form>
         `;
-  } else if (type === "course") {
-    titleEl.textContent = id ? "Editar Curso" : "Nuevo Curso";
-    const c = id ? AppData.courses.find((x) => x.id === id) : null;
-    bodyEl.innerHTML = `
+    } else if (type === "course") {
+      titleEl.textContent = id ? "Editar Curso" : "Nuevo Curso";
+      const c = id ? AppData.courses.find((x) => x.id === id) : null;
+      bodyEl.innerHTML = `
             <form id="form-crud" class="space-y-4">
                 <div>
                     <label class="block text-sm font-semibold text-gray-700 mb-1">Nombre del Curso</label>
@@ -789,68 +786,68 @@ function openFormModal(type, id = null) {
                 </div>
             </form>
         `;
+    }
+    const modal = document.getElementById("crud-modal");
+    if (modal) modal.classList.replace("hidden", "flex");
+    const form = document.getElementById("form-crud");
+    if (form) {
+      form.onsubmit = async (e) => {
+        e.preventDefault();
+        if (type === "subject") {
+          const name = document.getElementById("crud-subject-name").value;
+          const hours = parseFloat(document.getElementById("crud-subject-hours").value);
+          const courseId = AppData.currentCourseId;
+          const checkboxes = document.querySelectorAll('input[name="crud-subject-teachers"]:checked');
+          const teachers = Array.from(checkboxes).map((cb) => cb.value);
+          try {
+            await AppData.API.saveSubject({ id: currentCrudId || void 0, name, hours, courseId, teachers });
+            showToast("\xC9xito", "Asignatura guardada correctamente", "success");
+            closeCrudModal();
+            renderSubjects();
+          } catch (err) {
+            showToast("Error", "No se pudo guardar la asignatura", "error");
+          }
+        } else if (type === "teacher") {
+          const name = document.getElementById("crud-teacher-name").value;
+          const maxHours = parseFloat(document.getElementById("crud-teacher-max-hours").value);
+          const color = document.getElementById("crud-teacher-color").value;
+          const checkboxes = document.querySelectorAll('input[name="crud-teacher-subjects"]:checked');
+          const subjects = Array.from(checkboxes).map((cb) => cb.value);
+          try {
+            const existing = currentCrudId ? AppData.teachers.find((x) => x.id === currentCrudId) : null;
+            const availability = existing ? existing.availability : [];
+            await AppData.API.saveTeacher({ id: currentCrudId || void 0, name, maxHours, color, subjects, availability });
+            showToast("\xC9xito", "Profesor guardado correctamente", "success");
+            closeCrudModal();
+            renderTeachers();
+          } catch (err) {
+            showToast("Error", "No se pudo guardar el profesor", "error");
+          }
+        } else if (type === "course") {
+          const name = document.getElementById("crud-course-name").value;
+          try {
+            await AppData.API.saveCourse({ id: currentCrudId || void 0, name });
+            showToast("\xC9xito", "Curso guardado correctamente", "success");
+            closeCrudModal();
+            renderCourses();
+          } catch (err) {
+            showToast("Error", "No se pudo guardar el curso", "error");
+          }
+        }
+      };
+    }
   }
-  const modal = document.getElementById("crud-modal");
-  if (modal) modal.classList.replace("hidden", "flex");
-  const form = document.getElementById("form-crud");
-  if (form) {
-    form.onsubmit = async (e) => {
-      e.preventDefault();
-      if (type === "subject") {
-        const name = document.getElementById("crud-subject-name").value;
-        const hours = parseFloat(document.getElementById("crud-subject-hours").value);
-        const courseId = AppData.currentCourseId;
-        const checkboxes = document.querySelectorAll('input[name="crud-subject-teachers"]:checked');
-        const teachers = Array.from(checkboxes).map((cb) => cb.value);
-        try {
-          await AppData.API.saveSubject({ id: currentCrudId || void 0, name, hours, courseId, teachers });
-          showToast("\xC9xito", "Asignatura guardada correctamente", "success");
-          closeCrudModal();
-          renderSubjects();
-        } catch (err) {
-          showToast("Error", "No se pudo guardar la asignatura", "error");
-        }
-      } else if (type === "teacher") {
-        const name = document.getElementById("crud-teacher-name").value;
-        const maxHours = parseFloat(document.getElementById("crud-teacher-max-hours").value);
-        const color = document.getElementById("crud-teacher-color").value;
-        const checkboxes = document.querySelectorAll('input[name="crud-teacher-subjects"]:checked');
-        const subjects = Array.from(checkboxes).map((cb) => cb.value);
-        try {
-          const existing = currentCrudId ? AppData.teachers.find((x) => x.id === currentCrudId) : null;
-          const availability = existing ? existing.availability : [];
-          await AppData.API.saveTeacher({ id: currentCrudId || void 0, name, maxHours, color, subjects, availability });
-          showToast("\xC9xito", "Profesor guardado correctamente", "success");
-          closeCrudModal();
-          renderTeachers();
-        } catch (err) {
-          showToast("Error", "No se pudo guardar el profesor", "error");
-        }
-      } else if (type === "course") {
-        const name = document.getElementById("crud-course-name").value;
-        try {
-          await AppData.API.saveCourse({ id: currentCrudId || void 0, name });
-          showToast("\xC9xito", "Curso guardado correctamente", "success");
-          closeCrudModal();
-          renderCourses();
-        } catch (err) {
-          showToast("Error", "No se pudo guardar el curso", "error");
-        }
-      }
-    };
-  }
-}
-function openGroupModal(courseId, groupId = null) {
-  currentCourseIdForGroup = courseId;
-  currentGroupIdForGroup = groupId;
-  const course = AppData.courses.find((x) => x.id === courseId);
-  if (!course) return;
-  const group = groupId ? course.groups.find((g) => g.id === groupId) : null;
-  const titleEl = document.getElementById("crud-modal-title");
-  if (titleEl) titleEl.textContent = groupId ? "Editar Grupo" : "Nuevo Grupo";
-  const body = document.getElementById("crud-modal-body");
-  if (!body) return;
-  body.innerHTML = `
+  function openGroupModal(courseId, groupId = null) {
+    currentCourseIdForGroup = courseId;
+    currentGroupIdForGroup = groupId;
+    const course = AppData.courses.find((x) => x.id === courseId);
+    if (!course) return;
+    const group = groupId ? course.groups.find((g) => g.id === groupId) : null;
+    const titleEl = document.getElementById("crud-modal-title");
+    if (titleEl) titleEl.textContent = groupId ? "Editar Grupo" : "Nuevo Grupo";
+    const body = document.getElementById("crud-modal-body");
+    if (!body) return;
+    body.innerHTML = `
         <form id="form-group-crud" class="space-y-4">
             <div>
                 <label class="block text-sm font-semibold text-gray-700 mb-1">Nombre del Grupo (Letra/Identificador)</label>
@@ -868,74 +865,74 @@ function openGroupModal(courseId, groupId = null) {
             </div>
         </form>
     `;
-  const modal = document.getElementById("crud-modal");
-  if (modal) modal.classList.replace("hidden", "flex");
-  const form = document.getElementById("form-group-crud");
-  if (form) {
-    form.onsubmit = async (e) => {
-      e.preventDefault();
-      const name = document.getElementById("crud-group-name").value;
-      const tutorId = document.getElementById("crud-group-tutor").value;
-      try {
-        const courseObj = AppData.courses.find((x) => x.id === currentCourseIdForGroup);
-        if (!courseObj) return;
-        if (currentGroupIdForGroup) {
-          const g = courseObj.groups.find((x) => x.id === currentGroupIdForGroup);
-          if (g) {
-            g.name = name;
-            g.tutorId = tutorId;
+    const modal = document.getElementById("crud-modal");
+    if (modal) modal.classList.replace("hidden", "flex");
+    const form = document.getElementById("form-group-crud");
+    if (form) {
+      form.onsubmit = async (e) => {
+        e.preventDefault();
+        const name = document.getElementById("crud-group-name").value;
+        const tutorId = document.getElementById("crud-group-tutor").value;
+        try {
+          const courseObj = AppData.courses.find((x) => x.id === currentCourseIdForGroup);
+          if (!courseObj) return;
+          if (currentGroupIdForGroup) {
+            const g = courseObj.groups.find((x) => x.id === currentGroupIdForGroup);
+            if (g) {
+              g.name = name;
+              g.tutorId = tutorId;
+            }
+          } else {
+            const newGroup = {
+              id: "temp-" + Date.now(),
+              name,
+              tutorId,
+              assignments: {}
+            };
+            courseObj.groups.push(newGroup);
           }
-        } else {
-          const newGroup = {
-            id: "temp-" + Date.now(),
-            name,
-            tutorId,
-            assignments: {}
-          };
-          courseObj.groups.push(newGroup);
+          await AppData.API.updateCourseGroup(currentCourseIdForGroup, courseObj.groups);
+          showToast("\xC9xito", "Grupo guardado correctamente", "success");
+          closeCrudModal();
+          renderCourses();
+        } catch (err) {
+          showToast("Error", "No se pudo guardar el grupo", "error");
         }
-        await AppData.API.updateCourseGroup(currentCourseIdForGroup, courseObj.groups);
-        showToast("\xC9xito", "Grupo guardado correctamente", "success");
-        closeCrudModal();
-        renderCourses();
-      } catch (err) {
-        showToast("Error", "No se pudo guardar el grupo", "error");
-      }
-    };
+      };
+    }
   }
-}
-function closeCrudModal() {
-  const modal = document.getElementById("crud-modal");
-  if (modal) modal.classList.replace("flex", "hidden");
-}
-function openCourseSubjects(courseId) {
-  AppData.currentCourseId = courseId;
-  window.switchTab("subjects");
-}
-async function renderSubjects() {
-  try {
-    AppData.subjects = await AppData.API.getSubjects();
-    AppData.courses = await AppData.API.getCourses();
-    const courseId = AppData.currentCourseId;
-    const titleEl = document.getElementById("view-subjects-title");
-    if (titleEl) {
-      const course = AppData.courses.find((c) => c.id === courseId);
-      titleEl.textContent = course ? `Asignaturas de ${course.name}` : "Gesti\xF3n de Asignaturas";
-    }
-    const tbody = document.getElementById("table-subjects");
-    if (!tbody) return;
-    tbody.innerHTML = "";
-    if (!courseId) {
-      tbody.innerHTML = '<tr><td colspan="3" class="p-4 text-center text-gray-500 italic">Por favor, selecciona un curso primero.</td></tr>';
-      return;
-    }
-    const filtered = AppData.subjects.filter((s) => s.courseId === courseId);
-    if (filtered.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="3" class="p-4 text-center text-gray-500 italic">No hay asignaturas en este curso.</td></tr>';
-      return;
-    }
-    filtered.forEach((s) => {
-      tbody.innerHTML += `
+  function closeCrudModal() {
+    const modal = document.getElementById("crud-modal");
+    if (modal) modal.classList.replace("flex", "hidden");
+  }
+  function openCourseSubjects(courseId) {
+    AppData.currentCourseId = courseId;
+    window.switchTab("subjects");
+  }
+  async function renderSubjects() {
+    try {
+      AppData.subjects = await AppData.API.getSubjects();
+      AppData.courses = await AppData.API.getCourses();
+      const courseId = AppData.currentCourseId;
+      const titleEl = document.getElementById("view-subjects-title");
+      if (titleEl) {
+        const course = AppData.courses.find((c) => c.id === courseId);
+        titleEl.textContent = course ? `Asignaturas de ${course.name}` : "Gesti\xF3n de Asignaturas";
+      }
+      const tbody = document.getElementById("table-subjects");
+      if (!tbody) return;
+      tbody.innerHTML = "";
+      if (!courseId) {
+        tbody.innerHTML = '<tr><td colspan="3" class="p-4 text-center text-gray-500 italic">Por favor, selecciona un curso primero.</td></tr>';
+        return;
+      }
+      const filtered = AppData.subjects.filter((s) => s.courseId === courseId);
+      if (filtered.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="3" class="p-4 text-center text-gray-500 italic">No hay asignaturas en este curso.</td></tr>';
+        return;
+      }
+      filtered.forEach((s) => {
+        tbody.innerHTML += `
                 <tr class="hover:bg-gray-50 border-b border-gray-100 text-sm">
                     <td class="p-4 font-medium text-gray-800">${s.name}</td>
                     <td class="p-4 text-center text-gray-600">${formatHours(s.hours)} h</td>
@@ -945,35 +942,35 @@ async function renderSubjects() {
                     </td>
                 </tr>
             `;
-    });
-  } catch (err) {
-    console.error(err);
-    showToast("Error", "No se pudieron cargar las asignaturas", "error");
-  }
-}
-async function deleteSubject(id) {
-  if (confirm("\xBFEst\xE1s seguro de que deseas eliminar esta asignatura?")) {
-    try {
-      await AppData.API.deleteSubject(id);
-      showToast("\xC9xito", "Asignatura eliminada correctamente", "success");
-      renderSubjects();
+      });
     } catch (err) {
-      showToast("Error", "No se pudo eliminar la asignatura", "error");
+      console.error(err);
+      showToast("Error", "No se pudieron cargar las asignaturas", "error");
     }
   }
-}
-async function renderTeachers() {
-  try {
-    AppData.teachers = await AppData.API.getTeachers();
-    const list = document.getElementById("list-teachers");
-    if (!list) return;
-    list.innerHTML = "";
-    AppData.teachers.forEach((t) => {
-      const subjNames = t.subjects.map((sId) => {
-        const s = AppData.subjects.find((x) => x.id === sId);
-        return s ? s.name : "";
-      }).filter((n) => n !== "").join(", ");
-      list.innerHTML += `
+  async function deleteSubject(id) {
+    if (confirm("\xBFEst\xE1s seguro de que deseas eliminar esta asignatura?")) {
+      try {
+        await AppData.API.deleteSubject(id);
+        showToast("\xC9xito", "Asignatura eliminada correctamente", "success");
+        renderSubjects();
+      } catch (err) {
+        showToast("Error", "No se pudo eliminar la asignatura", "error");
+      }
+    }
+  }
+  async function renderTeachers() {
+    try {
+      AppData.teachers = await AppData.API.getTeachers();
+      const list = document.getElementById("list-teachers");
+      if (!list) return;
+      list.innerHTML = "";
+      AppData.teachers.forEach((t) => {
+        const subjNames = t.subjects.map((sId) => {
+          const s = AppData.subjects.find((x) => x.id === sId);
+          return s ? s.name : "";
+        }).filter((n) => n !== "").join(", ");
+        list.innerHTML += `
                 <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-5 flex flex-col justify-between">
                     <div>
                         <div class="flex items-center justify-between mb-2">
@@ -992,40 +989,40 @@ async function renderTeachers() {
                     </div>
                 </div>
             `;
-    });
-  } catch (err) {
-    console.error(err);
-    showToast("Error", "No se pudieron cargar los profesores", "error");
-  }
-}
-async function deleteTeacher(id) {
-  if (confirm("\xBFEst\xE1s seguro de que deseas eliminar este profesor?")) {
-    try {
-      await AppData.API.deleteTeacher(id);
-      showToast("\xC9xito", "Profesor eliminado correctamente", "success");
-      renderTeachers();
+      });
     } catch (err) {
-      showToast("Error", "No se pudo eliminar al profesor", "error");
+      console.error(err);
+      showToast("Error", "No se pudieron cargar los profesores", "error");
     }
   }
-}
-async function renderCourses() {
-  try {
-    AppData.courses = await AppData.API.getCourses();
-    AppData.teachers = await AppData.API.getTeachers();
-    const container = document.getElementById("list-courses");
-    if (!container) return;
-    container.innerHTML = "";
-    AppData.courses.forEach((c) => {
-      let groupsHtml = "";
-      if (c.groups.length === 0) {
-        groupsHtml = '<p class="text-xs text-gray-400 italic">No hay grupos creados en este curso.</p>';
-      } else {
-        groupsHtml = `
+  async function deleteTeacher(id) {
+    if (confirm("\xBFEst\xE1s seguro de que deseas eliminar este profesor?")) {
+      try {
+        await AppData.API.deleteTeacher(id);
+        showToast("\xC9xito", "Profesor eliminado correctamente", "success");
+        renderTeachers();
+      } catch (err) {
+        showToast("Error", "No se pudo eliminar al profesor", "error");
+      }
+    }
+  }
+  async function renderCourses() {
+    try {
+      AppData.courses = await AppData.API.getCourses();
+      AppData.teachers = await AppData.API.getTeachers();
+      const container = document.getElementById("list-courses");
+      if (!container) return;
+      container.innerHTML = "";
+      AppData.courses.forEach((c) => {
+        let groupsHtml = "";
+        if (c.groups.length === 0) {
+          groupsHtml = '<p class="text-xs text-gray-400 italic">No hay grupos creados en este curso.</p>';
+        } else {
+          groupsHtml = `
                     <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
                         ${c.groups.map((g) => {
-          const tutor = AppData.teachers.find((t) => t.id === g.tutorId);
-          return `
+            const tutor = AppData.teachers.find((t) => t.id === g.tutorId);
+            return `
                                 <div class="bg-gray-50 border border-gray-200 rounded-lg p-3 flex items-center justify-between">
                                     <div>
                                         <h4 class="font-semibold text-gray-700 text-sm">Grupo ${g.name}</h4>
@@ -1037,11 +1034,11 @@ async function renderCourses() {
                                     </div>
                                 </div>
                             `;
-        }).join("")}
+          }).join("")}
                     </div>
                 `;
-      }
-      container.innerHTML += `
+        }
+        container.innerHTML += `
                 <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-5 space-y-4">
                     <div class="flex items-center justify-between border-b pb-2">
                         <h3 class="font-bold text-gray-800 text-lg">${c.name}</h3>
@@ -1055,79 +1052,79 @@ async function renderCourses() {
                     ${groupsHtml}
                 </div>
             `;
-    });
-  } catch (err) {
-    console.error(err);
-    showToast("Error", "No se pudieron cargar los cursos", "error");
-  }
-}
-async function deleteCourse(id) {
-  if (confirm("\xBFEst\xE1s seguro de que deseas eliminar este curso y todos sus grupos?")) {
-    try {
-      await AppData.API.deleteCourse(id);
-      showToast("\xC9xito", "Curso eliminado correctamente", "success");
-      renderCourses();
+      });
     } catch (err) {
-      showToast("Error", "No se pudo eliminar el curso", "error");
+      console.error(err);
+      showToast("Error", "No se pudieron cargar los cursos", "error");
     }
   }
-}
-async function deleteGroup(courseId, groupId) {
-  if (confirm("\xBFEst\xE1s seguro de que deseas eliminar este grupo?")) {
-    try {
-      const course = AppData.courses.find((x) => x.id === courseId);
-      if (!course) return;
-      const updatedGroups = course.groups.filter((g) => g.id !== groupId);
-      await AppData.API.updateCourseGroup(courseId, updatedGroups);
-      showToast("\xC9xito", "Grupo eliminado correctamente", "success");
-      renderCourses();
-    } catch (err) {
-      showToast("Error", "No se pudo eliminar el grupo", "error");
+  async function deleteCourse(id) {
+    if (confirm("\xBFEst\xE1s seguro de que deseas eliminar este curso y todos sus grupos?")) {
+      try {
+        await AppData.API.deleteCourse(id);
+        showToast("\xC9xito", "Curso eliminado correctamente", "success");
+        renderCourses();
+      } catch (err) {
+        showToast("Error", "No se pudo eliminar el curso", "error");
+      }
     }
   }
-}
+  async function deleteGroup(courseId, groupId) {
+    if (confirm("\xBFEst\xE1s seguro de que deseas eliminar este grupo?")) {
+      try {
+        const course = AppData.courses.find((x) => x.id === courseId);
+        if (!course) return;
+        const updatedGroups = course.groups.filter((g) => g.id !== groupId);
+        await AppData.API.updateCourseGroup(courseId, updatedGroups);
+        showToast("\xC9xito", "Grupo eliminado correctamente", "success");
+        renderCourses();
+      } catch (err) {
+        showToast("Error", "No se pudo eliminar el grupo", "error");
+      }
+    }
+  }
 
-// Web/src/assignments.ts
-async function renderAssignmentsList() {
-  const container = document.getElementById("assignments-list");
-  if (!container) return;
-  container.innerHTML = "";
-  try {
-    AppData.courses = await AppData.API.getCourses();
-    AppData.subjects = await AppData.API.getSubjects();
-    AppData.teachers = await AppData.API.getTeachers();
-    if (AppData.courses.length === 0) {
-      container.innerHTML = '<div class="text-center p-8 bg-gray-50 rounded-xl border border-dashed border-gray-300 text-gray-400 italic">No hay asignaciones cargadas. Cree cursos y grupos primero.</div>';
-      return;
-    }
-    AppData.courses.forEach((c) => {
-      const courseSubjects = AppData.subjects.filter((s) => s.courseId === c.id);
-      if (c.groups.length === 0) return;
-      let groupsAssignmentsHtml = "";
-      c.groups.forEach((g) => {
-        let subjectsListHtml = "";
-        if (courseSubjects.length === 0) {
-          subjectsListHtml = '<p class="text-xs text-gray-400 italic py-2">No hay asignaturas en este curso.</p>';
-        } else {
-          courseSubjects.forEach((s) => {
-            const assignedTeacherId = g.assignments[s.id] || "";
-            const qualifiedTeachers = AppData.teachers.filter((t) => t.subjects.includes(s.id));
-            subjectsListHtml += `
+  // Web/src/assignments.ts
+  async function renderAssignmentsList() {
+    const container = document.getElementById("assignments-list");
+    if (!container) return;
+    container.innerHTML = "";
+    try {
+      AppData.courses = await AppData.API.getCourses();
+      AppData.subjects = await AppData.API.getSubjects();
+      AppData.teachers = await AppData.API.getTeachers();
+      if (AppData.courses.length === 0) {
+        container.innerHTML = '<div class="text-center p-8 bg-gray-50 rounded-xl border border-dashed border-gray-300 text-gray-400 italic">No hay asignaciones cargadas. Cree cursos y grupos primero.</div>';
+        return;
+      }
+      AppData.courses.forEach((c) => {
+        const courseSubjects = AppData.subjects.filter((s) => s.courseId === c.id);
+        if (c.groups.length === 0) return;
+        let groupsAssignmentsHtml = "";
+        c.groups.forEach((g) => {
+          let subjectsListHtml = "";
+          if (courseSubjects.length === 0) {
+            subjectsListHtml = '<p class="text-xs text-gray-400 italic py-2">No hay asignaturas en este curso.</p>';
+          } else {
+            courseSubjects.forEach((s) => {
+              const assignedTeacherId = g.assignments[s.id] || "";
+              const qualifiedTeachers = AppData.teachers.filter((t) => t.subjects.includes(s.id));
+              subjectsListHtml += `
                             <div class="flex flex-col gap-1.5 pb-3 border-b border-gray-100 last:border-b-0 last:pb-0">
                                 <span class="text-sm font-semibold text-gray-700 truncate block" title="${s.name}">${s.name} (${formatHours(s.hours)}h)</span>
                                 <select onchange="updateAssignment('${c.id}', '${g.id}', '${s.id}', this.value)" class="w-full text-xs border border-gray-300 rounded-lg p-2 bg-white hover:border-slate-400 focus:border-indigo-500 outline-none transition-colors">
                                     <option value="">-- Sin asignar --</option>
                                     ${AppData.teachers.map((t) => {
-              const isQualified = qualifiedTeachers.some((qt) => qt.id === t.id);
-              const label = isQualified ? t.name : `${t.name} (No especialista)`;
-              return `<option value="${t.id}" ${assignedTeacherId === t.id ? "selected" : ""}>${label}</option>`;
-            }).join("")}
+                const isQualified = qualifiedTeachers.some((qt) => qt.id === t.id);
+                const label = isQualified ? t.name : `${t.name} (No especialista)`;
+                return `<option value="${t.id}" ${assignedTeacherId === t.id ? "selected" : ""}>${label}</option>`;
+              }).join("")}
                                 </select>
                             </div>
                         `;
-          });
-        }
-        groupsAssignmentsHtml += `
+            });
+          }
+          groupsAssignmentsHtml += `
                     <div id="group-card-${c.id}-${g.id}" class="bg-gray-50 rounded-xl p-4 border border-gray-200 shadow-sm space-y-3">
                         <div class="flex items-center justify-between border-b pb-2">
                             <h4 class="font-bold text-gray-800 text-sm">Grupo ${g.name}</h4>
@@ -1141,8 +1138,8 @@ async function renderAssignmentsList() {
                         </div>
                     </div>
                 `;
-      });
-      container.innerHTML += `
+        });
+        container.innerHTML += `
                 <div id="course-card-${c.id}" class="mb-8 bg-white p-5 rounded-xl border border-gray-200 shadow-sm space-y-4">
                     <div class="flex items-center justify-between border-b pb-2">
                         <h3 class="font-bold text-gray-800 text-lg">${c.name}</h3>
@@ -1156,110 +1153,110 @@ async function renderAssignmentsList() {
                     </div>
                 </div>
             `;
-    });
-  } catch (err) {
-    console.error(err);
-    showToast("Error", "No se pudieron cargar las asignaciones", "error");
-  }
-}
-async function updateAssignment(courseId, groupId, subjectId, teacherId) {
-  try {
-    const course = AppData.courses.find((x) => x.id === courseId);
-    if (!course) return;
-    const group = course.groups.find((g) => g.id === groupId);
-    if (!group) return;
-    if (teacherId === "") {
-      delete group.assignments[subjectId];
-    } else {
-      group.assignments[subjectId] = teacherId;
-    }
-    await AppData.API.updateCourseGroup(courseId, course.groups);
-    showToast("\xC9xito", "Asignaci\xF3n actualizada", "success");
-  } catch (err) {
-    showToast("Error", "No se pudo guardar la asignaci\xF3n", "error");
-  }
-}
-async function clearGroupAssignments(courseId, groupId) {
-  try {
-    const course = AppData.courses.find((x) => x.id === courseId);
-    if (!course) return;
-    const group = course.groups.find((g) => g.id === groupId);
-    if (!group) return;
-    if (!confirm(`\xBFEst\xE1s seguro de que deseas poner todas las asignaturas del grupo "${group.name}" sin asignar?`)) {
-      return;
-    }
-    group.assignments = {};
-    await AppData.API.updateCourseGroup(courseId, course.groups);
-    const groupCard = document.getElementById(`group-card-${courseId}-${groupId}`);
-    if (groupCard) {
-      const selects = groupCard.querySelectorAll("select");
-      selects.forEach((select) => {
-        select.value = "";
       });
+    } catch (err) {
+      console.error(err);
+      showToast("Error", "No se pudieron cargar las asignaciones", "error");
     }
-    showToast("\xC9xito", "Todas las asignaturas del grupo han sido puestas sin asignar", "success");
-  } catch (err) {
-    showToast("Error", "No se pudo limpiar las asignaciones del grupo", "error");
   }
-}
-async function clearCourseAssignments(courseId) {
-  try {
-    const course = AppData.courses.find((x) => x.id === courseId);
-    if (!course) return;
-    if (!confirm(`\xBFEst\xE1s seguro de que deseas poner todas las asignaturas de TODOS los grupos del curso "${course.name}" sin asignar?`)) {
-      return;
+  async function updateAssignment(courseId, groupId, subjectId, teacherId) {
+    try {
+      const course = AppData.courses.find((x) => x.id === courseId);
+      if (!course) return;
+      const group = course.groups.find((g) => g.id === groupId);
+      if (!group) return;
+      if (teacherId === "") {
+        delete group.assignments[subjectId];
+      } else {
+        group.assignments[subjectId] = teacherId;
+      }
+      await AppData.API.updateCourseGroup(courseId, course.groups);
+      showToast("\xC9xito", "Asignaci\xF3n actualizada", "success");
+    } catch (err) {
+      showToast("Error", "No se pudo guardar la asignaci\xF3n", "error");
     }
-    course.groups.forEach((g) => {
-      g.assignments = {};
-    });
-    await AppData.API.updateCourseGroup(courseId, course.groups);
-    const courseCard = document.getElementById(`course-card-${courseId}`);
-    if (courseCard) {
-      const selects = courseCard.querySelectorAll("select");
-      selects.forEach((select) => {
-        select.value = "";
+  }
+  async function clearGroupAssignments(courseId, groupId) {
+    try {
+      const course = AppData.courses.find((x) => x.id === courseId);
+      if (!course) return;
+      const group = course.groups.find((g) => g.id === groupId);
+      if (!group) return;
+      if (!confirm(`\xBFEst\xE1s seguro de que deseas poner todas las asignaturas del grupo "${group.name}" sin asignar?`)) {
+        return;
+      }
+      group.assignments = {};
+      await AppData.API.updateCourseGroup(courseId, course.groups);
+      const groupCard = document.getElementById(`group-card-${courseId}-${groupId}`);
+      if (groupCard) {
+        const selects = groupCard.querySelectorAll("select");
+        selects.forEach((select) => {
+          select.value = "";
+        });
+      }
+      showToast("\xC9xito", "Todas las asignaturas del grupo han sido puestas sin asignar", "success");
+    } catch (err) {
+      showToast("Error", "No se pudo limpiar las asignaciones del grupo", "error");
+    }
+  }
+  async function clearCourseAssignments(courseId) {
+    try {
+      const course = AppData.courses.find((x) => x.id === courseId);
+      if (!course) return;
+      if (!confirm(`\xBFEst\xE1s seguro de que deseas poner todas las asignaturas de TODOS los grupos del curso "${course.name}" sin asignar?`)) {
+        return;
+      }
+      course.groups.forEach((g) => {
+        g.assignments = {};
       });
+      await AppData.API.updateCourseGroup(courseId, course.groups);
+      const courseCard = document.getElementById(`course-card-${courseId}`);
+      if (courseCard) {
+        const selects = courseCard.querySelectorAll("select");
+        selects.forEach((select) => {
+          select.value = "";
+        });
+      }
+      showToast("\xC9xito", "Todas las asignaturas del curso han sido puestas sin asignar", "success");
+    } catch (err) {
+      showToast("Error", "No se pudo limpiar las asignaciones del curso", "error");
     }
-    showToast("\xC9xito", "Todas las asignaturas del curso han sido puestas sin asignar", "success");
-  } catch (err) {
-    showToast("Error", "No se pudo limpiar las asignaciones del curso", "error");
   }
-}
 
-// Web/src/availability.ts
-var currentAvailabilityTeacherId = null;
-var currentTeacherAvailabilityList = [];
-function openAvailabilityModal(teacherId) {
-  const t = AppData.teachers.find((x) => x.id === teacherId);
-  if (!t) return;
-  currentAvailabilityTeacherId = teacherId;
-  currentTeacherAvailabilityList = t.availability ? [...t.availability] : [];
-  const nameEl = document.getElementById("availability-teacher-name");
-  if (nameEl) nameEl.textContent = t.name;
-  const tbody = document.getElementById("availability-grid-body");
-  if (!tbody) return;
-  tbody.innerHTML = "";
-  const timeSlots = [
-    { start: "09:00", end: "09:30" },
-    { start: "09:30", end: "10:00" },
-    { start: "10:00", end: "10:30" },
-    { start: "10:30", end: "11:00" },
-    { start: "11:00", end: "11:30" },
-    { start: "11:30", end: "12:00" },
-    { start: "12:30", end: "13:00" },
-    { start: "13:00", end: "13:30" },
-    { start: "13:30", end: "14:00" }
-  ];
-  timeSlots.forEach((slot, index) => {
-    let cellsHtml = "";
-    for (let day = 1; day <= 5; day++) {
-      const isUnavailable = currentTeacherAvailabilityList.some(
-        (av) => av.dayOfWeek === day && av.startTime === slot.start && av.endTime === slot.end
-      );
-      const cellId = `cell-av-${day}-${index}`;
-      const bgClass = isUnavailable ? "bg-red-500 hover:bg-red-600 text-white border-red-300 font-bold" : "bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border-emerald-200";
-      const textVal = isUnavailable ? "NO DISPONIBLE" : "DISPONIBLE";
-      cellsHtml += `
+  // Web/src/availability.ts
+  var currentAvailabilityTeacherId = null;
+  var currentTeacherAvailabilityList = [];
+  function openAvailabilityModal(teacherId) {
+    const t = AppData.teachers.find((x) => x.id === teacherId);
+    if (!t) return;
+    currentAvailabilityTeacherId = teacherId;
+    currentTeacherAvailabilityList = t.availability ? [...t.availability] : [];
+    const nameEl = document.getElementById("availability-teacher-name");
+    if (nameEl) nameEl.textContent = t.name;
+    const tbody = document.getElementById("availability-grid-body");
+    if (!tbody) return;
+    tbody.innerHTML = "";
+    const timeSlots = [
+      { start: "09:00", end: "09:30" },
+      { start: "09:30", end: "10:00" },
+      { start: "10:00", end: "10:30" },
+      { start: "10:30", end: "11:00" },
+      { start: "11:00", end: "11:30" },
+      { start: "11:30", end: "12:00" },
+      { start: "12:30", end: "13:00" },
+      { start: "13:00", end: "13:30" },
+      { start: "13:30", end: "14:00" }
+    ];
+    timeSlots.forEach((slot, index) => {
+      let cellsHtml = "";
+      for (let day = 1; day <= 5; day++) {
+        const isUnavailable = currentTeacherAvailabilityList.some(
+          (av) => av.dayOfWeek === day && av.startTime === slot.start && av.endTime === slot.end
+        );
+        const cellId = `cell-av-${day}-${index}`;
+        const bgClass = isUnavailable ? "bg-red-500 hover:bg-red-600 text-white border-red-300 font-bold" : "bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border-emerald-200";
+        const textVal = isUnavailable ? "NO DISPONIBLE" : "DISPONIBLE";
+        cellsHtml += `
                 <td class="p-2 text-center border border-gray-200">
                     <button type="button" id="${cellId}" 
                         onclick="toggleAvailabilitySlot(${day}, '${slot.start}', '${slot.end}', '${cellId}')"
@@ -1268,169 +1265,169 @@ function openAvailabilityModal(teacherId) {
                     </button>
                 </td>
             `;
-    }
-    tbody.innerHTML += `
+      }
+      tbody.innerHTML += `
             <tr class="hover:bg-gray-50">
                 <td class="p-3 border border-gray-200 font-semibold text-gray-700 text-center">${slot.start} - ${slot.end}</td>
                 ${cellsHtml}
             </tr>
         `;
-  });
-  const modal = document.getElementById("availability-modal");
-  if (modal) modal.classList.replace("hidden", "flex");
-}
-function toggleAvailabilitySlot(day, start, end, cellId) {
-  const btn = document.getElementById(cellId);
-  if (!btn) return;
-  const index = currentTeacherAvailabilityList.findIndex(
-    (av) => av.dayOfWeek === day && av.startTime === start && av.endTime === end
-  );
-  if (index > -1) {
-    currentTeacherAvailabilityList.splice(index, 1);
-    btn.className = "w-full py-2 px-1 rounded text-[10px] tracking-wide transition-all bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200";
-    btn.textContent = "DISPONIBLE";
-  } else {
-    currentTeacherAvailabilityList.push({ dayOfWeek: day, startTime: start, endTime: end });
-    btn.className = "w-full py-2 px-1 rounded text-[10px] tracking-wide transition-all bg-red-500 hover:bg-red-600 text-white border border-red-300 font-bold";
-    btn.textContent = "NO DISPONIBLE";
+    });
+    const modal = document.getElementById("availability-modal");
+    if (modal) modal.classList.replace("hidden", "flex");
   }
-}
-function closeAvailabilityModal() {
-  const modal = document.getElementById("availability-modal");
-  if (modal) modal.classList.replace("flex", "hidden");
-}
-async function saveAvailability() {
-  if (!currentAvailabilityTeacherId) return;
-  const t = AppData.teachers.find((x) => x.id === currentAvailabilityTeacherId);
-  if (!t) return;
-  t.availability = currentTeacherAvailabilityList;
-  try {
-    await AppData.API.saveTeacher(t);
-    showToast("\xC9xito", "Disponibilidad docente guardada correctamente", "success");
-    closeAvailabilityModal();
-    renderTeachers();
-  } catch (err) {
-    showToast("Error", "No se pudo guardar la disponibilidad", "error");
+  function toggleAvailabilitySlot(day, start, end, cellId) {
+    const btn = document.getElementById(cellId);
+    if (!btn) return;
+    const index = currentTeacherAvailabilityList.findIndex(
+      (av) => av.dayOfWeek === day && av.startTime === start && av.endTime === end
+    );
+    if (index > -1) {
+      currentTeacherAvailabilityList.splice(index, 1);
+      btn.className = "w-full py-2 px-1 rounded text-[10px] tracking-wide transition-all bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200";
+      btn.textContent = "DISPONIBLE";
+    } else {
+      currentTeacherAvailabilityList.push({ dayOfWeek: day, startTime: start, endTime: end });
+      btn.className = "w-full py-2 px-1 rounded text-[10px] tracking-wide transition-all bg-red-500 hover:bg-red-600 text-white border border-red-300 font-bold";
+      btn.textContent = "NO DISPONIBLE";
+    }
   }
-}
+  function closeAvailabilityModal() {
+    const modal = document.getElementById("availability-modal");
+    if (modal) modal.classList.replace("flex", "hidden");
+  }
+  async function saveAvailability() {
+    if (!currentAvailabilityTeacherId) return;
+    const t = AppData.teachers.find((x) => x.id === currentAvailabilityTeacherId);
+    if (!t) return;
+    t.availability = currentTeacherAvailabilityList;
+    try {
+      await AppData.API.saveTeacher(t);
+      showToast("\xC9xito", "Disponibilidad docente guardada correctamente", "success");
+      closeAvailabilityModal();
+      renderTeachers();
+    } catch (err) {
+      showToast("Error", "No se pudo guardar la disponibilidad", "error");
+    }
+  }
 
-// Web/src/settings.ts
-function loadSettings() {
-  const conf = AppData.config;
-  if (!conf) return;
-  const elMinimo = document.getElementById("settings-tiempo-minimo");
-  const elMaximo = document.getElementById("settings-tiempo-maximo");
-  const elMaxProfe = document.getElementById("settings-max-minutos-profesor");
-  const elPriorizar = document.getElementById("settings-priorizar-tutor");
-  const elPriorizarPuntos = document.getElementById("settings-priorizar-tutor-puntos");
-  const elBloquesPuntos = document.getElementById("settings-bloques-60-puntos");
-  const elMinimizarAsig = document.getElementById("settings-minimizar-asignaturas");
-  const elMinimizarAsigPuntos = document.getElementById("settings-minimizar-asignaturas-puntos");
-  const elLimiteTiempo = document.getElementById("settings-limite-tiempo");
-  const elTiempoEstancamiento = document.getElementById("settings-tiempo-estancamiento");
-  const elHoraInicio = document.getElementById("settings-hora-inicio");
-  const elHoraFin = document.getElementById("settings-hora-fin");
-  const elRecreoInicio = document.getElementById("settings-recreo-inicio");
-  const elRecreoDuracion = document.getElementById("settings-recreo-duracion");
-  const elRespEspecialidad = document.getElementById("settings-respetar-especialidad");
-  const elRespLimiteHoras = document.getElementById("settings-respetar-limite-horas");
-  const elRespDisponibilidad = document.getElementById("settings-respetar-disponibilidad");
-  if (elMinimo) elMinimo.value = conf.tiempoMinimo.toString();
-  if (elMaximo) elMaximo.value = conf.tiempoMaximo.toString();
-  if (elMaxProfe) elMaxProfe.value = conf.minutosMaximosProfesor.toString();
-  if (elPriorizar) {
-    elPriorizar.checked = conf.priorizarTutor;
-    const container = document.getElementById("settings-tutor-points-container");
-    if (container) {
-      container.style.display = conf.priorizarTutor ? "flex" : "none";
+  // Web/src/settings.ts
+  function loadSettings() {
+    const conf = AppData.config;
+    if (!conf) return;
+    const elMinimo = document.getElementById("settings-tiempo-minimo");
+    const elMaximo = document.getElementById("settings-tiempo-maximo");
+    const elMaxProfe = document.getElementById("settings-max-minutos-profesor");
+    const elPriorizar = document.getElementById("settings-priorizar-tutor");
+    const elPriorizarPuntos = document.getElementById("settings-priorizar-tutor-puntos");
+    const elBloquesPuntos = document.getElementById("settings-bloques-60-puntos");
+    const elMinimizarAsig = document.getElementById("settings-minimizar-asignaturas");
+    const elMinimizarAsigPuntos = document.getElementById("settings-minimizar-asignaturas-puntos");
+    const elLimiteTiempo = document.getElementById("settings-limite-tiempo");
+    const elTiempoEstancamiento = document.getElementById("settings-tiempo-estancamiento");
+    const elHoraInicio = document.getElementById("settings-hora-inicio");
+    const elHoraFin = document.getElementById("settings-hora-fin");
+    const elRecreoInicio = document.getElementById("settings-recreo-inicio");
+    const elRecreoDuracion = document.getElementById("settings-recreo-duracion");
+    const elRespEspecialidad = document.getElementById("settings-respetar-especialidad");
+    const elRespLimiteHoras = document.getElementById("settings-respetar-limite-horas");
+    const elRespDisponibilidad = document.getElementById("settings-respetar-disponibilidad");
+    if (elMinimo) elMinimo.value = conf.tiempoMinimo.toString();
+    if (elMaximo) elMaximo.value = conf.tiempoMaximo.toString();
+    if (elMaxProfe) elMaxProfe.value = conf.minutosMaximosProfesor.toString();
+    if (elPriorizar) {
+      elPriorizar.checked = conf.priorizarTutor;
+      const container = document.getElementById("settings-tutor-points-container");
+      if (container) {
+        container.style.display = conf.priorizarTutor ? "flex" : "none";
+      }
+      elPriorizar.onchange = () => {
+        if (container) container.style.display = elPriorizar.checked ? "flex" : "none";
+      };
     }
-    elPriorizar.onchange = () => {
-      if (container) container.style.display = elPriorizar.checked ? "flex" : "none";
-    };
-  }
-  if (elPriorizarPuntos) elPriorizarPuntos.value = conf.priorizarTutorPuntos.toString();
-  if (elBloquesPuntos) elBloquesPuntos.value = conf.fomentarBloques60Puntos.toString();
-  if (elMinimizarAsig) {
-    elMinimizarAsig.checked = conf.minimizarAsignaturasDistintas ?? true;
-    const container = document.getElementById("settings-minimizar-asignaturas-points-container");
-    if (container) {
-      container.style.display = elMinimizarAsig.checked ? "flex" : "none";
+    if (elPriorizarPuntos) elPriorizarPuntos.value = conf.priorizarTutorPuntos.toString();
+    if (elBloquesPuntos) elBloquesPuntos.value = conf.fomentarBloques60Puntos.toString();
+    if (elMinimizarAsig) {
+      elMinimizarAsig.checked = conf.minimizarAsignaturasDistintas ?? true;
+      const container = document.getElementById("settings-minimizar-asignaturas-points-container");
+      if (container) {
+        container.style.display = elMinimizarAsig.checked ? "flex" : "none";
+      }
+      elMinimizarAsig.onchange = () => {
+        if (container) container.style.display = elMinimizarAsig.checked ? "flex" : "none";
+      };
     }
-    elMinimizarAsig.onchange = () => {
-      if (container) container.style.display = elMinimizarAsig.checked ? "flex" : "none";
-    };
+    if (elMinimizarAsigPuntos) elMinimizarAsigPuntos.value = (conf.minimizarAsignaturasPuntos ?? 50).toString();
+    if (elLimiteTiempo) elLimiteTiempo.value = (conf.limiteTiempoSegundos ?? 18e3).toString();
+    if (elTiempoEstancamiento) elTiempoEstancamiento.value = (conf.tiempoEstancamientoSegundos ?? 60).toString();
+    if (elHoraInicio) elHoraInicio.value = conf.horaInicioClases;
+    if (elHoraFin) elHoraFin.value = conf.horaFinClases;
+    if (elRecreoInicio) elRecreoInicio.value = conf.horaInicioRecreo;
+    if (elRecreoDuracion) elRecreoDuracion.value = conf.duracionRecreo.toString();
+    if (elRespEspecialidad) elRespEspecialidad.checked = conf.respetarEspecialidad;
+    if (elRespLimiteHoras) elRespLimiteHoras.checked = conf.respetarLimiteHoras;
+    if (elRespDisponibilidad) elRespDisponibilidad.checked = conf.respetarDisponibilidad;
   }
-  if (elMinimizarAsigPuntos) elMinimizarAsigPuntos.value = (conf.minimizarAsignaturasPuntos ?? 50).toString();
-  if (elLimiteTiempo) elLimiteTiempo.value = (conf.limiteTiempoSegundos ?? 18e3).toString();
-  if (elTiempoEstancamiento) elTiempoEstancamiento.value = (conf.tiempoEstancamientoSegundos ?? 60).toString();
-  if (elHoraInicio) elHoraInicio.value = conf.horaInicioClases;
-  if (elHoraFin) elHoraFin.value = conf.horaFinClases;
-  if (elRecreoInicio) elRecreoInicio.value = conf.horaInicioRecreo;
-  if (elRecreoDuracion) elRecreoDuracion.value = conf.duracionRecreo.toString();
-  if (elRespEspecialidad) elRespEspecialidad.checked = conf.respetarEspecialidad;
-  if (elRespLimiteHoras) elRespLimiteHoras.checked = conf.respetarLimiteHoras;
-  if (elRespDisponibilidad) elRespDisponibilidad.checked = conf.respetarDisponibilidad;
-}
-async function saveSettings() {
-  const elMinimo = document.getElementById("settings-tiempo-minimo");
-  const elMaximo = document.getElementById("settings-tiempo-maximo");
-  const elMaxProfe = document.getElementById("settings-max-minutos-profesor");
-  const elPriorizar = document.getElementById("settings-priorizar-tutor");
-  const elPriorizarPuntos = document.getElementById("settings-priorizar-tutor-puntos");
-  const elBloquesPuntos = document.getElementById("settings-bloques-60-puntos");
-  const elMinimizarAsig = document.getElementById("settings-minimizar-asignaturas");
-  const elMinimizarAsigPuntos = document.getElementById("settings-minimizar-asignaturas-puntos");
-  const elLimiteTiempo = document.getElementById("settings-limite-tiempo");
-  const elTiempoEstancamiento = document.getElementById("settings-tiempo-estancamiento");
-  const elHoraInicio = document.getElementById("settings-hora-inicio");
-  const elHoraFin = document.getElementById("settings-hora-fin");
-  const elRecreoInicio = document.getElementById("settings-recreo-inicio");
-  const elRecreoDuracion = document.getElementById("settings-recreo-duracion");
-  const elRespEspecialidad = document.getElementById("settings-respetar-especialidad");
-  const elRespLimiteHoras = document.getElementById("settings-respetar-limite-horas");
-  const elRespDisponibilidad = document.getElementById("settings-respetar-disponibilidad");
-  const payload = {
-    priorizarTutor: elPriorizar ? elPriorizar.checked : false,
-    tiempoMinimo: elMinimo ? parseInt(elMinimo.value) : 30,
-    tiempoMaximo: elMaximo ? parseInt(elMaximo.value) : 60,
-    minutosMaximosProfesor: elMaxProfe ? parseInt(elMaxProfe.value) : 1500,
-    priorizarTutorPuntos: elPriorizarPuntos ? parseInt(elPriorizarPuntos.value) : 100,
-    fomentarBloques60Puntos: elBloquesPuntos ? parseInt(elBloquesPuntos.value) : 10,
-    minimizarAsignaturasDistintas: elMinimizarAsig ? elMinimizarAsig.checked : true,
-    minimizarAsignaturasPuntos: elMinimizarAsigPuntos ? parseInt(elMinimizarAsigPuntos.value) : 50,
-    limiteTiempoSegundos: elLimiteTiempo ? parseFloat(elLimiteTiempo.value) : 18e3,
-    tiempoEstancamientoSegundos: elTiempoEstancamiento ? parseFloat(elTiempoEstancamiento.value) : 60,
-    horaInicioClases: elHoraInicio ? elHoraInicio.value : "09:00",
-    horaFinClases: elHoraFin ? elHoraFin.value : "14:00",
-    horaInicioRecreo: elRecreoInicio ? elRecreoInicio.value : "12:00",
-    duracionRecreo: elRecreoDuracion ? parseInt(elRecreoDuracion.value) : 30,
-    respetarEspecialidad: elRespEspecialidad ? elRespEspecialidad.checked : true,
-    respetarLimiteHoras: elRespLimiteHoras ? elRespLimiteHoras.checked : true,
-    respetarDisponibilidad: elRespDisponibilidad ? elRespDisponibilidad.checked : true
+  async function saveSettings() {
+    const elMinimo = document.getElementById("settings-tiempo-minimo");
+    const elMaximo = document.getElementById("settings-tiempo-maximo");
+    const elMaxProfe = document.getElementById("settings-max-minutos-profesor");
+    const elPriorizar = document.getElementById("settings-priorizar-tutor");
+    const elPriorizarPuntos = document.getElementById("settings-priorizar-tutor-puntos");
+    const elBloquesPuntos = document.getElementById("settings-bloques-60-puntos");
+    const elMinimizarAsig = document.getElementById("settings-minimizar-asignaturas");
+    const elMinimizarAsigPuntos = document.getElementById("settings-minimizar-asignaturas-puntos");
+    const elLimiteTiempo = document.getElementById("settings-limite-tiempo");
+    const elTiempoEstancamiento = document.getElementById("settings-tiempo-estancamiento");
+    const elHoraInicio = document.getElementById("settings-hora-inicio");
+    const elHoraFin = document.getElementById("settings-hora-fin");
+    const elRecreoInicio = document.getElementById("settings-recreo-inicio");
+    const elRecreoDuracion = document.getElementById("settings-recreo-duracion");
+    const elRespEspecialidad = document.getElementById("settings-respetar-especialidad");
+    const elRespLimiteHoras = document.getElementById("settings-respetar-limite-horas");
+    const elRespDisponibilidad = document.getElementById("settings-respetar-disponibilidad");
+    const payload = {
+      priorizarTutor: elPriorizar ? elPriorizar.checked : false,
+      tiempoMinimo: elMinimo ? parseInt(elMinimo.value) : 30,
+      tiempoMaximo: elMaximo ? parseInt(elMaximo.value) : 60,
+      minutosMaximosProfesor: elMaxProfe ? parseInt(elMaxProfe.value) : 1500,
+      priorizarTutorPuntos: elPriorizarPuntos ? parseInt(elPriorizarPuntos.value) : 100,
+      fomentarBloques60Puntos: elBloquesPuntos ? parseInt(elBloquesPuntos.value) : 10,
+      minimizarAsignaturasDistintas: elMinimizarAsig ? elMinimizarAsig.checked : true,
+      minimizarAsignaturasPuntos: elMinimizarAsigPuntos ? parseInt(elMinimizarAsigPuntos.value) : 50,
+      limiteTiempoSegundos: elLimiteTiempo ? parseFloat(elLimiteTiempo.value) : 18e3,
+      tiempoEstancamientoSegundos: elTiempoEstancamiento ? parseFloat(elTiempoEstancamiento.value) : 60,
+      horaInicioClases: elHoraInicio ? elHoraInicio.value : "09:00",
+      horaFinClases: elHoraFin ? elHoraFin.value : "14:00",
+      horaInicioRecreo: elRecreoInicio ? elRecreoInicio.value : "12:00",
+      duracionRecreo: elRecreoDuracion ? parseInt(elRecreoDuracion.value) : 30,
+      respetarEspecialidad: elRespEspecialidad ? elRespEspecialidad.checked : true,
+      respetarLimiteHoras: elRespLimiteHoras ? elRespLimiteHoras.checked : true,
+      respetarDisponibilidad: elRespDisponibilidad ? elRespDisponibilidad.checked : true
+    };
+    try {
+      AppData.config = await AppData.API.saveConfig(payload);
+      showToast("\xC9xito", "Configuraci\xF3n de reglas guardada correctamente", "success");
+    } catch (err) {
+      showToast("Error", "No se pudo guardar la configuraci\xF3n", "error");
+    }
+  }
+
+  // Web/src/prevalidation.ts
+  var STATUS_ICONS = {
+    ok: `<svg class="w-5 h-5 text-emerald-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>`,
+    warning: `<svg class="w-5 h-5 text-amber-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>`,
+    error: `<svg class="w-5 h-5 text-red-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>`
   };
-  try {
-    AppData.config = await AppData.API.saveConfig(payload);
-    showToast("\xC9xito", "Configuraci\xF3n de reglas guardada correctamente", "success");
-  } catch (err) {
-    showToast("Error", "No se pudo guardar la configuraci\xF3n", "error");
-  }
-}
-
-// Web/src/prevalidation.ts
-var STATUS_ICONS = {
-  ok: `<svg class="w-5 h-5 text-emerald-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>`,
-  warning: `<svg class="w-5 h-5 text-amber-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>`,
-  error: `<svg class="w-5 h-5 text-red-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>`
-};
-var STATUS_COLORS = {
-  ok: { bg: "bg-emerald-50", border: "border-emerald-200", text: "text-emerald-700" },
-  warning: { bg: "bg-amber-50", border: "border-amber-200", text: "text-amber-700" },
-  error: { bg: "bg-red-50", border: "border-red-200", text: "text-red-700" }
-};
-function renderCheck(check) {
-  const colors = STATUS_COLORS[check.status] || STATUS_COLORS.ok;
-  const detailsHtml = check.details.length > 0 ? `<ul class="mt-2 ml-6 space-y-0.5 text-xs ${colors.text} opacity-80">${check.details.map((d) => `<li class="list-disc">${d}</li>`).join("")}</ul>` : "";
-  return `
+  var STATUS_COLORS = {
+    ok: { bg: "bg-emerald-50", border: "border-emerald-200", text: "text-emerald-700" },
+    warning: { bg: "bg-amber-50", border: "border-amber-200", text: "text-amber-700" },
+    error: { bg: "bg-red-50", border: "border-red-200", text: "text-red-700" }
+  };
+  function renderCheck(check) {
+    const colors = STATUS_COLORS[check.status] || STATUS_COLORS.ok;
+    const detailsHtml = check.details.length > 0 ? `<ul class="mt-2 ml-6 space-y-0.5 text-xs ${colors.text} opacity-80">${check.details.map((d) => `<li class="list-disc">${d}</li>`).join("")}</ul>` : "";
+    return `
         <div class="flex items-start gap-3 p-3 rounded-lg ${colors.bg} border ${colors.border} transition-all duration-200">
             ${STATUS_ICONS[check.status] || STATUS_ICONS.ok}
             <div class="flex-1 min-w-0">
@@ -1440,116 +1437,116 @@ function renderCheck(check) {
             </div>
         </div>
     `;
-}
-async function runPrevalidation() {
-  const modal = document.getElementById("prevalidation-modal");
-  const body = document.getElementById("prevalidation-body");
-  const summary = document.getElementById("prevalidation-summary");
-  if (!modal || !body || !summary) return;
-  modal.classList.remove("hidden");
-  modal.classList.add("flex");
-  body.innerHTML = `
+  }
+  async function runPrevalidation() {
+    const modal = document.getElementById("prevalidation-modal");
+    const body = document.getElementById("prevalidation-body");
+    const summary = document.getElementById("prevalidation-summary");
+    if (!modal || !body || !summary) return;
+    modal.classList.remove("hidden");
+    modal.classList.add("flex");
+    body.innerHTML = `
         <div class="flex items-center justify-center py-12">
             <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-indigo-600"></div>
             <span class="ml-3 text-gray-500 text-sm">Analizando viabilidad...</span>
         </div>
     `;
-  summary.innerHTML = "";
-  try {
-    const result = await AppData.API.getPrevalidation();
-    const errorCount = result.checks.filter((c) => c.status === "error").length;
-    const warnCount = result.checks.filter((c) => c.status === "warning").length;
-    const okCount = result.checks.filter((c) => c.status === "ok").length;
-    if (result.viable) {
-      summary.innerHTML = `
+    summary.innerHTML = "";
+    try {
+      const result = await AppData.API.getPrevalidation();
+      const errorCount = result.checks.filter((c) => c.status === "error").length;
+      const warnCount = result.checks.filter((c) => c.status === "warning").length;
+      const okCount = result.checks.filter((c) => c.status === "ok").length;
+      if (result.viable) {
+        summary.innerHTML = `
                 <div class="flex items-center gap-2 p-3 bg-emerald-50 border border-emerald-200 rounded-lg">
                     ${STATUS_ICONS.ok}
                     <span class="text-emerald-700 font-bold text-sm">Viable \u2014 Todos los chequeos superados</span>
                     <span class="ml-auto text-xs text-emerald-600">${okCount} ok${warnCount > 0 ? `, ${warnCount} avisos` : ""}</span>
                 </div>
             `;
-    } else {
-      summary.innerHTML = `
+      } else {
+        summary.innerHTML = `
                 <div class="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-lg">
                     ${STATUS_ICONS.error}
                     <span class="text-red-700 font-bold text-sm">No viable \u2014 Hay ${errorCount} error(es) que impiden generar un horario correcto</span>
                     <span class="ml-auto text-xs text-red-600">${errorCount} errores, ${warnCount} avisos</span>
                 </div>
             `;
-    }
-    const sorted = [...result.checks].sort((a, b) => {
-      const order = { error: 0, warning: 1, ok: 2 };
-      return (order[a.status] ?? 2) - (order[b.status] ?? 2);
-    });
-    body.innerHTML = sorted.map(renderCheck).join("");
-  } catch (err) {
-    body.innerHTML = `
+      }
+      const sorted = [...result.checks].sort((a, b) => {
+        const order = { error: 0, warning: 1, ok: 2 };
+        return (order[a.status] ?? 2) - (order[b.status] ?? 2);
+      });
+      body.innerHTML = sorted.map(renderCheck).join("");
+    } catch (err) {
+      body.innerHTML = `
             <div class="text-center py-8 text-red-500">
                 <p class="font-bold">Error al ejecutar la pre-validaci\xF3n</p>
                 <p class="text-sm text-gray-500 mt-1">${err}</p>
             </div>
         `;
+    }
   }
-}
-function closePrevalidation() {
-  const modal = document.getElementById("prevalidation-modal");
-  if (modal) {
-    modal.classList.add("hidden");
-    modal.classList.remove("flex");
+  function closePrevalidation() {
+    const modal = document.getElementById("prevalidation-modal");
+    if (modal) {
+      modal.classList.add("hidden");
+      modal.classList.remove("flex");
+    }
   }
-}
 
-// Web/src/print.ts
-function printAllSchedules() {
-  if (!AppData.courses || AppData.courses.length === 0) {
-    showToast("Info", "No hay cursos ni grupos registrados para imprimir.", "info");
-    return;
-  }
-  let printArea = document.getElementById("print-area");
-  if (!printArea) {
-    printArea = document.createElement("div");
-    printArea.id = "print-area";
-    document.body.appendChild(printArea);
-  }
-  let startHour = 9;
-  let endHour = 14;
-  let slotMin = 30;
-  if (AppData.config) {
-    const partsStart = AppData.config.horaInicioClases.split(":");
-    const partsEnd = AppData.config.horaFinClases.split(":");
-    startHour = parseInt(partsStart[0]);
-    endHour = parseInt(partsEnd[0]);
-    slotMin = AppData.config.tiempoMinimo || 30;
-  }
-  const slots = [];
-  let currentMin = startHour * 60;
-  const finishMin = endHour * 60;
-  while (currentMin < finishMin) {
-    const nextMin = currentMin + slotMin;
-    const h1 = Math.floor(currentMin / 60).toString().padStart(2, "0");
-    const m1 = (currentMin % 60).toString().padStart(2, "0");
-    const h2 = Math.floor(nextMin / 60).toString().padStart(2, "0");
-    const m2 = (nextMin % 60).toString().padStart(2, "0");
-    slots.push({
-      startStr: `${h1}:${m1}`,
-      endStr: `${h2}:${m2}`,
-      startMin: currentMin,
-      endMin: nextMin
-    });
-    currentMin = nextMin;
-  }
-  const days = [
-    { id: 1, name: "Lunes" },
-    { id: 2, name: "Martes" },
-    { id: 3, name: "Mi\xE9rcoles" },
-    { id: 4, name: "Jueves" },
-    { id: 5, name: "Viernes" }
-  ];
-  let html = "";
-  AppData.courses.forEach((course) => {
-    course.groups.forEach((group) => {
-      const groupClasses = AppData.scheduledClasses.filter((c) => c.groupId === group.id);
-      html += `
+  // Web/src/print.ts
+  function printAllSchedules() {
+    if (!AppData.courses || AppData.courses.length === 0) {
+      showToast("Info", "No hay cursos ni grupos registrados para imprimir.", "info");
+      return;
+    }
+    let printArea = document.getElementById("print-area");
+    if (!printArea) {
+      printArea = document.createElement("div");
+      printArea.id = "print-area";
+      document.body.appendChild(printArea);
+    }
+    let startHour = 9;
+    let endHour = 14;
+    let slotMin = 30;
+    if (AppData.config) {
+      const partsStart = AppData.config.horaInicioClases.split(":");
+      const partsEnd = AppData.config.horaFinClases.split(":");
+      startHour = parseInt(partsStart[0]);
+      endHour = parseInt(partsEnd[0]);
+      slotMin = AppData.config.tiempoMinimo || 30;
+    }
+    const slots = [];
+    let currentMin = startHour * 60;
+    const finishMin = endHour * 60;
+    while (currentMin < finishMin) {
+      const nextMin = currentMin + slotMin;
+      const h1 = Math.floor(currentMin / 60).toString().padStart(2, "0");
+      const m1 = (currentMin % 60).toString().padStart(2, "0");
+      const h2 = Math.floor(nextMin / 60).toString().padStart(2, "0");
+      const m2 = (nextMin % 60).toString().padStart(2, "0");
+      slots.push({
+        startStr: `${h1}:${m1}`,
+        endStr: `${h2}:${m2}`,
+        startMin: currentMin,
+        endMin: nextMin
+      });
+      currentMin = nextMin;
+    }
+    const days = [
+      { id: 1, name: "Lunes" },
+      { id: 2, name: "Martes" },
+      { id: 3, name: "Mi\xE9rcoles" },
+      { id: 4, name: "Jueves" },
+      { id: 5, name: "Viernes" }
+    ];
+    let html = "";
+    AppData.courses.forEach((course) => {
+      course.groups.forEach((group) => {
+        const groupClasses = AppData.scheduledClasses.filter((c) => c.groupId === group.id);
+        html += `
                 <div class="print-page">
                     <div class="flex justify-between items-center mb-2 border-b-2 border-indigo-600 pb-1">
                         <div>
@@ -1570,63 +1567,63 @@ function printAllSchedules() {
                         </thead>
                         <tbody>
             `;
-      slots.forEach((slot) => {
-        let isRecess = false;
-        if (AppData.config) {
-          const rParts = AppData.config.horaInicioRecreo.split(":");
-          const rStart = parseInt(rParts[0]) * 60 + parseInt(rParts[1]);
-          const rEnd = rStart + AppData.config.duracionRecreo;
-          if (slot.startMin >= rStart && slot.startMin < rEnd) {
-            isRecess = true;
+        slots.forEach((slot) => {
+          let isRecess = false;
+          if (AppData.config) {
+            const rParts = AppData.config.horaInicioRecreo.split(":");
+            const rStart = parseInt(rParts[0]) * 60 + parseInt(rParts[1]);
+            const rEnd = rStart + AppData.config.duracionRecreo;
+            if (slot.startMin >= rStart && slot.startMin < rEnd) {
+              isRecess = true;
+            }
           }
-        }
-        if (isRecess) {
-          html += `
+          if (isRecess) {
+            html += `
                         <tr class="bg-gray-100 text-gray-500 font-semibold">
                             <td class="p-1 border border-gray-300 text-center font-mono text-[9px]">${slot.startStr} - ${slot.endStr}</td>
                             <td colspan="5" class="p-1 border border-gray-300 text-center bg-gray-100 text-slate-500 text-[10px]">\u2615 Recreo</td>
                         </tr>
                     `;
-          return;
-        }
-        html += `<tr>`;
-        html += `<td class="p-1 border border-gray-300 text-center font-mono text-[9px] font-medium bg-gray-50">${slot.startStr} - ${slot.endStr}</td>`;
-        days.forEach((day) => {
-          const matchCls = groupClasses.find((cls) => {
-            const dt = new Date(cls.start);
-            const dNum = dt.getDay();
-            if (dNum !== day.id) return false;
-            const cMin = dt.getHours() * 60 + dt.getMinutes();
-            return cMin === slot.startMin;
-          });
-          if (matchCls) {
-            const subject = AppData.subjects.find((s) => s.id === matchCls.subjectId);
-            const teacher = AppData.teachers.find((t) => t.id === matchCls.teacherId);
-            const bgColor = getSubjectColor(matchCls.subjectId);
-            const pinIcon = matchCls.isPinned ? "\u{1F4CC} " : "";
-            html += `
+            return;
+          }
+          html += `<tr>`;
+          html += `<td class="p-1 border border-gray-300 text-center font-mono text-[9px] font-medium bg-gray-50">${slot.startStr} - ${slot.endStr}</td>`;
+          days.forEach((day) => {
+            const matchCls = groupClasses.find((cls) => {
+              const dt = new Date(cls.start);
+              const dNum = dt.getDay();
+              if (dNum !== day.id) return false;
+              const cMin = dt.getHours() * 60 + dt.getMinutes();
+              return cMin === slot.startMin;
+            });
+            if (matchCls) {
+              const subject = AppData.subjects.find((s) => s.id === matchCls.subjectId);
+              const teacher = AppData.teachers.find((t) => t.id === matchCls.teacherId);
+              const bgColor = getSubjectColor(matchCls.subjectId);
+              const pinIcon = matchCls.isPinned ? "\u{1F4CC} " : "";
+              html += `
                             <td class="p-1 border border-gray-300 align-top text-white font-medium shadow-inner" style="background-color: ${bgColor} !important; color: white !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important;">
                                 <div class="font-bold text-[10px] truncate leading-tight">${pinIcon}${subject ? subject.name : "Clase"}</div>
                                 ${teacher ? `<div class="text-[9px] opacity-95 truncate leading-tight font-normal">Prof: ${teacher.name}</div>` : ""}
                             </td>
                         `;
-          } else {
-            html += `<td class="p-1 border border-gray-300 text-center text-gray-300 bg-white text-[9px]">--</td>`;
-          }
+            } else {
+              html += `<td class="p-1 border border-gray-300 text-center text-gray-300 bg-white text-[9px]">--</td>`;
+            }
+          });
+          html += `</tr>`;
         });
-        html += `</tr>`;
-      });
-      html += `
+        html += `
                         </tbody>
                     </table>
                 </div>
             `;
+      });
     });
-  });
-  AppData.teachers.forEach((teacher) => {
-    const teacherClasses = AppData.scheduledClasses.filter((c) => c.teacherId === teacher.id);
-    const totalHours = teacherClasses.reduce((sum, c) => sum + c.duration, 0);
-    html += `
+    AppData.teachers.forEach((teacher) => {
+      const teacherClasses = AppData.scheduledClasses.filter((c) => c.teacherId === teacher.id);
+      const totalHours = teacherClasses.reduce((sum, c) => sum + c.duration, 0);
+      html += `
             <div class="print-page">
                 <div class="flex justify-between items-center mb-2 border-b-2 border-indigo-600 pb-1">
                     <div>
@@ -1647,335 +1644,441 @@ function printAllSchedules() {
                     </thead>
                     <tbody>
         `;
-    slots.forEach((slot) => {
-      let isRecess = false;
-      if (AppData.config) {
-        const rParts = AppData.config.horaInicioRecreo.split(":");
-        const rStart = parseInt(rParts[0]) * 60 + parseInt(rParts[1]);
-        const rEnd = rStart + AppData.config.duracionRecreo;
-        if (slot.startMin >= rStart && slot.startMin < rEnd) {
-          isRecess = true;
+      slots.forEach((slot) => {
+        let isRecess = false;
+        if (AppData.config) {
+          const rParts = AppData.config.horaInicioRecreo.split(":");
+          const rStart = parseInt(rParts[0]) * 60 + parseInt(rParts[1]);
+          const rEnd = rStart + AppData.config.duracionRecreo;
+          if (slot.startMin >= rStart && slot.startMin < rEnd) {
+            isRecess = true;
+          }
         }
-      }
-      if (isRecess) {
-        html += `
+        if (isRecess) {
+          html += `
                     <tr class="bg-gray-100 text-gray-500 font-semibold">
                         <td class="p-1 border border-gray-300 text-center font-mono text-[9px]">${slot.startStr} - ${slot.endStr}</td>
                         <td colspan="5" class="p-1 border border-gray-300 text-center bg-gray-100 text-slate-500 text-[10px]">\u2615 Recreo</td>
                     </tr>
                 `;
-        return;
-      }
-      html += `<tr>`;
-      html += `<td class="p-1 border border-gray-300 text-center font-mono text-[9px] font-medium bg-gray-50">${slot.startStr} - ${slot.endStr}</td>`;
-      days.forEach((day) => {
-        const matchCls = teacherClasses.find((cls) => {
-          const dt = new Date(cls.start);
-          const dNum = dt.getDay();
-          if (dNum !== day.id) return false;
-          const cMin = dt.getHours() * 60 + dt.getMinutes();
-          return cMin === slot.startMin;
-        });
-        if (matchCls) {
-          const subject = AppData.subjects.find((s) => s.id === matchCls.subjectId);
-          const course = AppData.courses.find((c) => c.groups.some((g) => g.id === matchCls.groupId));
-          const group = course ? course.groups.find((g) => g.id === matchCls.groupId) : null;
-          const groupLabel = course && group ? `${course.name} G.${group.name}` : "";
-          const bgColor = getSubjectColor(matchCls.subjectId);
-          const pinIcon = matchCls.isPinned ? "\u{1F4CC} " : "";
-          html += `
+          return;
+        }
+        html += `<tr>`;
+        html += `<td class="p-1 border border-gray-300 text-center font-mono text-[9px] font-medium bg-gray-50">${slot.startStr} - ${slot.endStr}</td>`;
+        days.forEach((day) => {
+          const matchCls = teacherClasses.find((cls) => {
+            const dt = new Date(cls.start);
+            const dNum = dt.getDay();
+            if (dNum !== day.id) return false;
+            const cMin = dt.getHours() * 60 + dt.getMinutes();
+            return cMin === slot.startMin;
+          });
+          if (matchCls) {
+            const subject = AppData.subjects.find((s) => s.id === matchCls.subjectId);
+            const course = AppData.courses.find((c) => c.groups.some((g) => g.id === matchCls.groupId));
+            const group = course ? course.groups.find((g) => g.id === matchCls.groupId) : null;
+            const groupLabel = course && group ? `${course.name} G.${group.name}` : "";
+            const bgColor = getSubjectColor(matchCls.subjectId);
+            const pinIcon = matchCls.isPinned ? "\u{1F4CC} " : "";
+            html += `
                         <td class="p-1 border border-gray-300 align-top text-white font-medium shadow-inner" style="background-color: ${bgColor} !important; color: white !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important;">
                             <div class="font-bold text-[10px] truncate leading-tight">${pinIcon}${subject ? subject.name : "Clase"}</div>
                             ${groupLabel ? `<div class="text-[9px] opacity-95 truncate leading-tight font-normal">${groupLabel}</div>` : ""}
                         </td>
                     `;
-        } else {
-          html += `<td class="p-1 border border-gray-300 text-center text-gray-300 bg-white text-[9px]">--</td>`;
-        }
+          } else {
+            html += `<td class="p-1 border border-gray-300 text-center text-gray-300 bg-white text-[9px]">--</td>`;
+          }
+        });
+        html += `</tr>`;
       });
-      html += `</tr>`;
-    });
-    html += `
+      html += `
                     </tbody>
                 </table>
             </div>
         `;
-  });
-  printArea.innerHTML = html;
-  showToast("Imprimiendo", "Preparando documento A4 Horizontal con horarios de grupos y profesores...", "info");
-  setTimeout(() => {
-    window.print();
-  }, 300);
-}
-
-// Web/src/Datos.ts
-var AppData = {
-  API: new ApiService(),
-  WS: new EngineWebSocket(),
-  subjects: [],
-  teachers: [],
-  courses: [],
-  scheduledClasses: [],
-  calendarInstance: null,
-  currentEventContext: null
-};
-AppData.currentCourseId = null;
-function sendErrorToServer(level, message, source = "", line = 0, stack = "") {
-  fetch("/api/v1/log", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ level, message, source, line, stack: stack ?? "" })
-  }).catch(() => {
-  });
-}
-window.onerror = (msg, src, lineno, _col, err) => {
-  sendErrorToServer("error", String(msg), src ?? "", lineno ?? 0, err?.stack ?? "");
-  return false;
-};
-window.addEventListener("unhandledrejection", (e) => {
-  const err = e.reason;
-  const msg = err instanceof Error ? err.message : String(err);
-  sendErrorToServer("error", `Unhandled Promise Rejection: ${msg}`, "", 0, err?.stack ?? "");
-});
-var _originalConsoleError = console.error.bind(console);
-console.error = (...args) => {
-  _originalConsoleError(...args);
-  const message = args.map((a) => a instanceof Error ? a.message : String(a)).join(" ");
-  const stack = args.find((a) => a instanceof Error)?.stack ?? "";
-  sendErrorToServer("error", message, "console.error", 0, stack);
-};
-window.onload = async function() {
-  try {
-    AppData.subjects = await AppData.API.getSubjects();
-    AppData.teachers = await AppData.API.getTeachers();
-    AppData.courses = await AppData.API.getCourses();
-    AppData.scheduledClasses = await AppData.API.getSchedule();
-    AppData.config = await AppData.API.getConfig();
-    const loader = document.getElementById("app-loader");
-    if (loader) {
-      loader.style.opacity = "0";
-      setTimeout(() => loader.remove(), 300);
-    }
-    initCalendar();
-    updateEntitySelector2();
-    updateDateRange();
-    AppData.WS.connect();
-    setupWebSocketsListeners();
-  } catch (err) {
-    console.error("Init Error:", err);
-    const loaderText = document.getElementById("loader-text");
-    if (loaderText) {
-      loaderText.textContent = "Error conectando con la API. Aseg\xFArese de que el servidor Ktor est\xE9 encendido.";
-      loaderText.className = "mt-4 text-red-600 font-bold px-4 text-center";
-    }
-  }
-};
-function setupWebSocketsListeners() {
-  const btn = document.getElementById("btn-toggle-engine");
-  const wsStatus = document.getElementById("ws-status");
-  AppData.WS.on("connected", () => {
-    if (btn) {
-      btn.disabled = false;
-      btn.classList.replace("bg-gray-400", "bg-emerald-600");
-      btn.classList.add("hover:bg-emerald-700");
-      btn.classList.remove("cursor-not-allowed");
-    }
-    const textBtn = document.getElementById("text-engine-btn");
-    if (textBtn) textBtn.textContent = "Generar (WS)";
-    if (wsStatus) {
-      wsStatus.innerHTML = '<span class="relative flex h-2.5 w-2.5 mr-1.5"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span><span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span></span> Conectado';
-    }
-  });
-  AppData.WS.on("disconnected", () => {
-    if (btn) {
-      btn.disabled = true;
-      btn.classList.replace("bg-emerald-600", "bg-gray-400");
-      btn.classList.remove("hover:bg-emerald-700");
-      btn.classList.add("cursor-not-allowed");
-    }
-    const textBtn = document.getElementById("text-engine-btn");
-    if (textBtn) textBtn.textContent = "Conectando...";
-    if (wsStatus) {
-      wsStatus.innerHTML = '<span class="relative flex h-2.5 w-2.5 mr-1.5"><span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500"></span></span> Desconectado';
-    }
-  });
-  AppData.WS.on("scores_updated", (scores) => {
-    const elHard = document.getElementById("score-hard");
-    const elSoft = document.getElementById("score-soft");
-    const elTooltipText = document.getElementById("score-soft-tooltip-text");
-    if (elHard) elHard.textContent = scores.hard.toString();
-    if (elSoft) {
-      const pct = scores.porcentaje !== void 0 && !isNaN(scores.porcentaje) ? Math.min(100, Math.max(0, scores.porcentaje)).toFixed(1) + "%" : "0.0%";
-      elSoft.textContent = pct;
-    }
-    if (elTooltipText) {
-      const rawObj = scores.rawObjective || scores.soft || 0;
-      const boundVal = scores.bound || 0;
-      elTooltipText.innerHTML = `Puntos: <b class="text-white">${rawObj.toLocaleString()}</b> / <b class="text-indigo-400">${boundVal.toLocaleString()}</b> pts`;
-    }
-    const stConflict = document.getElementById("status-conflict");
-    const stOk = document.getElementById("status-ok");
-    if (stConflict && stOk) {
-      if (scores.hard === 0) {
-        stConflict.classList.replace("flex", "hidden");
-        stOk.classList.replace("hidden", "flex");
-      } else {
-        stOk.classList.replace("flex", "hidden");
-        stConflict.classList.replace("hidden", "flex");
-      }
-    }
-    const elCount = document.getElementById("conflict-tooltip-count");
-    const elList = document.getElementById("conflict-tooltip-list");
-    if (elCount && elList) {
-      const list = scores.conflictos || [];
-      elCount.textContent = list.length.toString();
-      if (list.length === 0) {
-        elList.innerHTML = '<span class="text-emerald-600 font-medium">\xA1Horario matem\xE1ticamente correcto!</span>';
-      } else {
-        elList.innerHTML = '<ul class="list-disc pl-4 space-y-1 text-red-600 font-medium">' + list.map((c) => `<li>${c}</li>`).join("") + "</ul>";
-      }
-    }
-  });
-  AppData.WS.on("optimization_complete", () => {
-    toggleOptimizationEngine(true);
-    showToast("\xA1Matem\xE1ticamente Correcto!", "El servidor WS ha encontrado la disposici\xF3n perfecta.", "success");
-  });
-  AppData.WS.on("schedule_pushed", (newScheduleFromDB) => {
-    AppData.scheduledClasses = newScheduleFromDB;
-    refreshCalendarView();
-  });
-}
-function toggleOptimizationEngine(forceStop = false) {
-  try {
-    const btn = document.getElementById("btn-toggle-engine");
-    if (!btn) return;
-    const iconStop = document.getElementById("icon-stop");
-    const iconPlay = document.getElementById("icon-play");
-    const textEngineBtn = document.getElementById("text-engine-btn");
-    if (AppData.WS.isOptimizing || forceStop) {
-      AppData.WS.sendCommand("STOP");
-      btn.classList.replace("bg-red-600", "bg-emerald-600");
-      btn.classList.replace("hover:bg-red-700", "hover:bg-emerald-700");
-      btn.classList.remove("animate-pulse");
-      if (iconStop) iconStop.classList.add("hidden");
-      if (iconPlay) iconPlay.classList.remove("hidden");
-      if (textEngineBtn) textEngineBtn.textContent = "Generar (WS)";
-    } else {
-      AppData.WS.sendCommand("START");
-      btn.classList.replace("bg-emerald-600", "bg-red-600");
-      btn.classList.replace("hover:bg-red-700", "hover:bg-red-700");
-      btn.classList.add("animate-pulse");
-      if (iconPlay) iconPlay.classList.add("hidden");
-      if (iconStop) iconStop.classList.remove("hidden");
-      if (textEngineBtn) textEngineBtn.textContent = "Parar Motor";
-    }
-  } catch (err) {
-    console.error("Error in toggleOptimizationEngine:", err);
-    showToast("Error", "No se pudo iniciar el motor de optimizaci\xF3n", "error");
-  }
-}
-function switchTab(tabId) {
-  document.querySelectorAll(".view-tab").forEach((el) => el.classList.remove("active"));
-  const targetTab = document.getElementById(`view-${tabId}`);
-  if (targetTab) targetTab.classList.add("active");
-  document.querySelectorAll(".nav-btn").forEach((btn) => {
-    btn.classList.remove("bg-indigo-600", "text-white", "shadow-inner");
-    btn.classList.add("text-slate-300");
-  });
-  const activeBtn = document.getElementById(`nav-${tabId}`);
-  if (activeBtn) {
-    activeBtn.classList.remove("text-slate-300");
-    activeBtn.classList.add("bg-indigo-600", "text-white", "shadow-inner");
-  }
-  const headerCalendar = document.getElementById("header-calendar");
-  if (headerCalendar) {
-    headerCalendar.style.display = tabId === "calendar" ? "flex" : "none";
-  }
-  if (tabId === "subjects") renderSubjects();
-  if (tabId === "teachers") renderTeachers();
-  if (tabId === "courses") renderCourses();
-  if (tabId === "assignments") renderAssignmentsList();
-  if (tabId === "settings") loadSettings();
-  if (tabId === "calendar") {
+    });
+    printArea.innerHTML = html;
+    showToast("Imprimiendo", "Preparando documento A4 Horizontal con horarios de grupos y profesores...", "info");
     setTimeout(() => {
-      if (AppData.calendarInstance) AppData.calendarInstance.render();
+      window.print();
+    }, 300);
+  }
+
+  // Web/src/updater.ts
+  var CURRENT_VERSION = "0.1.0";
+  var GITHUB_REPO = "guillemo12/Horarios-profesores";
+  function parseVersion(versionStr) {
+    const clean = versionStr.replace(/^v/, "").trim();
+    return clean.split(".").map((n) => parseInt(n, 10) || 0);
+  }
+  function isNewerVersion(latestTag, currentVersion = CURRENT_VERSION) {
+    const latest = parseVersion(latestTag);
+    const current = parseVersion(currentVersion);
+    const maxLen = Math.max(latest.length, current.length);
+    for (let i = 0; i < maxLen; i++) {
+      const l = latest[i] ?? 0;
+      const c = current[i] ?? 0;
+      if (l > c) return true;
+      if (l < c) return false;
+    }
+    return false;
+  }
+  async function checkForUpdates(silent = false) {
+    try {
+      const res = await fetch(`https://api.github.com/repos/${GITHUB_REPO}/releases/latest`, {
+        headers: { "Accept": "application/vnd.github.v3+json" }
+      });
+      if (!res.ok) {
+        if (!silent) {
+          showToast("Actualizaciones", "No se encontr\xF3 ning\xFAn release publicado en GitHub.", "warning");
+        }
+        return;
+      }
+      const release = await res.json();
+      const hasUpdate = isNewerVersion(release.tag_name, CURRENT_VERSION);
+      if (hasUpdate) {
+        showUpdateModal(release);
+      } else if (!silent) {
+        showToast("Actualizado", `EduSchedule est\xE1 al d\xEDa (v${CURRENT_VERSION}).`, "success");
+      }
+    } catch (err) {
+      console.error("Error al buscar actualizaciones:", err);
+      if (!silent) {
+        showToast("Error", "Error de red al consultar actualizaciones.", "error");
+      }
+    }
+  }
+  function showUpdateModal(release) {
+    let modal = document.getElementById("modal-update-dialog");
+    if (!modal) {
+      modal = document.createElement("div");
+      modal.id = "modal-update-dialog";
+      modal.className = "fixed inset-0 bg-slate-900/70 backdrop-blur-sm flex items-center justify-center z-50 p-4";
+      document.body.appendChild(modal);
+    }
+    const winAssets = release.assets ? release.assets.filter((a) => a.name.endsWith(".exe") || a.name.endsWith(".msi")) : [];
+    const linuxAssets = release.assets ? release.assets.filter((a) => a.name.endsWith(".AppImage") || a.name.endsWith(".deb") || a.name.endsWith(".tar.gz")) : [];
+    let downloadButtons = `
+        <a href="${release.html_url}" target="_blank" class="inline-flex items-center justify-center px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-lg shadow-sm transition-colors text-sm">
+            Ver Release en GitHub
+        </a>
+    `;
+    if (release.assets && release.assets.length > 0) {
+      downloadButtons = `
+            <div class="flex flex-wrap gap-2 w-full justify-end">
+                ${winAssets.map((a) => `
+                    <a href="${a.browser_download_url}" target="_blank" class="inline-flex items-center px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-lg shadow-sm transition-colors">
+                        \u2B07\uFE0F Windows (${a.name.split("_").pop() || a.name})
+                    </a>
+                `).join("")}
+                ${linuxAssets.map((a) => `
+                    <a href="${a.browser_download_url}" target="_blank" class="inline-flex items-center px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-lg shadow-sm transition-colors">
+                        \u2B07\uFE0F Linux (${a.name.split("_").pop() || a.name})
+                    </a>
+                `).join("")}
+                <a href="${release.html_url}" target="_blank" class="inline-flex items-center px-3 py-2 bg-slate-700 hover:bg-slate-800 text-slate-200 text-xs font-semibold rounded-lg shadow-sm transition-colors">
+                    Ver todos
+                </a>
+            </div>
+        `;
+    }
+    modal.innerHTML = `
+        <div class="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-lg w-full overflow-hidden">
+            <div class="bg-gradient-to-r from-indigo-600 to-purple-600 px-6 py-4 text-white flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                    <span class="text-2xl">\u2728</span>
+                    <div>
+                        <h3 class="font-bold text-lg leading-tight">\xA1Nueva versi\xF3n disponible!</h3>
+                        <p class="text-xs text-indigo-100 font-medium">Versi\xF3n actual: v${CURRENT_VERSION} \u2794 Nueva: ${release.tag_name}</p>
+                    </div>
+                </div>
+                <button onclick="document.getElementById('modal-update-dialog')?.remove()" class="text-white/80 hover:text-white text-xl leading-none font-bold cursor-pointer">&times;</button>
+            </div>
+            <div class="p-6 space-y-4">
+                <div>
+                    <h4 class="font-semibold text-slate-800 text-sm mb-1">${release.name || release.tag_name}</h4>
+                    <div class="bg-slate-50 border border-slate-200 rounded-lg p-3 text-xs text-slate-600 max-h-48 overflow-y-auto whitespace-pre-wrap font-mono">
+                        ${release.body || "Sin notas de versi\xF3n disponibles."}
+                    </div>
+                </div>
+                <div class="pt-2 border-t border-slate-100 flex items-center justify-between gap-3">
+                    <button onclick="document.getElementById('modal-update-dialog')?.remove()" class="px-4 py-2 border border-slate-300 hover:bg-slate-100 text-slate-700 text-xs font-semibold rounded-lg transition-colors cursor-pointer">
+                        Cerrar
+                    </button>
+                    ${downloadButtons}
+                </div>
+            </div>
+        </div>
+    `;
+  }
+
+  // Web/src/Datos.ts
+  var AppData = {
+    API: new ApiService(),
+    WS: new EngineWebSocket(),
+    subjects: [],
+    teachers: [],
+    courses: [],
+    scheduledClasses: [],
+    calendarInstance: null,
+    currentEventContext: null
+  };
+  AppData.currentCourseId = null;
+  function sendErrorToServer(level, message, source = "", line = 0, stack = "") {
+    fetch("/api/v1/log", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ level, message, source, line, stack: stack ?? "" })
+    }).catch(() => {
+    });
+  }
+  window.onerror = (msg, src, lineno, _col, err) => {
+    sendErrorToServer("error", String(msg), src ?? "", lineno ?? 0, err?.stack ?? "");
+    return false;
+  };
+  window.addEventListener("unhandledrejection", (e) => {
+    const err = e.reason;
+    const msg = err instanceof Error ? err.message : String(err);
+    sendErrorToServer("error", `Unhandled Promise Rejection: ${msg}`, "", 0, err?.stack ?? "");
+  });
+  var _originalConsoleError = console.error.bind(console);
+  console.error = (...args) => {
+    _originalConsoleError(...args);
+    const message = args.map((a) => a instanceof Error ? a.message : String(a)).join(" ");
+    const stack = args.find((a) => a instanceof Error)?.stack ?? "";
+    sendErrorToServer("error", message, "console.error", 0, stack);
+  };
+  window.onload = async function() {
+    try {
+      AppData.subjects = await AppData.API.getSubjects();
+      AppData.teachers = await AppData.API.getTeachers();
+      AppData.courses = await AppData.API.getCourses();
+      AppData.scheduledClasses = await AppData.API.getSchedule();
+      AppData.config = await AppData.API.getConfig();
+      const loader = document.getElementById("app-loader");
+      if (loader) {
+        loader.style.opacity = "0";
+        setTimeout(() => loader.remove(), 300);
+      }
+      initCalendar();
       updateEntitySelector2();
       updateDateRange();
-    }, 50);
-  }
-}
-function updateEntitySelector2() {
-  const typeSelect = document.getElementById("view-type-select");
-  const courseSelect = document.getElementById("header-course-select");
-  const courseSeparator = document.getElementById("header-course-separator");
-  const entitySelect = document.getElementById("view-entity-select");
-  if (!typeSelect || !courseSelect || !entitySelect || !courseSeparator) return;
-  const type = typeSelect.value;
-  const currentCourseValue = courseSelect.value;
-  const currentValue = entitySelect.value;
-  if (type === "group") {
-    courseSelect.classList.remove("hidden");
-    courseSeparator.classList.remove("hidden");
-    courseSelect.innerHTML = "";
-    AppData.courses.forEach((c) => courseSelect.innerHTML += `<option value="${c.id}">${c.name}</option>`);
-    if (currentCourseValue && Array.from(courseSelect.options).some((opt) => opt.value === currentCourseValue)) {
-      courseSelect.value = currentCourseValue;
+      AppData.WS.connect();
+      setupWebSocketsListeners();
+      setTimeout(() => {
+        checkForUpdates(true);
+      }, 2e3);
+    } catch (err) {
+      console.error("Init Error:", err);
+      const loaderText = document.getElementById("loader-text");
+      if (loaderText) {
+        loaderText.textContent = "Error conectando con la API. Aseg\xFArese de que el servidor Ktor est\xE9 encendido.";
+        loaderText.className = "mt-4 text-red-600 font-bold px-4 text-center";
+      }
     }
-    onHeaderCourseChange(currentValue);
-  } else {
-    courseSelect.classList.add("hidden");
-    courseSeparator.classList.add("hidden");
-    entitySelect.innerHTML = "";
-    AppData.teachers.forEach((t) => entitySelect.innerHTML += `<option value="${t.id}">${t.name}</option>`);
-    if (currentValue && Array.from(entitySelect.options).some((opt) => opt.value === currentValue)) {
-      entitySelect.value = currentValue;
-    }
-    refreshCalendarView();
+  };
+  function setupWebSocketsListeners() {
+    const btn = document.getElementById("btn-toggle-engine");
+    const wsStatus = document.getElementById("ws-status");
+    AppData.WS.on("connected", () => {
+      if (btn) {
+        btn.disabled = false;
+        btn.classList.replace("bg-gray-400", "bg-emerald-600");
+        btn.classList.add("hover:bg-emerald-700");
+        btn.classList.remove("cursor-not-allowed");
+      }
+      const textBtn = document.getElementById("text-engine-btn");
+      if (textBtn) textBtn.textContent = "Generar (WS)";
+      if (wsStatus) {
+        wsStatus.innerHTML = '<span class="relative flex h-2.5 w-2.5 mr-1.5"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span><span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span></span> Conectado';
+      }
+    });
+    AppData.WS.on("disconnected", () => {
+      if (btn) {
+        btn.disabled = true;
+        btn.classList.replace("bg-emerald-600", "bg-gray-400");
+        btn.classList.remove("hover:bg-emerald-700");
+        btn.classList.add("cursor-not-allowed");
+      }
+      const textBtn = document.getElementById("text-engine-btn");
+      if (textBtn) textBtn.textContent = "Conectando...";
+      if (wsStatus) {
+        wsStatus.innerHTML = '<span class="relative flex h-2.5 w-2.5 mr-1.5"><span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500"></span></span> Desconectado';
+      }
+    });
+    AppData.WS.on("scores_updated", (scores) => {
+      const elHard = document.getElementById("score-hard");
+      const elSoft = document.getElementById("score-soft");
+      const elTooltipText = document.getElementById("score-soft-tooltip-text");
+      if (elHard) elHard.textContent = scores.hard.toString();
+      if (elSoft) {
+        const pct = scores.porcentaje !== void 0 && !isNaN(scores.porcentaje) ? Math.min(100, Math.max(0, scores.porcentaje)).toFixed(1) + "%" : "0.0%";
+        elSoft.textContent = pct;
+      }
+      if (elTooltipText) {
+        const rawObj = scores.rawObjective || scores.soft || 0;
+        const boundVal = scores.bound || 0;
+        elTooltipText.innerHTML = `Puntos: <b class="text-white">${rawObj.toLocaleString()}</b> / <b class="text-indigo-400">${boundVal.toLocaleString()}</b> pts`;
+      }
+      const stConflict = document.getElementById("status-conflict");
+      const stOk = document.getElementById("status-ok");
+      if (stConflict && stOk) {
+        if (scores.hard === 0) {
+          stConflict.classList.replace("flex", "hidden");
+          stOk.classList.replace("hidden", "flex");
+        } else {
+          stOk.classList.replace("flex", "hidden");
+          stConflict.classList.replace("hidden", "flex");
+        }
+      }
+      const elCount = document.getElementById("conflict-tooltip-count");
+      const elList = document.getElementById("conflict-tooltip-list");
+      if (elCount && elList) {
+        const list = scores.conflictos || [];
+        elCount.textContent = list.length.toString();
+        if (list.length === 0) {
+          elList.innerHTML = '<span class="text-emerald-600 font-medium">\xA1Horario matem\xE1ticamente correcto!</span>';
+        } else {
+          elList.innerHTML = '<ul class="list-disc pl-4 space-y-1 text-red-600 font-medium">' + list.map((c) => `<li>${c}</li>`).join("") + "</ul>";
+        }
+      }
+    });
+    AppData.WS.on("optimization_complete", () => {
+      toggleOptimizationEngine(true);
+      showToast("\xA1Matem\xE1ticamente Correcto!", "El servidor WS ha encontrado la disposici\xF3n perfecta.", "success");
+    });
+    AppData.WS.on("schedule_pushed", (newScheduleFromDB) => {
+      AppData.scheduledClasses = newScheduleFromDB;
+      refreshCalendarView();
+    });
   }
-}
-function onHeaderCourseChangeWrapper() {
-  onHeaderCourseChange(null);
-}
-Object.assign(window, {
-  AppData,
-  switchTab,
-  updateEntitySelector: updateEntitySelector2,
-  onHeaderCourseChange: onHeaderCourseChangeWrapper,
-  toggleOptimizationEngine,
-  openFormModal,
-  closeCrudModal,
-  openGroupModal,
-  deleteSubject,
-  deleteTeacher,
-  deleteCourse,
-  deleteGroup,
-  updateAssignment,
-  saveNewClass,
-  closeAddClassModal,
-  openAddClassModal,
-  onModalCourseChange,
-  closeEventDetail,
-  refreshCalendarView,
-  updateDateRange,
-  showToast,
-  openCourseSubjects,
-  openAvailabilityModal,
-  closeAvailabilityModal,
-  saveAvailability,
-  saveSettings,
-  clearGroupSchedule,
-  clearGroupAssignments,
-  clearCourseAssignments,
-  toggleAvailabilitySlot,
-  runPrevalidation,
-  closePrevalidation,
-  toggleColorMode,
-  printAllSchedules
-});
-export {
-  AppData,
-  setupWebSocketsListeners,
-  switchTab,
-  toggleOptimizationEngine,
-  updateEntitySelector2 as updateEntitySelector
-};
+  function toggleOptimizationEngine(forceStop = false) {
+    try {
+      const btn = document.getElementById("btn-toggle-engine");
+      if (!btn) return;
+      const iconStop = document.getElementById("icon-stop");
+      const iconPlay = document.getElementById("icon-play");
+      const textEngineBtn = document.getElementById("text-engine-btn");
+      if (AppData.WS.isOptimizing || forceStop) {
+        AppData.WS.sendCommand("STOP");
+        btn.classList.replace("bg-red-600", "bg-emerald-600");
+        btn.classList.replace("hover:bg-red-700", "hover:bg-emerald-700");
+        btn.classList.remove("animate-pulse");
+        if (iconStop) iconStop.classList.add("hidden");
+        if (iconPlay) iconPlay.classList.remove("hidden");
+        if (textEngineBtn) textEngineBtn.textContent = "Generar (WS)";
+      } else {
+        AppData.WS.sendCommand("START");
+        btn.classList.replace("bg-emerald-600", "bg-red-600");
+        btn.classList.replace("hover:bg-red-700", "hover:bg-red-700");
+        btn.classList.add("animate-pulse");
+        if (iconPlay) iconPlay.classList.add("hidden");
+        if (iconStop) iconStop.classList.remove("hidden");
+        if (textEngineBtn) textEngineBtn.textContent = "Parar Motor";
+      }
+    } catch (err) {
+      console.error("Error in toggleOptimizationEngine:", err);
+      showToast("Error", "No se pudo iniciar el motor de optimizaci\xF3n", "error");
+    }
+  }
+  function switchTab(tabId) {
+    document.querySelectorAll(".view-tab").forEach((el) => el.classList.remove("active"));
+    const targetTab = document.getElementById(`view-${tabId}`);
+    if (targetTab) targetTab.classList.add("active");
+    document.querySelectorAll(".nav-btn").forEach((btn) => {
+      btn.classList.remove("bg-indigo-600", "text-white", "shadow-inner");
+      btn.classList.add("text-slate-300");
+    });
+    const activeBtn = document.getElementById(`nav-${tabId}`);
+    if (activeBtn) {
+      activeBtn.classList.remove("text-slate-300");
+      activeBtn.classList.add("bg-indigo-600", "text-white", "shadow-inner");
+    }
+    const headerCalendar = document.getElementById("header-calendar");
+    if (headerCalendar) {
+      headerCalendar.style.display = tabId === "calendar" ? "flex" : "none";
+    }
+    if (tabId === "subjects") renderSubjects();
+    if (tabId === "teachers") renderTeachers();
+    if (tabId === "courses") renderCourses();
+    if (tabId === "assignments") renderAssignmentsList();
+    if (tabId === "settings") loadSettings();
+    if (tabId === "calendar") {
+      setTimeout(() => {
+        if (AppData.calendarInstance) AppData.calendarInstance.render();
+        updateEntitySelector2();
+        updateDateRange();
+      }, 50);
+    }
+  }
+  function updateEntitySelector2() {
+    const typeSelect = document.getElementById("view-type-select");
+    const courseSelect = document.getElementById("header-course-select");
+    const courseSeparator = document.getElementById("header-course-separator");
+    const entitySelect = document.getElementById("view-entity-select");
+    if (!typeSelect || !courseSelect || !entitySelect || !courseSeparator) return;
+    const type = typeSelect.value;
+    const currentCourseValue = courseSelect.value;
+    const currentValue = entitySelect.value;
+    if (type === "group") {
+      courseSelect.classList.remove("hidden");
+      courseSeparator.classList.remove("hidden");
+      courseSelect.innerHTML = "";
+      AppData.courses.forEach((c) => courseSelect.innerHTML += `<option value="${c.id}">${c.name}</option>`);
+      if (currentCourseValue && Array.from(courseSelect.options).some((opt) => opt.value === currentCourseValue)) {
+        courseSelect.value = currentCourseValue;
+      }
+      onHeaderCourseChange(currentValue);
+    } else {
+      courseSelect.classList.add("hidden");
+      courseSeparator.classList.add("hidden");
+      entitySelect.innerHTML = "";
+      AppData.teachers.forEach((t) => entitySelect.innerHTML += `<option value="${t.id}">${t.name}</option>`);
+      if (currentValue && Array.from(entitySelect.options).some((opt) => opt.value === currentValue)) {
+        entitySelect.value = currentValue;
+      }
+      refreshCalendarView();
+    }
+  }
+  function onHeaderCourseChangeWrapper() {
+    onHeaderCourseChange(null);
+  }
+  Object.assign(window, {
+    AppData,
+    switchTab,
+    updateEntitySelector: updateEntitySelector2,
+    onHeaderCourseChange: onHeaderCourseChangeWrapper,
+    toggleOptimizationEngine,
+    openFormModal,
+    closeCrudModal,
+    openGroupModal,
+    deleteSubject,
+    deleteTeacher,
+    deleteCourse,
+    deleteGroup,
+    updateAssignment,
+    saveNewClass,
+    closeAddClassModal,
+    openAddClassModal,
+    onModalCourseChange,
+    closeEventDetail,
+    refreshCalendarView,
+    updateDateRange,
+    showToast,
+    openCourseSubjects,
+    openAvailabilityModal,
+    closeAvailabilityModal,
+    saveAvailability,
+    saveSettings,
+    clearGroupSchedule,
+    clearGroupAssignments,
+    clearCourseAssignments,
+    toggleAvailabilitySlot,
+    runPrevalidation,
+    closePrevalidation,
+    toggleColorMode,
+    printAllSchedules,
+    checkForUpdates
+  });
+})();
