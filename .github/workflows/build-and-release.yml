@@ -2,13 +2,9 @@ name: Build and Release EduSchedule
 
 on:
   push:
-    branches:
-      - master
     tags:
       - 'v*'
       - 'V*'
-  release:
-    types: [published]
   workflow_dispatch:
 
 permissions:
