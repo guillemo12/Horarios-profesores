@@ -125,14 +125,14 @@ jobs:
           if (Test-Path "Proyecto_Horarios\src-tauri\backend_ktor") {
             Remove-Item "Proyecto_Horarios\src-tauri\backend_ktor" -Recurse -Force
           }
-          jpackage --name backend_ktor --input build/libs --main-jar "horarios-profesores-all.jar" --main-class io.ktor.server.netty.EngineMain --type app-image --dest Proyecto_Horarios/src-tauri
+          jpackage --name backend_ktor --input build/libs --main-jar "horarios-profesores-all.jar" --main-class com.colegio.MainKt --type app-image --dest Proyecto_Horarios/src-tauri
 
       - name: Create Embedded JVM Runtime with jpackage (Linux)
         if: matrix.platform == 'linux'
         shell: bash
         run: |
           rm -rf Proyecto_Horarios/src-tauri/backend_ktor
-          jpackage --name backend_ktor --input build/libs --main-jar "horarios-profesores-all.jar" --main-class io.ktor.server.netty.EngineMain --type app-image --dest Proyecto_Horarios/src-tauri
+          jpackage --name backend_ktor --input build/libs --main-jar "horarios-profesores-all.jar" --main-class com.colegio.MainKt --type app-image --dest Proyecto_Horarios/src-tauri
           chmod -R 755 Proyecto_Horarios/src-tauri/backend_ktor
 
       - name: Build Tauri Desktop App (Linux)

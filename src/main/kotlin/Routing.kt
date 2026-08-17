@@ -29,6 +29,7 @@ fun parseId(idStr: String): Int {
 }
 
 fun Application.configureRouting() {
+    initDatabase()
     val routingLogger = LoggerFactory.getLogger("FrontendLog")
 
     routing {

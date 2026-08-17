@@ -11,10 +11,13 @@ import org.jetbrains.exposed.sql.deleteAll
 import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.transactions.transaction
 import java.sql.DriverManager.println
+import java.util.concurrent.atomic.AtomicBoolean
 
+private val isDbInitialized = AtomicBoolean(false)
 
+fun initDatabase() {
+    if (!isDbInitialized.compareAndSet(false, true)) return
 
-fun main(args: Array<String>) {
     Database.connect("jdbc:sqlite:colegio.db", driver = "org.sqlite.JDBC")
 
     transaction {
@@ -242,22 +245,23 @@ fun main(args: Array<String>) {
             println("✅ Asignaciones de reparto docente generadas equitativamente sin sobrecargar a ningún profesor.")
         }
     }
+}
 
+fun main(args: Array<String>) {
+    initDatabase()
 
-    Thread {
-        try {
-            Thread.sleep(1500)
-            if (java.awt.Desktop.isDesktopSupported() && java.awt.Desktop.getDesktop().isSupported(java.awt.Desktop.Action.BROWSE)) {
-                java.awt.Desktop.getDesktop().browse(java.net.URI("http://localhost:8080"))
-            } else {
-                Runtime.getRuntime().exec(arrayOf("cmd", "/c", "start", "http://localhost:8080"))
-            }
-        } catch (_: Exception) {
+    if (args.contains("--open-browser") || System.getenv("EDUSCHEDULE_OPEN_BROWSER") == "true") {
+        Thread {
             try {
-                Runtime.getRuntime().exec(arrayOf("cmd", "/c", "start", "http://localhost:8080"))
+                Thread.sleep(1500)
+                if (java.awt.Desktop.isDesktopSupported() && java.awt.Desktop.getDesktop().isSupported(java.awt.Desktop.Action.BROWSE)) {
+                    java.awt.Desktop.getDesktop().browse(java.net.URI("http://localhost:8080"))
+                } else {
+                    Runtime.getRuntime().exec(arrayOf("cmd", "/c", "start", "http://localhost:8080"))
+                }
             } catch (_: Exception) {}
-        }
-    }.start()
+        }.start()
+    }
 
     io.ktor.server.netty.EngineMain.main(args)
 }
