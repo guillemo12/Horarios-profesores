@@ -61,3 +61,8 @@ tasks.test {
     maxHeapSize = "4g"
 }
 
+tasks.named<org.gradle.jvm.tasks.Jar>("shadowJar") {
+    archiveFileName.set("horarios-profesores-all.jar")
+}
+
+

@@ -3,6 +3,7 @@ name: Build and Release EduSchedule
 on:
   push:
     branches:
+      - master
       - main
       - nueva-libreria
     tags:
@@ -47,7 +48,11 @@ jobs:
         if: matrix.platform == 'linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf libssl-dev
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf libssl-dev binutils fakeroot
+
+      - name: Make gradlew executable (Linux only)
+        if: matrix.platform == 'linux'
+        run: chmod +x ./gradlew
 
       - name: Bundle Frontend TypeScript
         run: |
@@ -62,21 +67,17 @@ jobs:
         if: matrix.platform == 'windows'
         shell: pwsh
         run: |
-          $jar = Get-ChildItem -Path "build\libs" -Filter "*.jar" | Where-Object { $_.Length -gt 50MB } | Select-Object -First 1
-          Write-Host "Using JAR: $($jar.FullName)"
           if (Test-Path "Proyecto_Horarios\src-tauri\backend_ktor") {
             Remove-Item "Proyecto_Horarios\src-tauri\backend_ktor" -Recurse -Force
           }
-          jpackage --name backend_ktor --input build/libs --main-jar $jar.Name --main-class io.ktor.server.netty.EngineMain --type app-image --dest Proyecto_Horarios/src-tauri
+          jpackage --name backend_ktor --input build/libs --main-jar "horarios-profesores-all.jar" --main-class io.ktor.server.netty.EngineMain --type app-image --dest Proyecto_Horarios/src-tauri
 
       - name: Create Embedded JVM Runtime with jpackage (Linux)
         if: matrix.platform == 'linux'
         shell: bash
         run: |
-          JAR_NAME=$(ls build/libs/*.jar | head -n 1 | xargs basename)
-          echo "Using JAR: $JAR_NAME"
           rm -rf Proyecto_Horarios/src-tauri/backend_ktor
-          jpackage --name backend_ktor --input build/libs --main-jar "$JAR_NAME" --main-class io.ktor.server.netty.EngineMain --type app-image --dest Proyecto_Horarios/src-tauri
+          jpackage --name backend_ktor --input build/libs --main-jar "horarios-profesores-all.jar" --main-class io.ktor.server.netty.EngineMain --type app-image --dest Proyecto_Horarios/src-tauri
           chmod -R 755 Proyecto_Horarios/src-tauri/backend_ktor
 
       - name: Install Tauri CLI
