@@ -66,7 +66,16 @@ Set-Content -Path $csFile -Value $sourceCode -Encoding UTF8
 $sysCompression = "C:\Windows\Microsoft.NET\Framework64\v4.0.30319\System.IO.Compression.dll"
 $sysCompressionFs = "C:\Windows\Microsoft.NET\Framework64\v4.0.30319\System.IO.Compression.FileSystem.dll"
 
-& $cscPath /target:winexe /out:"$outputExe" /resource:"$zipPath",payload.zip /reference:System.Windows.Forms.dll /reference:"$sysCompression" /reference:"$sysCompressionFs" "$csFile"
+$args = @(
+    "/target:winexe",
+    "/out:$outputExe",
+    "/resource:$zipPath,payload.zip",
+    "/reference:System.Windows.Forms.dll",
+    "/reference:$sysCompression",
+    "/reference:$sysCompressionFs",
+    "$csFile"
+)
+& $cscPath $args
 
 Remove-Item $csFile -Force
 Remove-Item $zipPath -Force
