@@ -97,12 +97,13 @@ jobs:
         uses: Swatinem/rust-cache@v2
         with:
           workspaces: "Proyecto_Horarios/src-tauri -> target"
+          cache-all-crates: "true"
 
       - name: Install Linux dependencies (Linux only)
         if: matrix.platform == 'linux'
         run: |
-          sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev librsvg2-bin libgdk-pixbuf2.0-dev patchelf libssl-dev binutils fakeroot squashfs-tools desktop-file-utils libxdo-dev build-essential libfuse2 file
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev patchelf libssl-dev binutils fakeroot squashfs-tools desktop-file-utils libxdo-dev build-essential libfuse2 file
 
       - name: Make gradlew executable (Linux only)
         if: matrix.platform == 'linux'
@@ -115,7 +116,7 @@ jobs:
         shell: bash
 
       - name: Build Fat JAR with Gradle
-        run: ./gradlew shadowJar --no-daemon --build-cache
+        run: ./gradlew shadowJar --no-daemon --build-cache --parallel
 
       - name: Create Embedded JVM Runtime with jpackage (Windows)
         if: matrix.platform == 'windows'
