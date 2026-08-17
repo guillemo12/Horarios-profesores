@@ -1,6 +1,6 @@
 import { showToast } from './utils';
 
-export const CURRENT_VERSION = "0.1.0";
+export const CURRENT_VERSION = "0.0.1";
 export const GITHUB_REPO = "guillemo12/Horarios-profesores";
 
 export interface GitHubReleaseAsset {

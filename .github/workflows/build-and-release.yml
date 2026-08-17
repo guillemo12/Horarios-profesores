@@ -6,6 +6,9 @@ on:
       - master
     tags:
       - 'v*'
+      - 'V*'
+  release:
+    types: [published]
   workflow_dispatch:
 
 permissions:
@@ -39,6 +42,58 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
+
+      - name: Sync App Version from Tag / Release
+        shell: bash
+        run: |
+          RAW_TAG="${{ github.event.release.tag_name || github.ref_name }}"
+          APP_VER=$(echo "$RAW_TAG" | sed -E 's/^[vV]//')
+          
+          if [[ "$APP_VER" =~ ^[0-9]+\.[0-9]+ ]]; then
+            echo "====> Sincronizando versión de la app con el Tag: $APP_VER"
+            node -e "
+              const fs = require('fs');
+              const ver = '$APP_VER';
+
+              // 1. tauri.conf.json
+              const tauriPath = 'Proyecto_Horarios/src-tauri/tauri.conf.json';
+              if (fs.existsSync(tauriPath)) {
+                const conf = JSON.parse(fs.readFileSync(tauriPath, 'utf8'));
+                conf.version = ver;
+                fs.writeFileSync(tauriPath, JSON.stringify(conf, null, 2));
+                console.log('Actualizado tauri.conf.json -> ' + ver);
+              }
+
+              // 2. Cargo.toml
+              const cargoPath = 'Proyecto_Horarios/src-tauri/Cargo.toml';
+              if (fs.existsSync(cargoPath)) {
+                let cargo = fs.readFileSync(cargoPath, 'utf8');
+                cargo = cargo.replace(/^version\s*=\s*\"[^\"]+\"/m, 'version = \"' + ver + '\"');
+                fs.writeFileSync(cargoPath, cargo);
+                console.log('Actualizado Cargo.toml -> ' + ver);
+              }
+
+              // 3. updater.ts
+              const updaterPath = 'Web/src/updater.ts';
+              if (fs.existsSync(updaterPath)) {
+                let updater = fs.readFileSync(updaterPath, 'utf8');
+                updater = updater.replace(/export const CURRENT_VERSION = \"[^\"]+\";/, 'export const CURRENT_VERSION = \"' + ver + '\";');
+                fs.writeFileSync(updaterPath, updater);
+                console.log('Actualizado updater.ts -> ' + ver);
+              }
+
+              // 4. eduschedule.html
+              const htmlPath = 'Web/src/eduschedule.html';
+              if (fs.existsSync(htmlPath)) {
+                let html = fs.readFileSync(htmlPath, 'utf8');
+                html = html.replace(/Versión instalada: <span class=\"[^\"]*\">v[^<]*<\/span>/, 'Versión instalada: <span class=\"font-mono font-semibold text-indigo-600\">v' + ver + '</span>');
+                fs.writeFileSync(htmlPath, html);
+                console.log('Actualizado eduschedule.html -> v' + ver);
+              }
+            "
+          else
+            echo "====> No es un tag de versión semántica ($RAW_TAG), manteniendo versión actual."
+          fi
 
       - name: Setup Rust Stable
         uses: dtolnay/rust-toolchain@stable
@@ -140,7 +195,7 @@ jobs:
   release:
     name: Publish GitHub Release
     needs: build
-    if: startsWith(github.ref, 'refs/tags/v')
+    if: startsWith(github.ref, 'refs/tags/v') || startsWith(github.ref, 'refs/tags/V') || github.event_name == 'release'
     runs-on: ubuntu-latest
     steps:
       - name: Download all artifacts
