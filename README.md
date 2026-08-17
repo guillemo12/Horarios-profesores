@@ -14,7 +14,7 @@
   <img src="https://img.shields.io/badge/Tauri-v2-FFC131.svg?logo=tauri&logoColor=black" alt="Tauri 2" />
   <img src="https://img.shields.io/badge/Rust-Stable-DEA584.svg?logo=rust&logoColor=black" alt="Rust" />
   <img src="https://img.shields.io/badge/Google_OR--Tools-CP--SAT-4285F4.svg?logo=google&logoColor=white" alt="OR-Tools" />
-  <img src="https://img.shields.io/badge/TypeScript-5.0-3178C6.svg?logo=typescript&logoColor=white" alt="TypeScript" />
+  <img src="https://img.shields.io/badge/Deno-2.0+-000000.svg?logo=deno&logoColor=white" alt="Deno" />
   <img src="https://img.shields.io/badge/Platform-Windows%20|%20Linux-0078D6.svg" alt="Platforms" />
   <img src="https://img.shields.io/badge/License-GPL--3.0-blue.svg" alt="License: GPL-3.0" />
   <img src="https://img.shields.io/github/v/release/guillemo12/Horarios-profesores?color=success&label=Release" alt="GitHub Release" />
@@ -120,9 +120,8 @@ Download the latest version from the **[GitHub Releases](https://github.com/guil
 
 ### Prerequisites
 * **Java JDK 21+**
-* **Node.js 20+**
+* **Deno 2.0+** (from [deno.com](https://deno.com))
 * **Rust & Cargo** (stable toolchain)
-* **Tauri CLI**: `npm install -g @tauri-apps/cli`
 
 ### Development Setup
 
@@ -132,22 +131,20 @@ Download the latest version from the **[GitHub Releases](https://github.com/guil
    cd Horarios-profesores
    ```
 
-2. **Bundle the Web Frontend**:
+2. **Bundle the Web Frontend (using Deno)**:
    ```bash
-   npx esbuild Web/src/Datos.ts --bundle --outfile=src/main/resources/static/Datos.js --format=iife
-   cp Web/src/eduschedule.html src/main/resources/static/index.html
+   deno task bundle
    ```
 
-3. **Run the Backend Server (Kotlin)**:
+3. **Run the Backend Server (Kotlin Ktor)**:
    ```bash
    ./gradlew run
    ```
    > The web app will be available at `http://localhost:8080`.
 
-4. **Launch the Desktop App (Tauri)**:
+4. **Launch the Desktop App (Tauri via Deno)**:
    ```bash
-   cd Proyecto_Horarios
-   npm run tauri dev
+   deno task tauri:dev
    ```
 
 ### Running Tests

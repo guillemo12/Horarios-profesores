@@ -37,11 +37,11 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - name: Setup Deno
+        uses: denoland/setup-deno@v2
         with:
-          node-version: '20'
+          deno-version: v2.x
 
-      - name: Test Frontend Bundle with esbuild
+      - name: Test Frontend Bundle with Deno (esbuild)
         run: |
-          npx -y esbuild Web/src/Datos.ts --bundle --outfile=src/main/resources/static/Datos.js --format=iife
+          deno run -A npm:esbuild Web/src/Datos.ts --bundle --outfile=src/main/resources/static/Datos.js --format=iife

@@ -16,9 +16,8 @@ By participating in this project, you agree to abide by our [Code of Conduct](CO
 
 Make sure you have the following installed on your machine:
 * **Java Development Kit (JDK) 21+** (e.g. Eclipse Temurin / OpenJDK)
-* **Node.js 20+** and `npm`
+* **Deno 2.0+** (from [deno.com](https://deno.com))
 * **Rust & Cargo** (latest stable toolchain from [rustup.rs](https://rustup.rs))
-* **Tauri CLI**: `npm install -g @tauri-apps/cli`
 
 ### Fork & Clone the Repository
 
@@ -48,10 +47,9 @@ git checkout -b fix/issue-description
 
 ### 2. Building & Running Locally
 
-* **Compile the Web Frontend**:
+* **Compile the Web Frontend (Deno)**:
   ```bash
-  npx esbuild Web/src/Datos.ts --bundle --outfile=src/main/resources/static/Datos.js --format=iife
-  cp Web/src/eduschedule.html src/main/resources/static/index.html
+  deno task bundle
   ```
 
 * **Run the Backend Server (Kotlin Ktor)**:
@@ -60,10 +58,9 @@ git checkout -b fix/issue-description
   ```
   Access the web interface at `http://localhost:8080`.
 
-* **Run the Desktop App (Tauri)**:
+* **Run the Desktop App (Tauri via Deno)**:
   ```bash
-  cd Proyecto_Horarios
-  npm run tauri dev
+  deno task tauri:dev
   ```
 
 ### 3. Running Tests

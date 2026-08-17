@@ -1,0 +1,8 @@
+{
+  "tasks": {
+    "bundle": "deno run -A npm:esbuild Web/src/Datos.ts --bundle --outfile=src/main/resources/static/Datos.js --format=iife && cp Web/src/eduschedule.html src/main/resources/static/index.html",
+    "dev": "deno run --allow-net --allow-read jsr:@std/http/file-server src/main/resources/static --port 8080",
+    "tauri:dev": "deno run -A npm:@tauri-apps/cli dev",
+    "tauri:build": "deno run -A npm:@tauri-apps/cli build"
+  }
+}
