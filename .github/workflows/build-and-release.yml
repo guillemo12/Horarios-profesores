@@ -93,11 +93,14 @@ jobs:
         env:
           ARCH: x86_64
           NO_STRIP: "true"
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: npx @tauri-apps/cli build --ci --bundles deb,appimage --verbose
 
       - name: Build Tauri Desktop App (Windows)
         if: matrix.platform == 'windows'
         working-directory: Proyecto_Horarios
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: npx @tauri-apps/cli build --ci --bundles msi,nsis --ignore-version-mismatches
 
       - name: Build Portable Single EXE (Windows only)
