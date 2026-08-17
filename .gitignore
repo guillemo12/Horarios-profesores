@@ -1,4 +1,12 @@
 /SalvaVacaciones/
 /build/
 /.gradle/
-colegio.db
+*.db
+/dist/
+EduSchedule_Unico.exe
+payload.zip
+cargo
+Proyecto_Horarios/src-tauri/target/
+Proyecto_Horarios/src-tauri/backend_ktor/
+.idea/
+

@@ -1,0 +1,120 @@
+import { AppData } from './Datos';
+import { showToast } from './utils';
+
+export function loadSettings(): void {
+    const conf = AppData.config;
+    if (!conf) return;
+
+    const elMinimo = document.getElementById('settings-tiempo-minimo') as HTMLInputElement;
+    const elMaximo = document.getElementById('settings-tiempo-maximo') as HTMLInputElement;
+    const elMaxProfe = document.getElementById('settings-max-minutos-profesor') as HTMLInputElement;
+    const elPriorizar = document.getElementById('settings-priorizar-tutor') as HTMLInputElement;
+    const elPriorizarPuntos = document.getElementById('settings-priorizar-tutor-puntos') as HTMLInputElement;
+    const elBloquesPuntos = document.getElementById('settings-bloques-60-puntos') as HTMLInputElement;
+    const elMinimizarAsig = document.getElementById('settings-minimizar-asignaturas') as HTMLInputElement;
+    const elMinimizarAsigPuntos = document.getElementById('settings-minimizar-asignaturas-puntos') as HTMLInputElement;
+    const elLimiteTiempo = document.getElementById('settings-limite-tiempo') as HTMLInputElement;
+    const elTiempoEstancamiento = document.getElementById('settings-tiempo-estancamiento') as HTMLInputElement;
+
+    const elHoraInicio = document.getElementById('settings-hora-inicio') as HTMLInputElement;
+    const elHoraFin = document.getElementById('settings-hora-fin') as HTMLInputElement;
+    const elRecreoInicio = document.getElementById('settings-recreo-inicio') as HTMLInputElement;
+    const elRecreoDuracion = document.getElementById('settings-recreo-duracion') as HTMLInputElement;
+
+    const elRespEspecialidad = document.getElementById('settings-respetar-especialidad') as HTMLInputElement;
+    const elRespLimiteHoras = document.getElementById('settings-respetar-limite-horas') as HTMLInputElement;
+    const elRespDisponibilidad = document.getElementById('settings-respetar-disponibilidad') as HTMLInputElement;
+
+    if (elMinimo) elMinimo.value = conf.tiempoMinimo.toString();
+    if (elMaximo) elMaximo.value = conf.tiempoMaximo.toString();
+    if (elMaxProfe) elMaxProfe.value = conf.minutosMaximosProfesor.toString();
+    
+    if (elPriorizar) {
+        elPriorizar.checked = conf.priorizarTutor;
+        const container = document.getElementById('settings-tutor-points-container');
+        if (container) {
+            container.style.display = conf.priorizarTutor ? 'flex' : 'none';
+        }
+        elPriorizar.onchange = () => {
+            if (container) container.style.display = elPriorizar.checked ? 'flex' : 'none';
+        };
+    }
+    
+    if (elPriorizarPuntos) elPriorizarPuntos.value = conf.priorizarTutorPuntos.toString();
+    if (elBloquesPuntos) elBloquesPuntos.value = conf.fomentarBloques60Puntos.toString();
+
+    if (elMinimizarAsig) {
+        elMinimizarAsig.checked = conf.minimizarAsignaturasDistintas ?? true;
+        const container = document.getElementById('settings-minimizar-asignaturas-points-container');
+        if (container) {
+            container.style.display = elMinimizarAsig.checked ? 'flex' : 'none';
+        }
+        elMinimizarAsig.onchange = () => {
+            if (container) container.style.display = elMinimizarAsig.checked ? 'flex' : 'none';
+        };
+    }
+    if (elMinimizarAsigPuntos) elMinimizarAsigPuntos.value = (conf.minimizarAsignaturasPuntos ?? 50).toString();
+
+    if (elLimiteTiempo) elLimiteTiempo.value = (conf.limiteTiempoSegundos ?? 18000).toString();
+    if (elTiempoEstancamiento) elTiempoEstancamiento.value = (conf.tiempoEstancamientoSegundos ?? 60).toString();
+
+    if (elHoraInicio) elHoraInicio.value = conf.horaInicioClases;
+    if (elHoraFin) elHoraFin.value = conf.horaFinClases;
+    if (elRecreoInicio) elRecreoInicio.value = conf.horaInicioRecreo;
+    if (elRecreoDuracion) elRecreoDuracion.value = conf.duracionRecreo.toString();
+
+    if (elRespEspecialidad) elRespEspecialidad.checked = conf.respetarEspecialidad;
+    if (elRespLimiteHoras) elRespLimiteHoras.checked = conf.respetarLimiteHoras;
+    if (elRespDisponibilidad) elRespDisponibilidad.checked = conf.respetarDisponibilidad;
+}
+
+export async function saveSettings(): Promise<void> {
+    const elMinimo = document.getElementById('settings-tiempo-minimo') as HTMLInputElement;
+    const elMaximo = document.getElementById('settings-tiempo-maximo') as HTMLInputElement;
+    const elMaxProfe = document.getElementById('settings-max-minutos-profesor') as HTMLInputElement;
+    const elPriorizar = document.getElementById('settings-priorizar-tutor') as HTMLInputElement;
+    const elPriorizarPuntos = document.getElementById('settings-priorizar-tutor-puntos') as HTMLInputElement;
+    const elBloquesPuntos = document.getElementById('settings-bloques-60-puntos') as HTMLInputElement;
+    const elMinimizarAsig = document.getElementById('settings-minimizar-asignaturas') as HTMLInputElement;
+    const elMinimizarAsigPuntos = document.getElementById('settings-minimizar-asignaturas-puntos') as HTMLInputElement;
+    const elLimiteTiempo = document.getElementById('settings-limite-tiempo') as HTMLInputElement;
+    const elTiempoEstancamiento = document.getElementById('settings-tiempo-estancamiento') as HTMLInputElement;
+
+    const elHoraInicio = document.getElementById('settings-hora-inicio') as HTMLInputElement;
+    const elHoraFin = document.getElementById('settings-hora-fin') as HTMLInputElement;
+    const elRecreoInicio = document.getElementById('settings-recreo-inicio') as HTMLInputElement;
+    const elRecreoDuracion = document.getElementById('settings-recreo-duracion') as HTMLInputElement;
+
+    const elRespEspecialidad = document.getElementById('settings-respetar-especialidad') as HTMLInputElement;
+    const elRespLimiteHoras = document.getElementById('settings-respetar-limite-horas') as HTMLInputElement;
+    const elRespDisponibilidad = document.getElementById('settings-respetar-disponibilidad') as HTMLInputElement;
+
+    const payload = {
+        priorizarTutor: elPriorizar ? elPriorizar.checked : false,
+        tiempoMinimo: elMinimo ? parseInt(elMinimo.value) : 30,
+        tiempoMaximo: elMaximo ? parseInt(elMaximo.value) : 60,
+        minutosMaximosProfesor: elMaxProfe ? parseInt(elMaxProfe.value) : 1500,
+        priorizarTutorPuntos: elPriorizarPuntos ? parseInt(elPriorizarPuntos.value) : 100,
+        fomentarBloques60Puntos: elBloquesPuntos ? parseInt(elBloquesPuntos.value) : 10,
+        minimizarAsignaturasDistintas: elMinimizarAsig ? elMinimizarAsig.checked : true,
+        minimizarAsignaturasPuntos: elMinimizarAsigPuntos ? parseInt(elMinimizarAsigPuntos.value) : 50,
+        limiteTiempoSegundos: elLimiteTiempo ? parseFloat(elLimiteTiempo.value) : 18000.0,
+        tiempoEstancamientoSegundos: elTiempoEstancamiento ? parseFloat(elTiempoEstancamiento.value) : 60.0,
+
+        horaInicioClases: elHoraInicio ? elHoraInicio.value : "09:00",
+        horaFinClases: elHoraFin ? elHoraFin.value : "14:00",
+        horaInicioRecreo: elRecreoInicio ? elRecreoInicio.value : "12:00",
+        duracionRecreo: elRecreoDuracion ? parseInt(elRecreoDuracion.value) : 30,
+
+        respetarEspecialidad: elRespEspecialidad ? elRespEspecialidad.checked : true,
+        respetarLimiteHoras: elRespLimiteHoras ? elRespLimiteHoras.checked : true,
+        respetarDisponibilidad: elRespDisponibilidad ? elRespDisponibilidad.checked : true
+    };
+
+    try {
+        AppData.config = await AppData.API.saveConfig(payload);
+        showToast("Éxito", "Configuración de reglas guardada correctamente", "success");
+    } catch (err) {
+        showToast("Error", "No se pudo guardar la configuración", "error");
+    }
+}

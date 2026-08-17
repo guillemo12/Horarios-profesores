@@ -4,12 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>EduSchedule - Gestor de Horarios</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://uicdn.toast.com/calendar/latest/toastui-calendar.min.css" />
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="/lib/tailwind.js"></script>
+    <link rel="stylesheet" href="/lib/toastui-calendar.min.css" />
     
     <style>
-        body { font-family: 'Inter', sans-serif; background-color: #f3f4f6; }
+        body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background-color: #f3f4f6; }
         
         /* Layout del calendario para ocupar todo el espacio flex */
         #calendar-container { flex: 1; min-height: 0; display: flex; flex-direction: column; }
@@ -33,6 +32,59 @@
         
         /* Loader Overlay */
         #app-loader { transition: opacity 0.3s ease; }
+
+        /* Estilos de Impresión / PDF */
+        @media print {
+            @page {
+                size: A4 landscape;
+                margin: 8mm;
+            }
+
+            html, body {
+                background: white !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+
+            body > *:not(#print-area) {
+                display: none !important;
+            }
+
+            #print-area {
+                display: block !important;
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 100% !important;
+                background: white !important;
+                color: black !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+
+            .print-page {
+                page-break-after: always !important;
+                break-after: page !important;
+                page-break-inside: avoid !important;
+                break-inside: avoid !important;
+                width: 100% !important;
+                box-sizing: border-box !important;
+                padding: 0.5rem !important;
+                margin: 0 !important;
+            }
+        }
+        @media screen {
+            #print-area {
+                display: none !important;
+            }
+        }
+
+        /* Mostrar tooltip de conflictos */
+        #status-conflict:hover #conflict-tooltip {
+            display: block !important;
+        }
     </style>
 </head>
 <body class="h-screen flex overflow-hidden text-gray-800">
@@ -58,10 +110,6 @@
                 <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path></svg>
                 <span class="hidden md:block truncate">Asignaciones</span>
             </button>
-            <button onclick="switchTab('subjects')" id="nav-subjects" class="nav-btn w-full flex items-center gap-3 px-3 py-3 rounded-lg text-sm font-medium hover:bg-slate-700 transition-colors text-slate-300 hover:text-white" title="Asignaturas">
-                <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg>
-                <span class="hidden md:block truncate">Asignaturas</span>
-            </button>
             <button onclick="switchTab('teachers')" id="nav-teachers" class="nav-btn w-full flex items-center gap-3 px-3 py-3 rounded-lg text-sm font-medium hover:bg-slate-700 transition-colors text-slate-300 hover:text-white" title="Profesores">
                 <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
                 <span class="hidden md:block truncate">Profesores</span>
@@ -71,7 +119,11 @@
                 <span class="hidden md:block truncate">Cursos y Grupos</span>
             </button>
         </div>
-        <div class="p-3 mt-auto">
+        <div class="p-3 mt-auto space-y-1">
+            <button onclick="checkForUpdates(false)" class="nav-btn w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-medium hover:bg-slate-700 transition-colors text-indigo-300 hover:text-white" title="Buscar Actualizaciones">
+                <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                <span class="hidden md:block truncate">Actualizaciones</span>
+            </button>
             <button onclick="switchTab('settings')" id="nav-settings" class="nav-btn w-full flex items-center gap-3 px-3 py-3 rounded-lg text-sm font-medium hover:bg-slate-700 transition-colors text-slate-400 hover:text-white" title="Configuración">
                 <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
                 <span class="hidden md:block truncate">Configuración</span>
@@ -82,8 +134,8 @@
     <main class="flex-1 flex flex-col h-full bg-gray-100 relative overflow-hidden">
         
         <!-- HEADER (Selectores Dinámicos y Motor WebSocket) -->
-        <header id="header-calendar" class="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-4 sm:px-6 z-10 shadow-sm flex-shrink-0">
-            <div class="flex items-center gap-4 w-full md:w-auto overflow-x-auto pb-1 md:pb-0">
+        <header id="header-calendar" class="min-h-16 py-2 bg-white border-b border-gray-200 flex flex-wrap items-center justify-between px-4 sm:px-6 gap-4 z-10 shadow-sm flex-shrink-0">
+            <div class="flex items-center gap-4 w-full md:w-auto overflow-x-auto pb-1 md:pb-0 flex-shrink-0">
                 <div class="flex items-center bg-gray-50 rounded-lg p-1 border border-gray-200 shadow-sm whitespace-nowrap flex-shrink-0">
                     <select id="view-type-select" onchange="updateEntitySelector()" class="bg-transparent border-none text-sm font-semibold text-gray-700 focus:ring-0 cursor-pointer pr-8 outline-none py-1">
                         <option value="group">Vista de Grupo</option>
@@ -102,15 +154,17 @@
                 </div>
             </div>
 
-            <!-- Controles de Fecha y Añadir Clase (NUEVO) -->
-            <div class="hidden lg:flex items-center gap-3">
-                <span id="calendar-date-range" class="text-sm font-medium text-gray-600">...</span>
-                <div class="flex bg-gray-100 rounded-lg p-0.5 border border-gray-200">
-                    <button onclick="AppData.calendarInstance.today(); updateDateRange();" class="px-3 py-1 text-xs font-medium text-gray-700 hover:bg-white rounded shadow-sm transition-all">Hoy</button>
-                    <button onclick="AppData.calendarInstance.prev(); updateDateRange();" class="px-2 py-1 text-gray-500 hover:text-gray-800 transition-colors"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg></button>
-                    <button onclick="AppData.calendarInstance.next(); updateDateRange();" class="px-2 py-1 text-gray-500 hover:text-gray-800 transition-colors"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg></button>
-                </div>
-                <button onclick="openAddClassModal()" class="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 rounded-lg text-sm font-medium transition-colors shadow-sm">
+            <!-- Botones de Acción (Imprimir PDF, Alternar Modo Color y Añadir Clase) -->
+            <div class="hidden lg:flex items-center gap-3 flex-shrink-0">
+                <button onclick="printAllSchedules()" id="btn-print-pdf" class="flex items-center gap-1.5 bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors shadow-sm whitespace-nowrap flex-shrink-0" title="Imprimir y exportar a PDF todos los calendarios de todos los cursos">
+                    <span>🖨️</span>
+                    <span>Imprimir PDF</span>
+                </button>
+                <button onclick="toggleColorMode()" id="btn-color-mode" class="flex items-center gap-1.5 bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors shadow-sm whitespace-nowrap flex-shrink-0" title="Alternar colores entre Profesor y Asignatura">
+                    <span id="btn-color-mode-icon">🎨</span>
+                    <span id="btn-color-mode-text">Color: Profesor</span>
+                </button>
+                <button onclick="openAddClassModal()" class="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 rounded-lg text-sm font-medium transition-colors shadow-sm whitespace-nowrap flex-shrink-0">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
                     Añadir Clase
                 </button>
@@ -124,23 +178,48 @@
                 </div>
 
                 <div id="score-dashboard" class="flex items-center mr-2 border-r pr-4 border-gray-200 gap-3 hidden md:flex">
-                    <div id="status-conflict" class="flex items-center gap-1.5 px-2.5 py-1 bg-red-50 text-red-700 rounded-md border border-red-200 transition-all duration-300">
+                    <div id="status-conflict" class="relative group flex items-center gap-1.5 px-2.5 py-1 bg-red-50 text-red-700 rounded-md border border-red-200 transition-all duration-300 cursor-help">
                         <svg class="w-4 h-4 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
                         <span class="text-xs font-bold uppercase tracking-wider">Conflictos: <span id="score-hard">?</span></span>
+                        
+                        <!-- Tooltip de Conflictos Detallados (Inspector) -->
+                        <div id="conflict-tooltip" class="absolute top-full right-0 hidden group-hover:block pt-2 z-[100]">
+                        <div class="bg-white text-gray-800 border border-gray-200 shadow-2xl rounded-lg p-4 w-96 text-xs space-y-2 transition-all duration-200 max-h-80 overflow-y-auto">
+                            <div class="font-bold border-b pb-1 text-gray-700 uppercase tracking-wider flex justify-between">
+                                <span>Desglose de Conflictos</span>
+                                <span id="conflict-tooltip-count" class="text-red-600 bg-red-50 px-1.5 py-0.5 rounded text-[10px]">0</span>
+                            </div>
+                            <div id="conflict-tooltip-list" class="space-y-1.5 max-h-60 overflow-y-auto pr-1">
+                                <span class="text-gray-400 italic">No hay conflictos activos.</span>
+                            </div>
+                        </div>
+                        </div>
                     </div>
                     <div id="status-ok" class="hidden flex items-center gap-1.5 px-2.5 py-1 bg-green-50 text-green-700 rounded-md border border-green-200 transition-all duration-300">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
                         <span class="text-xs font-bold uppercase tracking-wider">Válido</span>
                     </div>
                     <div class="w-px h-6 bg-gray-200 mx-1"></div>
-                    <div class="flex flex-col items-end" title="Puntos Soft (Optimizador WS)">
-                        <div class="flex items-center gap-1.5">
-                            <span class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Soft</span>
-                            <span id="score-soft" class="text-blue-600 text-sm font-bold">...</span>
+                    <div class="relative group flex flex-col items-end cursor-help">
+                        <div class="flex items-center gap-1.5 px-2 py-0.5 bg-blue-50 border border-blue-200 rounded-md">
+                            <span class="text-[10px] font-bold text-blue-500 uppercase tracking-wider">Optimizado</span>
+                            <span id="score-soft" class="text-blue-700 text-xs font-extrabold">0.0%</span>
+                        </div>
+                        <!-- Tooltip al pasar el ratón -->
+                        <div class="absolute top-full right-0 hidden group-hover:block pt-2 z-[100]">
+                            <div class="bg-gray-900 text-white rounded-lg px-3 py-2 text-xs shadow-xl whitespace-nowrap border border-gray-800">
+                                <div id="score-soft-tooltip-text" class="font-medium text-slate-200">
+                                    Puntos: <b class="text-white">0</b> / <b class="text-indigo-400">0</b> pts
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
 
+                <button onclick="runPrevalidation()" class="px-3 py-1.5 bg-amber-50 text-amber-700 border border-amber-300 rounded-lg text-sm font-medium hover:bg-amber-100 transition-colors shadow-sm flex items-center gap-1.5" title="Comprobar viabilidad antes de generar">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+                    <span class="hidden sm:inline">Diagnóstico</span>
+                </button>
                 <button id="btn-toggle-engine" onclick="toggleOptimizationEngine()" class="px-4 py-1.5 bg-gray-400 text-white rounded-lg text-sm font-medium transition-colors shadow-sm flex items-center gap-2 cursor-not-allowed" disabled>
                     <svg id="icon-play" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                     <svg id="icon-stop" class="w-4 h-4 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 10a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z"></path></svg>
@@ -152,8 +231,12 @@
         <div class="flex-1 overflow-auto p-4 sm:p-6" id="main-content-area">
             <!-- VISTA 1: CALENDARIO -->
             <div id="view-calendar" class="view-tab active">
-                <div id="calendar-container" class="bg-white rounded-xl shadow-sm border border-gray-200 relative">
+                <div id="calendar-container" class="bg-white rounded-xl shadow-sm border border-gray-200 relative flex-1 flex flex-col min-h-[500px]">
                     <div id="calendar"></div>
+                </div>
+                <!-- Resumen de Docente (NUEVO) -->
+                <div id="teacher-summary-card" class="mt-4 bg-white border border-slate-200 rounded-xl p-4 shadow-sm hidden">
+                    <div id="teacher-summary-content"></div>
                 </div>
             </div>
 
@@ -165,13 +248,16 @@
 
             <!-- VISTA 3: ASIGNATURAS -->
             <div id="view-subjects" class="view-tab max-w-4xl mx-auto">
+                <button onclick="switchTab('courses')" class="text-indigo-600 hover:text-indigo-800 text-sm font-semibold flex items-center gap-1 mb-2">
+                    ← Volver a Cursos y Grupos
+                </button>
                 <div class="flex justify-between items-end mb-6">
-                    <h2 class="text-2xl font-bold text-gray-800">Gestión de Asignaturas</h2>
+                    <h2 class="text-2xl font-bold text-gray-800" id="view-subjects-title">Gestión de Asignaturas</h2>
                     <button onclick="openFormModal('subject')" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium">Nueva Asignatura</button>
                 </div>
-                <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-                    <table class="w-full text-left border-collapse">
-                        <thead><tr class="bg-gray-50 text-gray-600 text-sm border-b"><th class="p-4">Asignatura</th><th class="p-4 text-center">Horas</th><th class="p-4 text-center">Acciones</th></tr></thead>
+                <div class="bg-white rounded-xl shadow-sm border border-gray-200 max-h-[500px] overflow-y-auto">
+                    <table class="w-full text-left border-collapse relative">
+                        <thead><tr class="bg-gray-50 text-gray-600 text-sm border-b sticky top-0 bg-gray-50 z-10"><th class="p-4">Asignatura</th><th class="p-4 text-center">Horas</th><th class="p-4 text-center">Acciones</th></tr></thead>
                         <tbody id="table-subjects" class="divide-y divide-gray-100"></tbody>
                     </table>
                 </div>
@@ -197,9 +283,179 @@
 
             <!-- VISTA 6: CONFIGURACIÓN -->
             <div id="view-settings" class="view-tab max-w-2xl mx-auto">
-                <h2 class="text-2xl font-bold text-gray-800 mb-6">Preferencias WS API</h2>
-                <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 space-y-6">
-                    <p class="text-sm text-gray-500">Aquí se conectarán opciones extra para enviar al servidor optimizador.</p>
+                <h2 class="text-2xl font-bold text-gray-800 mb-6">Configuración del Motor y Reglas</h2>
+                <form id="form-settings" onsubmit="event.preventDefault(); saveSettings();" class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 space-y-6">
+                    
+                    <!-- Configuración General -->
+                    <div class="border-b pb-6">
+                        <h3 class="text-lg font-bold text-gray-700 mb-4">Parámetros Generales y Horario</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                            <div title="El tiempo mínimo de cada sesión/franja de clase. Por ejemplo, sesiones de 30 o 60 minutos.">
+                                <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Tiempo Mínimo Sesión (min)</label>
+                                <input type="number" id="settings-tiempo-minimo" min="15" max="120" step="5" class="w-full border border-gray-300 rounded-lg p-2.5 text-sm outline-none focus:ring-2 focus:ring-indigo-500" required>
+                            </div>
+                            <div title="La duración máxima de una clase continua de una asignatura en un mismo día.">
+                                <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Tiempo Máximo Sesión (min)</label>
+                                <input type="number" id="settings-tiempo-maximo" min="15" max="120" step="5" class="w-full border border-gray-300 rounded-lg p-2.5 text-sm outline-none focus:ring-2 focus:ring-indigo-500" required>
+                            </div>
+                            <div title="Límite máximo de minutos lectivos permitidos a un profesor por semana.">
+                                <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Máx. Minutos Semanales Profesor</label>
+                                <input type="number" id="settings-max-minutos-profesor" min="100" max="3000" step="30" class="w-full border border-gray-300 rounded-lg p-2.5 text-sm outline-none focus:ring-2 focus:ring-indigo-500" required>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 border-t pt-4">
+                            <div title="Hora de inicio de la jornada escolar (ej: 09:00)">
+                                <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Hora Inicio Clases</label>
+                                <input type="time" id="settings-hora-inicio" class="w-full border border-gray-300 rounded-lg p-2.5 text-sm outline-none focus:ring-2 focus:ring-indigo-500" required>
+                            </div>
+                            <div title="Hora de finalización de la jornada escolar (ej: 14:00)">
+                                <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Hora Fin Clases</label>
+                                <input type="time" id="settings-hora-fin" class="w-full border border-gray-300 rounded-lg p-2.5 text-sm outline-none focus:ring-2 focus:ring-indigo-500" required>
+                            </div>
+                            <div title="Hora a la que comienza el recreo escolar (ej: 12:00)">
+                                <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Hora Inicio Recreo</label>
+                                <input type="time" id="settings-recreo-inicio" class="w-full border border-gray-300 rounded-lg p-2.5 text-sm outline-none focus:ring-2 focus:ring-indigo-500" required>
+                            </div>
+                            <div title="Duración del recreo en minutos (ej: 30 minutos)">
+                                <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Duración Recreo (min)</label>
+                                <input type="number" id="settings-recreo-duracion" min="5" max="120" step="5" class="w-full border border-gray-300 rounded-lg p-2.5 text-sm outline-none focus:ring-2 focus:ring-indigo-500" required>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Configuración de Reglas Duras (Hard Constraints) -->
+                    <div class="border-b pb-6">
+                        <h3 class="text-lg font-bold text-gray-700 mb-4">Reglas Duras (Hard Constraints)</h3>
+                        <div class="space-y-3">
+                            <label class="flex items-center justify-between p-4 bg-slate-50 rounded-lg border border-slate-100 cursor-pointer hover:bg-slate-100 transition-colors">
+                                <div class="flex flex-col pr-4" title="Si está activo, obliga a que solo profesores con la especialidad adecuada impartan la asignatura.">
+                                    <span class="text-sm font-semibold text-gray-800">Respetar Especialidad Docente</span>
+                                    <span class="text-xs text-gray-500">Evitar asignar profesores no capacitados a una materia.</span>
+                                </div>
+                                <input type="checkbox" id="settings-respetar-especialidad" class="w-4 h-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded">
+                            </label>
+                            
+                            <label class="flex items-center justify-between p-4 bg-slate-50 rounded-lg border border-slate-100 cursor-pointer hover:bg-slate-100 transition-colors">
+                                <div class="flex flex-col pr-4" title="Si está activo, el motor no asignará más horas de las permitidas a ningún profesor.">
+                                    <span class="text-sm font-semibold text-gray-800">Respetar Límite de Horas</span>
+                                    <span class="text-xs text-gray-500">Asegurar que los profesores no superen su tope de horas semanales.</span>
+                                </div>
+                                <input type="checkbox" id="settings-respetar-limite-horas" class="w-4 h-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded">
+                            </label>
+
+                            <label class="flex items-center justify-between p-4 bg-slate-50 rounded-lg border border-slate-100 cursor-pointer hover:bg-slate-100 transition-colors">
+                                <div class="flex flex-col pr-4" title="Si está activo, respeta las celdas rojas de indisponibilidad semanal marcadas en cada profesor.">
+                                    <span class="text-sm font-semibold text-gray-800">Respetar Disponibilidad Docente</span>
+                                    <span class="text-xs text-gray-500">Evitar programar clases en las franjas no disponibles del profesor.</span>
+                                </div>
+                                <input type="checkbox" id="settings-respetar-disponibilidad" class="w-4 h-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded">
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Configuración de Reglas Soft -->
+                    <div>
+                        <h3 class="text-lg font-bold text-gray-700 mb-4">Ponderación y Prioridades de Reglas Soft</h3>
+                        <div class="space-y-4">
+                            
+                            <!-- Priorizar Tutor del Grupo -->
+                            <div class="p-4 bg-slate-50 rounded-lg border border-slate-100 flex flex-col gap-3">
+                                <div class="flex items-center justify-between">
+                                    <div class="flex flex-col" title="Activa la prioridad para que los tutores de cada grupo impartan las materias troncales en su propia clase.">
+                                        <span class="text-sm font-semibold text-gray-800">Priorizar Tutor del Grupo</span>
+                                        <span class="text-xs text-gray-500">¿Buscar que el tutor dé clase a su propio grupo?</span>
+                                    </div>
+                                    <input type="checkbox" id="settings-priorizar-tutor" class="w-4 h-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded">
+                                </div>
+                                <div id="settings-tutor-points-container" class="flex items-center gap-4 border-t pt-2 mt-1">
+                                    <div class="w-full" title="Cantidad de puntos blandos (Soft Score) recompensados al motor por colocar al tutor con su grupo.">
+                                        <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Puntos de Recompensa (Soft)</label>
+                                        <input type="number" id="settings-priorizar-tutor-puntos" min="0" max="10000" class="w-full border border-gray-300 rounded-lg p-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Fomentar Bloques de 60 Minutos -->
+                            <div class="p-4 bg-slate-50 rounded-lg border border-slate-100 flex items-center justify-between" title="Recompensa puntos por colocar dos sesiones consecutivas de la misma materia en el mismo día, facilitando bloques continuos de 1 hora.">
+                                <div class="flex flex-col pr-4">
+                                    <span class="text-sm font-semibold text-gray-800">Fomentar Bloques de 60 Minutos</span>
+                                    <span class="text-xs text-gray-500">Agrupar sesiones de la misma asignatura en un mismo día.</span>
+                                </div>
+                                <div class="w-40">
+                                    <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Recompensa (Soft)</label>
+                                    <input type="number" id="settings-bloques-60-puntos" min="0" max="1000" class="w-full border border-gray-300 rounded-lg p-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500" required>
+                                </div>
+                            </div>
+
+                            <!-- Minimizar Asignaturas Distintas por Profesor -->
+                            <div class="p-4 bg-slate-50 rounded-lg border border-slate-100 flex flex-col gap-3">
+                                <div class="flex items-center justify-between">
+                                    <div class="flex flex-col pr-4" title="Fomenta que los profesores impartan el menor número de asignaturas distintas posible, concentrando sus clases.">
+                                        <span class="text-sm font-semibold text-gray-800">Minimizar Asignaturas Distintas por Docente</span>
+                                        <span class="text-xs text-gray-500">Buscar que los profesores impartan menos variedad de materias distintas.</span>
+                                    </div>
+                                    <input type="checkbox" id="settings-minimizar-asignaturas" class="w-4 h-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded">
+                                </div>
+                                <div id="settings-minimizar-asignaturas-points-container" class="flex items-center gap-4 border-t pt-2 mt-1">
+                                    <div class="w-full" title="Cantidad de puntos de penalización por cada asignatura distinta adicional que imparta un profesor.">
+                                        <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Puntos de Recompensa/Penalización (Soft)</label>
+                                        <input type="number" id="settings-minimizar-asignaturas-puntos" min="0" max="10000" class="w-full border border-gray-300 rounded-lg p-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Tiempo Límite de Optimización -->
+                            <div class="p-4 bg-slate-50 rounded-lg border border-slate-100 flex items-center justify-between" title="Tiempo máximo en segundos que el motor Google OR-Tools buscará el horario óptimo (0 = Ilimitado).">
+                                <div class="flex flex-col pr-4">
+                                    <span class="text-sm font-semibold text-gray-800">Tiempo Máximo de Optimización (s)</span>
+                                    <span class="text-xs text-gray-500">Tope máximo de ejecución en segundos (indica 0 para ilimitado).</span>
+                                </div>
+                                <div class="w-40">
+                                    <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Segundos (0=∞)</label>
+                                    <input type="number" id="settings-limite-tiempo" min="0" max="86400" class="w-full border border-gray-300 rounded-lg p-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500" required>
+                                </div>
+                            </div>
+
+                            <!-- Tiempo de Estancamiento -->
+                            <div class="p-4 bg-slate-50 rounded-lg border border-slate-100 flex items-center justify-between" title="Si pasan estos segundos sin que el motor consiga colocar ni una clase más, se detiene automáticamente y guarda el mejor horario encontrado (0 = Desactivado).">
+                                <div class="flex flex-col pr-4">
+                                    <span class="text-sm font-semibold text-gray-800">Parada por Estancamiento (s)</span>
+                                    <span class="text-xs text-gray-500">Detener si pasan estos segundos sin mejorar (0 para desactivar).</span>
+                                </div>
+                                <div class="w-40">
+                                    <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Segundos (0=Off)</label>
+                                    <input type="number" id="settings-tiempo-estancamiento" min="0" max="3600" class="w-full border border-gray-300 rounded-lg p-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500" required>
+                                </div>
+                            </div>
+
+                        </div>
+                    </div>
+
+                    <!-- Guardar -->
+                    <div class="flex justify-end pt-4 border-t">
+                        <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm">
+                            Guardar Configuración
+                        </button>
+                    </div>
+
+                </form>
+
+                <!-- Tarjeta de Versión y Actualizaciones -->
+                <div class="mt-6 bg-white rounded-xl shadow-sm border border-gray-200 p-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 font-bold text-lg">
+                            🎓
+                        </div>
+                        <div>
+                            <h4 class="font-bold text-slate-800 text-sm">EduSchedule Desktop</h4>
+                            <p class="text-xs text-slate-500">Versión instalada: <span class="font-mono font-semibold text-indigo-600">v0.1.0</span> (Multiplataforma)</p>
+                        </div>
+                    </div>
+                    <button onclick="checkForUpdates(false)" class="w-full sm:w-auto px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-lg text-xs font-semibold shadow-sm transition-colors flex items-center justify-center gap-2 cursor-pointer">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                        Comprobar Actualizaciones
+                    </button>
                 </div>
             </div>
         </div>
@@ -268,600 +524,72 @@
     <div id="crud-modal" class="fixed inset-0 bg-gray-900 bg-opacity-50 hidden items-center justify-center z-50 p-4">
         <div class="bg-white rounded-xl shadow-xl w-full max-w-md mx-auto"><div class="flex justify-between p-4 border-b"><h3 class="font-bold" id="crud-modal-title"></h3><button onclick="closeCrudModal()">X</button></div><div class="p-5 max-h-[70vh] overflow-y-auto" id="crud-modal-body"></div></div>
     </div>
+
+    <!-- Modal de Disponibilidad Horaria Docente (NUEVO) -->
+    <div id="availability-modal" class="fixed inset-0 bg-gray-900 bg-opacity-50 hidden items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-xl shadow-xl w-full max-w-2xl mx-auto overflow-hidden">
+            <div class="bg-indigo-600 px-5 py-4 flex justify-between items-center">
+                <h3 class="font-bold text-white text-lg flex items-center gap-2">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                    Disponibilidad Semanal: <span id="availability-teacher-name"></span>
+                </h3>
+                <button onclick="closeAvailabilityModal()" class="text-indigo-200 hover:text-white transition-colors"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></button>
+            </div>
+            <div class="p-5 space-y-4">
+                <p class="text-xs text-gray-500">Haz clic en los bloques horarios para alternar su estado. Los bloques en <span class="text-red-600 font-bold">Rojo ("No disponible")</span> serán evitados estrictamente por el motor de optimización.</p>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse border border-gray-200">
+                        <thead>
+                            <tr class="bg-gray-50 text-gray-700 text-xs uppercase tracking-wider font-bold">
+                                <th class="p-3 border border-gray-200">Hora</th>
+                                <th class="p-3 border border-gray-200 text-center">Lunes</th>
+                                <th class="p-3 border border-gray-200 text-center">Martes</th>
+                                <th class="p-3 border border-gray-200 text-center">Miércoles</th>
+                                <th class="p-3 border border-gray-200 text-center">Jueves</th>
+                                <th class="p-3 border border-gray-200 text-center">Viernes</th>
+                            </tr>
+                        </thead>
+                        <tbody id="availability-grid-body" class="text-xs">
+                            <!-- Llenado dinámico en TypeScript -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="bg-gray-50 px-5 py-4 border-t border-gray-200 flex justify-end gap-3">
+                <button onclick="closeAvailabilityModal()" class="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors">Cancelar</button>
+                <button onclick="saveAvailability()" class="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors shadow-sm">Guardar Disponibilidad</button>
+            </div>
+        </div>
+    </div>
     
     <div id="event-detail-modal" class="fixed inset-0 bg-gray-900 bg-opacity-40 hidden items-center justify-center z-50">
         <div class="bg-white rounded-lg shadow-2xl w-full max-w-xs mx-4 overflow-hidden"><div id="event-detail-header" class="px-4 py-3 flex justify-between"><h3 class="font-bold text-white" id="event-detail-title"></h3><button onclick="closeEventDetail()" class="text-white">X</button></div><div class="p-4 space-y-2" id="event-detail-body"></div><div class="bg-gray-50 px-4 py-3 flex justify-end gap-2"><button id="btn-pin-event" class="px-3 py-1 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded text-xs font-medium">Fijar (Pin)</button><button id="btn-delete-event" class="px-3 py-1 bg-red-50 text-red-700 border border-red-200 rounded text-xs font-medium">Borrar Vía API</button></div></div>
     </div>
 
+    <!-- Modal de Pre-validación -->
+    <div id="prevalidation-modal" class="fixed inset-0 bg-gray-900/50 backdrop-blur-sm hidden items-center justify-center z-50">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-4 overflow-hidden border border-gray-200">
+            <div class="px-6 py-4 bg-gradient-to-r from-indigo-600 to-purple-600 flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                    <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+                    <h3 class="text-white font-bold text-lg">Diagnóstico de Viabilidad</h3>
+                </div>
+                <button onclick="closePrevalidation()" class="text-white/80 hover:text-white transition-colors">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+            <div class="p-5 space-y-3">
+                <div id="prevalidation-summary"></div>
+                <div id="prevalidation-body" class="space-y-2 max-h-[50vh] overflow-y-auto pr-1"></div>
+            </div>
+            <div class="px-6 py-3 bg-gray-50 border-t flex justify-end">
+                <button onclick="closePrevalidation()" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-300 transition-colors">Cerrar</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Librerías -->
-    <script src="https://uicdn.toast.com/calendar/latest/toastui-calendar.min.js"></script>
-
-    <script>
-        class ApiService {
-            constructor() {
-                // Configuraciones Base
-                this.baseUrl = '/api/v1'; 
-                // DB Local temporal simulando una base de datos real del servidor
-                this.db = {
-                    subjects: [{ id: 'sub-mat', name: 'Matemáticas', hours: 4 }, { id: 'sub-len', name: 'Lengua', hours: 4 }],
-                    teachers: [{ id: 't-garcia', name: 'García, J.', maxHours: 15, color: '#ef4444', subjects: ['sub-mat'] }, { id: 't-lopez', name: 'López, M.', maxHours: 18, color: '#3b82f6', subjects: ['sub-len'] }],
-                    courses: [{ id: 'c-eso1', name: '1º ESO', subjects: ['sub-mat', 'sub-len'], groups: [{ id: 'g-a', name: 'A', tutorId: 't-garcia', assignments: {'sub-mat':'t-garcia'} }] }],
-                    scheduledClasses: []
-                };
-            }
-
-            // --- Simulador de Petición HTTP Asíncrona (Sustituir return mock por fetch real) ---
-            async _mockFetch(endpoint, method = 'GET', payload = null) {
-                return new Promise(resolve => {
-                    setTimeout(() => {
-                        // SOLUCIÓN DUPLICADOS: Devolver una copia del array en los GET (...)
-                        if(method === 'GET') resolve([...(this.db[endpoint] || [])]);
-                        if(method === 'POST') { this.db[endpoint].push(payload); resolve(payload); }
-                        if(method === 'PUT') { 
-                            let idx = this.db[endpoint].findIndex(e => e.id === payload.id);
-                            if(idx > -1) this.db[endpoint][idx] = payload;
-                            resolve(payload); 
-                        }
-                        if(method === 'DELETE') {
-                            this.db[endpoint] = this.db[endpoint].filter(e => e.id !== payload);
-                            resolve({ success: true });
-                        }
-                    }, 150); // Simulando latencia de red
-                });
-            }
-
-            // --- ENDPOINTS EXPUESTOS A LA APP ---
-            async getSubjects() { return this._mockFetch('subjects'); }
-            async saveSubject(s) { return s.id ? this._mockFetch('subjects', 'PUT', s) : this._mockFetch('subjects', 'POST', {...s, id: 's-'+Date.now()}); }
-            async deleteSubject(id) { return this._mockFetch('subjects', 'DELETE', id); }
-
-            async getTeachers() { return this._mockFetch('teachers'); }
-            async saveTeacher(t) { return t.id ? this._mockFetch('teachers', 'PUT', t) : this._mockFetch('teachers', 'POST', {...t, id: 't-'+Date.now()}); }
-            async deleteTeacher(id) { return this._mockFetch('teachers', 'DELETE', id); }
-
-            async getCourses() { return this._mockFetch('courses'); }
-            async saveCourse(c) { return c.id ? this._mockFetch('courses', 'PUT', c) : this._mockFetch('courses', 'POST', {...c, id: 'c-'+Date.now()}); }
-            async deleteCourse(id) { return this._mockFetch('courses', 'DELETE', id); }
-            
-            async updateCourseGroup(courseId, newGroupsArray) {
-                let courses = await this.getCourses();
-                let c = courses.find(x => x.id === courseId);
-                c.groups = newGroupsArray;
-                return this._mockFetch('courses', 'PUT', c);
-            }
-
-            async getSchedule() { return this._mockFetch('scheduledClasses'); }
-            async saveClass(cls) { return this._mockFetch('scheduledClasses', 'POST', cls); }
-            async updateClass(cls) { return this._mockFetch('scheduledClasses', 'PUT', cls); }
-            async deleteClass(id) { return this._mockFetch('scheduledClasses', 'DELETE', id); }
-        }
-
-        class EngineWebSocket {
-            constructor() {
-                this.wsUrl = 'ws://localhost:8080/engine';
-                this.isConnected = false;
-                this.isOptimizing = false;
-                this.callbacks = {};
-                this.mockLoop = null; // Solo para demostración frontend
-            }
-
-            connect() {
-                // AQUÍ IRÍA LA CONEXIÓN WS REAL: this.socket = new WebSocket(this.wsUrl);
-                // this.socket.onopen = () => ...
-                
-                // --- Mocking WS Connection ---
-                setTimeout(() => {
-                    this.isConnected = true;
-                    this._trigger('connected');
-                }, 800);
-            }
-
-            on(event, callback) { this.callbacks[event] = callback; }
-            _trigger(event, data) { if(this.callbacks[event]) this.callbacks[event](data); }
-
-            sendCommand(command, payload = {}) {
-                if(!this.isConnected) { showToast("Error", "WebSocket Desconectado", "error"); return; }
-                
-                if (command === 'START') {
-                    this.isOptimizing = true;
-                    showToast("Motor Iniciado", "Servidor analizando el árbol de posibilidades (WS)...", "info");
-                    
-                    // --- MOCK SERVER RESPONSE LOOP ---
-                    // Simula el servidor enviando mejoras cada X segundos
-                    this.mockLoop = setInterval(async () => {
-                        const sched = await AppData.API.getSchedule();
-                        // Simular que el servidor recalcula puntajes (Mock simple)
-                        const mockHard = Math.max(0, 10 - Math.floor(Math.random() * 5)); // Falso calculo
-                        const mockSoft = 100 + Math.floor(Math.random() * 50);
-                        
-                        this._trigger('scores_updated', { hard: mockHard, soft: mockSoft });
-                        
-                        // Si encuentra 0 hard, parar y notificar success
-                        if (mockHard === 0) {
-                            this.sendCommand('STOP');
-                            this._trigger('optimization_complete');
-                        }
-                    }, 2000);
-                } 
-                else if (command === 'STOP') {
-                    this.isOptimizing = false;
-                    clearInterval(this.mockLoop);
-                    showToast("Motor Pausado", "Optimización detenida.", "warning");
-                }
-            }
-        }
-
-        // Objeto global como caché del Front-End (Reflejo de la API)
-        const AppData = { 
-            API: new ApiService(),
-            WS: new EngineWebSocket(),
-            subjects: [], teachers: [], courses: [], scheduledClasses: [],
-            calendarInstance: null, currentEventContext: null
-        };
-
-        window.onload = async function() {
-            // 1. Cargar datos de la API (REST)
-            try {
-                AppData.subjects = await AppData.API.getSubjects();
-                AppData.teachers = await AppData.API.getTeachers();
-                AppData.courses = await AppData.API.getCourses();
-                AppData.scheduledClasses = await AppData.API.getSchedule();
-                
-                // Quitar Loader UI
-                const loader = document.getElementById('app-loader');
-                loader.style.opacity = '0';
-                setTimeout(() => loader.remove(), 300);
-                
-                // 2. Iniciar UI dependiente de Datos
-                initCalendar();
-                updateEntitySelector();
-                updateDateRange(); // NUEVO: Inicializar el texto del rango de fechas
-                
-                // 3. Conectar WebSockets para el Motor
-                AppData.WS.connect();
-                setupWebSocketsListeners();
-
-            } catch (err) {
-                document.getElementById('loader-text').textContent = "Error conectando con la API.";
-                document.getElementById('loader-text').className = "mt-4 text-red-600 font-bold";
-            }
-        };
-
-        function setupWebSocketsListeners() {
-            const btn = document.getElementById('btn-toggle-engine');
-            const wsStatus = document.getElementById('ws-status');
-
-            AppData.WS.on('connected', () => {
-                btn.disabled = false;
-                btn.classList.replace('bg-gray-400', 'bg-emerald-600');
-                btn.classList.add('hover:bg-emerald-700');
-                document.getElementById('text-engine-btn').textContent = 'Generar (WS)';
-                
-                wsStatus.innerHTML = '<span class="relative flex h-2.5 w-2.5 mr-1.5"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span><span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span></span> Conectado';
-            });
-
-            AppData.WS.on('scores_updated', (scores) => {
-                // El backend dicta los scores reales.
-                const elHard = document.getElementById('score-hard');
-                elHard.textContent = scores.hard;
-                document.getElementById('score-soft').textContent = scores.soft;
-                
-                const stConflict = document.getElementById('status-conflict');
-                const stOk = document.getElementById('status-ok');
-                
-                if (scores.hard === 0) {
-                    stConflict.classList.replace('flex', 'hidden');
-                    stOk.classList.replace('hidden', 'flex');
-                } else {
-                    stOk.classList.replace('flex', 'hidden');
-                    stConflict.classList.replace('hidden', 'flex');
-                }
-            });
-
-            AppData.WS.on('optimization_complete', () => {
-                toggleOptimizationEngine(true); // Forzar UI a estado detenido
-                showToast("¡Matemáticamente Correcto!", "El servidor WS ha encontrado la disposición perfecta.", "success");
-            });
-            
-            AppData.WS.on('schedule_pushed', (newScheduleFromDB) => {
-                // Evento para cuando el WS manda el horario modificado por IA
-                AppData.scheduledClasses = newScheduleFromDB;
-                refreshCalendarView();
-            });
-        }
-
-        function toggleOptimizationEngine(forceStop = false) {
-            const btn = document.getElementById('btn-toggle-engine');
-            if (AppData.WS.isOptimizing || forceStop) {
-                AppData.WS.sendCommand('STOP');
-                btn.classList.replace('bg-red-600', 'bg-emerald-600');
-                btn.classList.replace('hover:bg-red-700', 'hover:bg-emerald-700');
-                btn.classList.remove('animate-pulse');
-                document.getElementById('icon-stop').classList.add('hidden');
-                document.getElementById('icon-play').classList.remove('hidden');
-                document.getElementById('text-engine-btn').textContent = 'Generar (WS)';
-            } else {
-                AppData.WS.sendCommand('START');
-                btn.classList.replace('bg-emerald-600', 'bg-red-600');
-                btn.classList.replace('hover:bg-emerald-700', 'hover:bg-red-700');
-                btn.classList.add('animate-pulse');
-                document.getElementById('icon-play').classList.add('hidden');
-                document.getElementById('icon-stop').classList.remove('hidden');
-                document.getElementById('text-engine-btn').textContent = 'Parar Motor';
-            }
-        }
-
-        function switchTab(tabId) {
-            document.querySelectorAll('.view-tab').forEach(el => el.classList.remove('active'));
-            document.getElementById(`view-${tabId}`).classList.add('active');
-            
-            document.querySelectorAll('.nav-btn').forEach(btn => {
-                btn.classList.remove('bg-indigo-600', 'text-white', 'shadow-inner');
-                btn.classList.add('text-slate-300');
-            });
-            const activeBtn = document.getElementById(`nav-${tabId}`);
-            activeBtn.classList.remove('text-slate-300');
-            activeBtn.classList.add('bg-indigo-600', 'text-white', 'shadow-inner');
-
-            document.getElementById('header-calendar').style.display = (tabId === 'calendar') ? 'flex' : 'none';
-
-            if(tabId === 'subjects') renderSubjects();
-            if(tabId === 'teachers') renderTeachers();
-            if(tabId === 'courses') renderCourses();
-            if(tabId === 'assignments') renderAssignmentsList();
-            if(tabId === 'calendar') {
-                setTimeout(() => { 
-                    AppData.calendarInstance.render(); 
-                    updateEntitySelector(); 
-                    updateDateRange(); // NUEVO: Refrescar el rango de fechas al volver
-                }, 50);
-            }
-        }
-
-        function updateDateRange() {
-            if(!AppData.calendarInstance) return;
-            const start = AppData.calendarInstance.getDateRangeStart();
-            const end = AppData.calendarInstance.getDateRangeEnd();
-            
-            const formatDate = (date) => {
-                const d = typeof date.toDate === 'function' ? date.toDate() : new Date(date);
-                const months = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
-                return `${d.getDate()} ${months[d.getMonth()]}`;
-            };
-            
-            document.getElementById('calendar-date-range').textContent = `${formatDate(start)} - ${formatDate(end)}`;
-        }
-
-        function showToast(title, message, type = 'info') {
-            const container = document.getElementById('toast-container');
-            const toast = document.createElement('div');
-            
-            let bgClass = type==='error'?'border-red-500 text-red-500':(type==='success'?'border-green-500 text-green-500':(type==='warning'?'border-yellow-500 text-yellow-500':'border-blue-500 text-blue-500'));
-            
-            toast.className = `bg-white border-l-4 ${bgClass} shadow-lg rounded-r-lg p-4 w-80 transform transition-all duration-300 translate-y-4 opacity-0 flex gap-3`;
-            toast.innerHTML = `<div><h4 class="text-sm font-bold text-gray-800">${title}</h4><p class="text-xs text-gray-600 mt-1">${message}</p></div>`;
-            
-            container.appendChild(toast);
-            setTimeout(() => toast.classList.remove('translate-y-4', 'opacity-0'), 10);
-            setTimeout(() => { toast.classList.add('opacity-0', 'translate-x-full'); setTimeout(() => toast.remove(), 300); }, 4000);
-        }
-
-        function updateEntitySelector() {
-            const type = document.getElementById('view-type-select').value;
-            const courseSelect = document.getElementById('header-course-select');
-            const courseSeparator = document.getElementById('header-course-separator');
-            const select = document.getElementById('view-entity-select');
-            
-            const currentCourseValue = courseSelect.value;
-            const currentValue = select.value;
-            
-            if (type === 'group') {
-                courseSelect.classList.remove('hidden'); courseSeparator.classList.remove('hidden');
-                
-                courseSelect.innerHTML = '';
-                AppData.courses.forEach(c => courseSelect.innerHTML += `<option value="${c.id}">${c.name}</option>`);
-                
-                if (currentCourseValue && Array.from(courseSelect.options).some(opt => opt.value === currentCourseValue)) {
-                    courseSelect.value = currentCourseValue;
-                }
-                onHeaderCourseChange(currentValue);
-            } else {
-                courseSelect.classList.add('hidden'); courseSeparator.classList.add('hidden');
-                
-                select.innerHTML = '';
-                AppData.teachers.forEach(t => select.innerHTML += `<option value="${t.id}">${t.name}</option>`);
-                
-                if (currentValue && Array.from(select.options).some(opt => opt.value === currentValue)) select.value = currentValue;
-                refreshCalendarView();
-            }
-        }
-
-        function onHeaderCourseChange(previousVal = null) {
-            const courseId = document.getElementById('header-course-select').value;
-            const select = document.getElementById('view-entity-select');
-            select.innerHTML = '';
-            
-            const course = AppData.courses.find(c => c.id === courseId);
-            if(course) {
-                if(course.groups.length === 0) select.innerHTML = `<option value="">Sin grupos</option>`;
-                else course.groups.forEach(g => select.innerHTML += `<option value="${g.id}">Grupo ${g.name}</option>`);
-            }
-            
-            if (previousVal && typeof previousVal === 'string' && Array.from(select.options).some(opt => opt.value === previousVal)) select.value = previousVal;
-            refreshCalendarView();
-        }
-
-        function initCalendar() {
-            const Calendar = tui.Calendar;
-            AppData.calendarInstance = new Calendar('#calendar', {
-                defaultView: 'week', useFormPopup: false, useDetailPopup: false,
-                week: { taskView: false, eventView: ['time'], dayNames: ['Dom', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sáb'], workweek: true, hourStart: 8, hourEnd: 15 },
-                template: {
-                    // Sobrescribimos el formato de la cabecera de la semana para quitar el número del día
-                    weekDayName(model) {
-                        return `<span class="toastui-calendar-day-name-item">${model.dayName}</span>`;
-                    }
-                }
-            });
-
-            // Configurar colores API -> Calendario
-            AppData.calendarInstance.setCalendars(AppData.teachers.map(t => ({ id: t.id, name: t.name, backgroundColor: t.color })));
-
-            // Listener Arrastrar -> Abrir Modal Inteligente
-            AppData.calendarInstance.on('selectDateTime', function(info) {
-                AppData.calendarInstance.clearGridSelections();
-                
-                let startObj = (typeof info.start.toDate === 'function') ? info.start.toDate() : new Date(info.start);
-                let endObj = (typeof info.end.toDate === 'function') ? info.end.toDate() : new Date(info.end);
-                
-                openAddClassModal(startObj, endObj);
-            });
-
-            // NUEVO LISTENER: Detectar cuando el usuario arrastra o redimensiona una clase
-            AppData.calendarInstance.on('beforeUpdateEvent', async function(info) {
-                const { event, changes } = info;
-                
-                // 1. Encontrar clase original en nuestro estado local
-                let cls = AppData.scheduledClasses.find(c => c.id === event.id);
-                if(!cls) return;
-
-                // 2. Validar si tiene pin (fijada)
-                if(cls.isPinned) {
-                    showToast("Bloqueado", "No puedes mover ni alterar una clase que está fijada (Pin).", "warning");
-                    return;
-                }
-
-                // 3. Aplicar los cambios de horario al objeto local
-                if (changes.start) cls.start = (typeof changes.start.toDate === 'function') ? changes.start.toDate() : new Date(changes.start);
-                if (changes.end) cls.end = (typeof changes.end.toDate === 'function') ? changes.end.toDate() : new Date(changes.end);
-                
-                // Recalcular duración en horas
-                cls.duration = (cls.end - cls.start) / (1000 * 60 * 60);
-
-                // 4. Actualizar visualmente en el calendario al instante (para que no haga "efecto rebote")
-                AppData.calendarInstance.updateEvent(event.id, event.calendarId, changes);
-
-                // 5. LLAMADA A LA API (Lista para backend) -> Hacemos un PUT
-                showToast("Sincronizando...", "Guardando nueva posición en el servidor...", "info");
-                await AppData.API.updateClass(cls);
-                
-                // 6. Avisar al motor/Websockets de que el humano alteró el horario
-                AppData.WS.sendCommand('MANUAL_EDIT', { id: cls.id, action: 'moved' });
-            });
-
-            // Clic en evento -> Modal Info
-            AppData.calendarInstance.on('clickEvent', e => openEventDetail(e.event));
-        }
-
-        // --- NUEVA LÓGICA DEL MODAL INTELIGENTE ---
-        
-        function openAddClassModal(startDate = null, endDate = null) {
-            // Preparar fechas por defecto si se abre desde el botón (lunes 9:00 a 10:00)
-            if (!startDate) {
-                const now = new Date();
-                const diff = now.getDate() - now.getDay() + (now.getDay() === 0 ? -6 : 1); // Obtener lunes
-                startDate = new Date(now.setDate(diff));
-                startDate.setHours(9, 0, 0, 0);
-                endDate = new Date(startDate);
-                endDate.setHours(10, 0, 0, 0);
-            }
-
-            const formatTime = (date) => date.toTimeString().slice(0, 5);
-            
-            document.getElementById('modal-class-start').value = startDate.toISOString();
-            document.getElementById('modal-class-end').value = endDate.toISOString();
-            document.getElementById('modal-time-start').value = formatTime(startDate);
-            document.getElementById('modal-time-end').value = formatTime(endDate);
-
-            // Obtener contexto actual de la cabecera
-            const viewType = document.getElementById('view-type-select').value;
-            const viewCourse = document.getElementById('header-course-select').value;
-            const viewEntity = document.getElementById('view-entity-select').value; // group ID o teacher ID
-
-            const subjSelect = document.getElementById('modal-subject');
-            const courseSelect = document.getElementById('modal-course');
-            const groupSelect = document.getElementById('modal-group');
-            const teacherSelect = document.getElementById('modal-teacher');
-
-            // Llenar catálogos base
-            subjSelect.innerHTML = AppData.subjects.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
-            courseSelect.innerHTML = AppData.courses.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
-            teacherSelect.innerHTML = AppData.teachers.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
-            
-            // Reiniciar bloqueos
-            courseSelect.disabled = false; groupSelect.disabled = false; teacherSelect.disabled = false;
-
-            // Auto-rellenar y bloquear según la vista
-            if (viewType === 'group' && viewCourse) {
-                // Vista Grupo: Bloquear Curso y Grupo, permitir cambiar profe/asignatura
-                courseSelect.value = viewCourse;
-                courseSelect.disabled = true;
-                onModalCourseChange(); // Rellena grupos
-                
-                if (viewEntity) {
-                    groupSelect.value = viewEntity;
-                    groupSelect.disabled = true;
-                }
-            } 
-            else if (viewType === 'teacher' && viewEntity) {
-                // Vista Profe: Bloquear Profesor, permitir cambiar curso/grupo/asignatura
-                teacherSelect.value = viewEntity;
-                teacherSelect.disabled = true;
-                onModalCourseChange(); // Rellena grupos iniciales
-                
-                // Opcional: Filtrar asignaturas a las que sabe dar el profe (simulado aquí seleccionando la primera válida)
-                const teacherObj = AppData.teachers.find(t => t.id === viewEntity);
-                if(teacherObj && teacherObj.subjects && teacherObj.subjects.length > 0) {
-                     subjSelect.value = teacherObj.subjects[0];
-                }
-            } else {
-                onModalCourseChange(); // Estado por defecto
-            }
-
-            document.getElementById('add-class-modal').classList.replace('hidden', 'flex');
-        }
-
-        function onModalCourseChange() {
-            const courseId = document.getElementById('modal-course').value;
-            const groupSelect = document.getElementById('modal-group');
-            groupSelect.innerHTML = '';
-            
-            const course = AppData.courses.find(c => c.id === courseId);
-            if(course && course.groups.length > 0) {
-                course.groups.forEach(g => { groupSelect.innerHTML += `<option value="${g.id}">Grupo ${g.name}</option>`; });
-            } else {
-                groupSelect.innerHTML = `<option value="">(Sin grupos)</option>`;
-            }
-        }
-
-        function closeAddClassModal() {
-            document.getElementById('add-class-modal').classList.replace('flex', 'hidden');
-        }
-
-        async function saveNewClass() {
-            const baseStart = new Date(document.getElementById('modal-class-start').value);
-            const baseEnd = new Date(document.getElementById('modal-class-end').value);
-            
-            const timeStartStr = document.getElementById('modal-time-start').value.split(':');
-            const timeEndStr = document.getElementById('modal-time-end').value.split(':');
-            
-            baseStart.setHours(parseInt(timeStartStr[0]), parseInt(timeStartStr[1]));
-            baseEnd.setHours(parseInt(timeEndStr[0]), parseInt(timeEndStr[1]));
-
-            const subjId = document.getElementById('modal-subject').value;
-            const groupId = document.getElementById('modal-group').value;
-            const teacherId = document.getElementById('modal-teacher').value;
-
-            if(!groupId || !teacherId) {
-                showToast("Error", "Faltan datos por seleccionar (Grupo o Profesor)", "error");
-                return;
-            }
-
-            const durationInMs = baseEnd - baseStart;
-            const durationInHours = durationInMs / (1000 * 60 * 60);
-
-            let nuevaClase = {
-                id: 'evt-'+Date.now(),
-                start: baseStart,
-                end: baseEnd,
-                duration: durationInHours,
-                subjectId: subjId,
-                groupId: groupId,
-                teacherId: teacherId,
-                isPinned: false
-            };
-
-            showToast('Guardando...', 'Enviando bloque a la base de datos API', 'info');
-            await AppData.API.saveClass(nuevaClase);
-            AppData.scheduledClasses.push(nuevaClase);
-            
-            closeAddClassModal();
-            refreshCalendarView();
-            
-            // Avisar a WebSocket que el humano cambió el horario manual
-            AppData.WS.sendCommand('MANUAL_EDIT', { id: nuevaClase.id }); 
-        }
-
-        function refreshCalendarView() {
-            const type = document.getElementById('view-type-select').value;
-            const entityId = document.getElementById('view-entity-select').value;
-            
-            if(AppData.calendarInstance) AppData.calendarInstance.clear();
-            if(!entityId) return;
-
-            const events = AppData.scheduledClasses.filter(cls => {
-                if (type === 'teacher') return cls.teacherId === entityId;
-                if (type === 'group') return cls.groupId === entityId;
-                return false;
-            }).map(cls => {
-                const subject = AppData.subjects.find(s => s.id === cls.subjectId);
-                const teacher = AppData.teachers.find(t => t.id === cls.teacherId);
-                const course = AppData.courses.find(c => c.groups.some(g => g.id === cls.groupId));
-                const group = course ? course.groups.find(g => g.id === cls.groupId) : null;
-                
-                return {
-                    id: cls.id, calendarId: cls.teacherId, 
-                    title: subject ? subject.name : 'Clase API',
-                    body: `${course ? course.name : ''} ${group ? ' - G.' + group.name : ''}<br/>Prof: ${teacher ? teacher.name : ''}`,
-                    start: cls.start, end: cls.end, isReadOnly: cls.isPinned || false,
-                    backgroundColor: teacher ? teacher.color : '#cbd5e1', color: '#ffffff',
-                    customStyle: { borderRadius: '6px', border: 'none', padding: '4px' }
-                };
-            });
-
-            if(AppData.calendarInstance) AppData.calendarInstance.createEvents(events);
-        }
-
-        function openEventDetail(event) {
-            const cls = AppData.scheduledClasses.find(c => c.id === event.id);
-            if(!cls) return;
-
-            const subject = AppData.subjects.find(s => s.id === cls.subjectId);
-            const teacher = AppData.teachers.find(t => t.id === cls.teacherId);
-
-            document.getElementById('event-detail-title').textContent = subject.name;
-            document.getElementById('event-detail-header').style.backgroundColor = teacher.color;
-            document.getElementById('event-detail-body').innerHTML = `<p class="text-sm">Impartida por: <b>${teacher.name}</b></p>`;
-
-            const pinBtn = document.getElementById('btn-pin-event');
-            pinBtn.innerText = cls.isPinned ? "Desfijar" : "Fijar (Pin)";
-            
-            pinBtn.onclick = async () => { 
-                cls.isPinned = !cls.isPinned; 
-                await AppData.API.updateClass(cls); // Peticion API
-                AppData.WS.sendCommand('PIN_UPDATE', { id: cls.id, state: cls.isPinned }); // Avisar motor
-                closeEventDetail(); refreshCalendarView(); 
-            };
-            
-            document.getElementById('btn-delete-event').onclick = async () => { 
-                await AppData.API.deleteClass(cls.id); // Peticion API DELETE
-                AppData.scheduledClasses = AppData.scheduledClasses.filter(c => c.id !== cls.id);
-                AppData.WS.sendCommand('MANUAL_EDIT', { delete: cls.id });
-                closeEventDetail(); refreshCalendarView(); 
-            };
-
-            document.getElementById('event-detail-modal').classList.replace('hidden','flex');
-        }
-        function closeEventDetail() { document.getElementById('event-detail-modal').classList.replace('flex','hidden'); }
-
-
-        let currentCrudType = '', currentCrudId = null;
-
-        function openFormModal(type, id = null) {
-            // [CÓDIGO DE RENDERIZADO VISUAL DEL FORMULARIO CRUD]
-            // ... Mantenemos los HTML forms genéricos (simplificado para el espacio)
-            // Se asume el mismo código UI del CRUD anterior.
-            showToast("Info", `Abriendo editor de ${type} (Enlazado con API)`, "info");
-        }
-
-        function closeCrudModal() { document.getElementById('crud-modal').classList.replace('flex', 'hidden'); }
-
-        // MOCK CRUD render functions to avoid undefined errors in this refactored version
-        async function renderSubjects() {} 
-        async function renderTeachers() {}
-        async function renderCourses() {}
-        async function renderAssignmentsList() {}
-
-    </script>
+    <script src="/lib/toastui-calendar.min.js"></script>
+    <script src="/Datos.js?v=5" type="module"></script>
 </body>
 </html>

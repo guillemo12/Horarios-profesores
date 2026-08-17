@@ -1,0 +1,135 @@
+name: Build and Release EduSchedule
+
+on:
+  push:
+    branches:
+      - main
+      - nueva-libreria
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build on ${{ matrix.platform }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            platform: windows
+          - os: ubuntu-22.04
+            platform: linux
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Setup Rust Stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install Linux dependencies (Linux only)
+        if: matrix.platform == 'linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf libssl-dev
+
+      - name: Bundle Frontend TypeScript
+        run: |
+          npx -y esbuild Web/src/Datos.ts --bundle --outfile=src/main/resources/static/Datos.js --format=iife
+          cp Web/src/eduschedule.html src/main/resources/static/index.html || copy Web\src\eduschedule.html src\main\resources\static\index.html
+        shell: bash
+
+      - name: Build Fat JAR with Gradle
+        run: ./gradlew shadowJar --no-daemon
+
+      - name: Create Embedded JVM Runtime with jpackage (Windows)
+        if: matrix.platform == 'windows'
+        shell: pwsh
+        run: |
+          $jar = Get-ChildItem -Path "build\libs" -Filter "*.jar" | Where-Object { $_.Length -gt 50MB } | Select-Object -First 1
+          Write-Host "Using JAR: $($jar.FullName)"
+          if (Test-Path "Proyecto_Horarios\src-tauri\backend_ktor") {
+            Remove-Item "Proyecto_Horarios\src-tauri\backend_ktor" -Recurse -Force
+          }
+          jpackage --name backend_ktor --input build/libs --main-jar $jar.Name --main-class io.ktor.server.netty.EngineMain --type app-image --dest Proyecto_Horarios/src-tauri
+
+      - name: Create Embedded JVM Runtime with jpackage (Linux)
+        if: matrix.platform == 'linux'
+        shell: bash
+        run: |
+          JAR_NAME=$(ls build/libs/*.jar | head -n 1 | xargs basename)
+          echo "Using JAR: $JAR_NAME"
+          rm -rf Proyecto_Horarios/src-tauri/backend_ktor
+          jpackage --name backend_ktor --input build/libs --main-jar "$JAR_NAME" --main-class io.ktor.server.netty.EngineMain --type app-image --dest Proyecto_Horarios/src-tauri
+          chmod -R 755 Proyecto_Horarios/src-tauri/backend_ktor
+
+      - name: Install Tauri CLI
+        run: cargo install tauri-cli --version "^2.0.0" --locked
+
+      - name: Build Tauri Desktop App
+        working-directory: Proyecto_Horarios
+        run: cargo tauri build --ci --ignore-version-mismatches
+
+      - name: Build Portable Single EXE (Windows only)
+        if: matrix.platform == 'windows'
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Path "dist\EduSchedule" -Force
+          Copy-Item "Proyecto_Horarios\src-tauri\target\release\proyecto_horarios.exe" -Destination "dist\EduSchedule\EduSchedule.exe"
+          Copy-Item "Proyecto_Horarios\src-tauri\target\release\backend_ktor" -Destination "dist\EduSchedule\backend_ktor" -Recurse
+          if (Test-Path "Proyecto_Horarios\src-tauri\target\release\resources") {
+            Copy-Item "Proyecto_Horarios\src-tauri\target\release\resources" -Destination "dist\EduSchedule\resources" -Recurse
+          }
+          powershell -ExecutionPolicy Bypass -File .\build_single_exe.ps1
+
+      - name: Upload Windows Artifacts
+        if: matrix.platform == 'windows'
+        uses: actions/upload-artifact@v4
+        with:
+          name: EduSchedule-Windows
+          path: |
+            EduSchedule_Unico.exe
+            Proyecto_Horarios/src-tauri/target/release/bundle/nsis/*.exe
+            Proyecto_Horarios/src-tauri/target/release/bundle/msi/*.msi
+
+      - name: Upload Linux Artifacts
+        if: matrix.platform == 'linux'
+        uses: actions/upload-artifact@v4
+        with:
+          name: EduSchedule-Linux
+          path: |
+            Proyecto_Horarios/src-tauri/target/release/bundle/appimage/*.AppImage
+            Proyecto_Horarios/src-tauri/target/release/bundle/deb/*.deb
+
+  release:
+    name: Publish GitHub Release
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+
+      - name: Publish Release to GitHub
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            EduSchedule-Windows/*
+            EduSchedule-Linux/*
+          generate_release_notes: true

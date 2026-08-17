@@ -1,0 +1,105 @@
+export interface Subject {
+    id: string;
+    name: string;
+    hours: number;
+    courseId?: string;
+    teachers?: string[];
+}
+
+export interface TeacherAvailability {
+    dayOfWeek: number;
+    startTime: string;
+    endTime: string;
+}
+
+export interface Teacher {
+    id: string;
+    name: string;
+    maxHours: number;
+    color: string;
+    subjects: string[];
+    availability?: TeacherAvailability[];
+}
+
+export interface CourseGroup {
+    id: string;
+    name: string;
+    tutorId: string;
+    assignments: Record<string, string>; // subjectId -> teacherId
+}
+
+export interface Course {
+    id: string;
+    name: string;
+    subjects: string[];
+    groups: CourseGroup[];
+}
+
+export interface ScheduledClass {
+    id: string;
+    start: Date | string;
+    end: Date | string;
+    duration: number;
+    subjectId: string;
+    groupId: string;
+    teacherId: string;
+    isPinned: boolean;
+}
+
+export interface Configuracion {
+    priorizarTutor: boolean;
+    tiempoMinimo: number;
+    tiempoMaximo: number;
+    minutosMaximosProfesor: number;
+    priorizarTutorPuntos: number;
+    fomentarBloques60Puntos: number;
+    minimizarAsignaturasDistintas?: boolean;
+    minimizarAsignaturasPuntos?: number;
+    limiteTiempoSegundos?: number;
+    tiempoEstancamientoSegundos?: number;
+    
+    // Rango horario y recreo
+    horaInicioClases: string;
+    horaFinClases: string;
+    horaInicioRecreo: string;
+    duracionRecreo: number;
+
+    // Reglas duras
+    respetarEspecialidad: boolean;
+    respetarLimiteHoras: boolean;
+    respetarDisponibilidad: boolean;
+}
+
+export interface Database {
+    subjects: Subject[];
+    teachers: Teacher[];
+    courses: Course[];
+    scheduledClasses: ScheduledClass[];
+}
+
+export type WsCallback = (data?: any) => void;
+
+export interface AppDataState {
+    API: any;
+    WS: any;
+    subjects: Subject[];
+    teachers: Teacher[];
+    courses: Course[];
+    scheduledClasses: ScheduledClass[];
+    calendarInstance: any;
+    currentEventContext: any;
+    colorMode?: 'teacher' | 'subject';
+    config?: Configuracion;
+}
+
+export interface PrevalidationCheck {
+    name: string;
+    status: 'ok' | 'warning' | 'error';
+    message: string;
+    details: string[];
+}
+
+export interface PrevalidationResult {
+    viable: boolean;
+    checks: PrevalidationCheck[];
+}

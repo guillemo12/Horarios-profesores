@@ -5,6 +5,8 @@ import org.jetbrains.exposed.dao.IntEntity
 import org.jetbrains.exposed.dao.IntEntityClass
 import org.jetbrains.exposed.dao.id.EntityID
 
+import java.time.LocalTime
+
 class ConfiguracionEntity(id: EntityID<Int>) : IntEntity(id) {
     companion object : IntEntityClass<ConfiguracionEntity>(ConfiguracionTable)
 
@@ -12,5 +14,21 @@ class ConfiguracionEntity(id: EntityID<Int>) : IntEntity(id) {
     var tiempoMaximo by ConfiguracionTable.tiempoMaximo
     var priorizarTutor by ConfiguracionTable.priorizarTutor
     var minutosMaximosProfesor by ConfiguracionTable.minutosMaximosProfesor
+    var priorizarTutorPuntos by ConfiguracionTable.priorizarTutorPuntos
+    var fomentarBloques60Puntos by ConfiguracionTable.fomentarBloques60Puntos
+    var minimizarAsignaturasDistintas by ConfiguracionTable.minimizarAsignaturasDistintas
+    var minimizarAsignaturasPuntos by ConfiguracionTable.minimizarAsignaturasPuntos
+    var limiteTiempoSegundos by ConfiguracionTable.limiteTiempoSegundos
+    var tiempoEstancamientoSegundos by ConfiguracionTable.tiempoEstancamientoSegundos
 
+    // Horas y Recreo
+    var horaInicioClases by ConfiguracionTable.horaInicioClases
+    var horaFinClases by ConfiguracionTable.horaFinClases
+    var horaInicioRecreo by ConfiguracionTable.horaInicioRecreo
+    var duracionRecreo by ConfiguracionTable.duracionRecreo
+
+    // Reglas duras
+    var respetarEspecialidad by ConfiguracionTable.respetarEspecialidad
+    var respetarLimiteHoras by ConfiguracionTable.respetarLimiteHoras
+    var respetarDisponibilidad by ConfiguracionTable.respetarDisponibilidad
 }

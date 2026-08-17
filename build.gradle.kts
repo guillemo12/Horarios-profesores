@@ -11,6 +11,14 @@ version = "1.0.0-SNAPSHOT"
 application {
     // Fíjate en la "Kt" al final, es muy importante
     mainClass.set("com.colegio.MainKt")
+
+    applicationDefaultJvmArgs = listOf(
+        "-Xms8G",
+        "-Xmx8G",
+        "-XX:+AlwaysPreTouch",
+        "-XX:+UseParallelGC", // O cambia a ZGC Generacional si Ktor se bloquea
+        "-XX:+UseStringDeduplication"
+    )
 }
 
 ktor {
@@ -37,13 +45,19 @@ dependencies {
     implementation("org.jetbrains.exposed:exposed-core:0.50.1")
     implementation("org.jetbrains.exposed:exposed-dao:0.50.1")
     implementation("org.jetbrains.exposed:exposed-jdbc:0.50.1")
+    implementation("org.jetbrains.exposed:exposed-java-time:0.50.1")
     implementation("org.xerial:sqlite-jdbc:3.45.1.0")
 
-    // Timefold (Matemáticas)
-    implementation("ai.timefold.solver:timefold-solver-core:1.1.0")
+    // Google OR-Tools (Motor de optimización matemática y viabilidad)
+    implementation("com.google.ortools:ortools-java:9.11.4210")
 
     implementation("org.apache.poi:poi-ooxml:5.3.0")
 
     // WebSocket
     implementation("io.ktor:ktor-server-websockets")
 }
+
+tasks.test {
+    maxHeapSize = "4g"
+}
+
