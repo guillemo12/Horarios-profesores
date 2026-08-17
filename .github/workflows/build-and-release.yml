@@ -4,8 +4,6 @@ on:
   push:
     branches:
       - master
-      - main
-      - nueva-libreria
     tags:
       - 'v*'
   workflow_dispatch:
