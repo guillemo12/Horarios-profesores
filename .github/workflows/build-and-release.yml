@@ -35,6 +35,7 @@ jobs:
         with:
           distribution: 'temurin'
           java-version: '21'
+          cache: 'gradle'
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -43,6 +44,11 @@ jobs:
 
       - name: Setup Rust Stable
         uses: dtolnay/rust-toolchain@stable
+
+      - name: Rust Cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: "Proyecto_Horarios/src-tauri -> target"
 
       - name: Install Linux dependencies (Linux only)
         if: matrix.platform == 'linux'
@@ -61,7 +67,7 @@ jobs:
         shell: bash
 
       - name: Build Fat JAR with Gradle
-        run: ./gradlew shadowJar --no-daemon
+        run: ./gradlew shadowJar --no-daemon --build-cache
 
       - name: Create Embedded JVM Runtime with jpackage (Windows)
         if: matrix.platform == 'windows'
