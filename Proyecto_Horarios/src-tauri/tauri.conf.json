@@ -33,6 +33,15 @@
     ],
     "resources": [
       "backend_ktor/**/*"
-    ]
+    ],
+    "windows": {
+      "wix": {
+        "language": "es-ES"
+      },
+      "nsis": {
+        "languages": ["Spanish", "English"],
+        "displayLanguageSelector": true
+      }
+    }
   }
 }
