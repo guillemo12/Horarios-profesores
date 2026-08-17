@@ -1,11 +1,11 @@
-# 🎓 EduSchedule — Generador Inteligente de Horarios Escolares
+# 🎓 EduSchedule — Intelligent School Timetable Generator
 
 <p align="center">
   <img src="Proyecto_Horarios/src-tauri/icons/128x128.png" alt="EduSchedule Logo" width="100" />
 </p>
 
 <p align="center">
-  <strong>Software multiplataforma de optimización y generación automatizada de horarios para centros educativos.</strong>
+  <strong>Cross-platform automated timetable generation and optimization software for educational institutions.</strong>
 </p>
 
 <p align="center">
@@ -21,66 +21,67 @@
 
 ---
 
-## 📖 ¿Qué es EduSchedule?
+## 📖 What is EduSchedule?
 
-**EduSchedule** es una solución integral diseñada para resolver uno de los mayores dolores de cabeza en la gestión de colegios e institutos: **la confección del horario escolar**.
+**EduSchedule** is a complete, modern solution designed to solve one of the most complex organizational challenges in schools, high schools, and universities: **generating optimal academic timetables**.
 
-Combinando la potencia matemática de **Google OR-Tools (CP-SAT Solver)** con una arquitectura moderna de **Tauri 2 (Rust)**, **Kotlin Ktor** y **TypeScript**, EduSchedule es capaz de encontrar la distribución óptima de clases en cuestión de segundos, respetando todas las restricciones pedagógicas, de profesorado y de aulas.
-
----
-
-## ✨ Características Principales
-
-### 🧠 1. Motor de Optimización Matemática (CP-SAT)
-* **Restricciones Duras (Garantizadas 100%)**:
-  * Cero solapamientos de profesores y aulas.
-  * Respeto absoluto a la disponibilidad horaria y reducciones de jornada del profesorado.
-  * Cobertura exacta de las horas curriculares exigidas por cada asignatura y grupo.
-* **Restricciones Suaves (Funciones de Puntuación)**:
-  * Minimización de huecos (horas muertas) en la jornada del profesorado.
-  * Distribución equilibrada y compacta de las jornadas lectivas.
-  * Agrupación pedagógica de lecciones dobles/consecutivas cuando se requiere.
-
-### ⚡ 2. Diagnóstico y Prevalidación Instantánea
-* **Detección en milisegundos**: Analiza el cuadro docente antes de lanzar el solver y detecta incompatibilidades matemáticas (déficit de horas, sobrecarga de profesores, solapamientos imposibles).
-* **Asistente con sugerencias**: Ofrece consejos exactos al usuario sobre cómo solucionar el conflicto.
-
-### 📅 3. Cuadrante Interactivo con Bloqueo Manual (*Pinning*)
-* Vista semanal por **Cursos/Grupos** y por **Profesor**.
-* Capacidad de **fijar manualmente clases clave** (*Pinning*): el algoritmo respetará esas clases y optimizará el resto a su alrededor.
-* Visualización en tiempo real del estado de cada celda y estadísticas de carga lectiva.
-
-### 🔄 4. WebSocket en Tiempo Real
-* Comunicación bidireccional continua con el motor: visualiza el progreso de optimización (*score*, límite teórico *bound* y número de soluciones encontradas) segundo a segundo.
-
-### 📊 5. Importación y Exportación Excel
-* Carga de datos docentes desde hojas de cálculo y exportación de horarios listos para imprimir o compartir.
-
-### 🚀 6. Actualizaciones Automáticas
-* Comprobador de versiones integrado con GitHub Releases: avisa de nuevas versiones y permite descargarlas con un solo clic.
+By combining the mathematical power of **Google OR-Tools (CP-SAT Solver)** with a high-performance **Tauri 2 (Rust)** desktop shell, an embedded **Kotlin Ktor** backend, and a reactive **TypeScript** frontend, EduSchedule finds optimal, conflict-free class schedules in seconds while strictly adhering to pedagogical constraints, teacher availability, and classroom limits.
 
 ---
 
-## 🏗️ Arquitectura Técnica
+## ✨ Key Features
+
+### 🧠 1. Mathematical Optimization Engine (CP-SAT)
+* **Hard Constraints (100% Guaranteed)**:
+  * Zero overlaps for teachers and classrooms.
+  * Strict compliance with teacher availability, time-off preferences, and reduced working hours.
+  * Exact fulfillment of mandatory weekly curriculum hours per subject and group.
+* **Soft Constraints (Cost & Penalty Minimization)**:
+  * Minimization of idle periods / gaps between classes for teachers.
+  * Balanced and compact daily workloads for both teachers and student cohorts.
+  * Pedagogical grouping of double / consecutive lessons when required.
+
+### ⚡ 2. Instant Prevalidation & Diagnostics
+* **Sub-second Feasibility Analysis**: Pre-scans the academic setup prior to running the solver to detect mathematical impossibilities (such as teacher overload, hour deficits, or impossible manual locks).
+* **Smart Recommendations**: Provides clear, actionable hints explaining exactly what is preventing a feasible schedule and how to resolve it.
+
+### 📅 3. Interactive Schedule Grid with Manual Pinning
+* Weekly views organized by **Course / Cohort** and by **Teacher**.
+* **Manual Class Pinning**: Lock critical lessons to specific time slots—the solver will respect those fixed positions and optimize the rest of the schedule around them.
+* Real-time workload statistics and cell status indicators.
+
+### 🔄 4. Real-Time WebSockets
+* Non-blocking, bi-directional streaming between the backend worker and the UI.
+* Watch the solver converge live with real-time updates for best score, theoretical bound, and solution progression.
+
+### 📊 5. Excel Import & Export
+* Load school data from spreadsheets and export finalized timetables ready to share or print.
+
+### 🚀 6. Built-in Automatic Updates
+* Integrated update checker connected to GitHub Releases: alerts users when a new version is available and enables instant one-click downloads.
+
+---
+
+## 🏗️ Technical Architecture
 
 ```mermaid
 graph TD
-    subgraph Desktop [Capa de Escritorio - Tauri 2 / Rust]
-        TauriUI[Ventana Webview Nativa]
-        Updater[Gestor de Actualizaciones]
+    subgraph Desktop [Desktop Layer - Tauri 2 / Rust]
+        TauriUI[Native Webview Window]
+        Updater[Update Manager]
     end
 
-    subgraph Frontend [Frontend Web - TypeScript + Tailwind]
-        HTML[UI Reactiva / eduschedule.html]
-        WSClient[Cliente WebSocket]
-        AppLogic[Lógica de Cuadrante y Filtros]
+    subgraph Frontend [Web Frontend - TypeScript + Tailwind CSS]
+        HTML[Reactive UI / eduschedule.html]
+        WSClient[WebSocket Client]
+        AppLogic[Schedule Grid & Filtering Logic]
     end
 
-    subgraph Backend [Backend Embebido - Kotlin Ktor]
-        KtorServer[Servidor REST + WebSocket]
-        SQLite[(Base de Datos SQLite - Exposed)]
-        Preval[Módulo de Prevalidación]
-        Solver[Motor Google OR-Tools CP-SAT]
+    subgraph Backend [Embedded Backend - Kotlin Ktor]
+        KtorServer[REST & WebSocket Server]
+        SQLite[(SQLite Database - Exposed ORM)]
+        Preval[Prevalidation Engine]
+        Solver[Google OR-Tools CP-SAT Solver]
     end
 
     TauriUI --> HTML
@@ -95,76 +96,76 @@ graph TD
 
 ---
 
-## 📥 Descarga e Instalación
+## 📥 Download & Installation
 
-Puedes descargar la última versión desde la sección de **[Releases](https://github.com/guillemo12/Horarios-profesores/releases)**:
+Download the latest version from the **[GitHub Releases](https://github.com/guillemo12/Horarios-profesores/releases)** page:
 
 ### 🪟 Windows
-* **Ejecutable Portable (`EduSchedule_Unico.exe`)**: No requiere instalación, incluye todo el runtime empaquetado. Doble clic y listo.
-* **Instalador Estándar (`.exe` NSIS)**: Asistente de instalación multilingüe con acceso directo en el escritorio.
-* **Instalador MSI (`.msi`)**: Ideal para despliegues administrativos en red.
+* **Portable Executable (`EduSchedule_Unico.exe`)**: No installation required. Self-contained runtime—just download and run.
+* **Standard Installer (`.exe` NSIS)**: Multilingual setup wizard with desktop shortcuts and uninstaller.
+* **MSI Package (`.msi`)**: Ideal for IT administrators and network-wide GPO deployments.
 
 ### 🐧 Linux
-* **AppImage (`.AppImage`)**: Ejecutable portable universal para cualquier distribución Linux.
+* **AppImage (`.AppImage`)**: Universal standalone executable for any Linux distribution.
   ```bash
   chmod +x EduSchedule_*.AppImage
   ./EduSchedule_*.AppImage
   ```
-* **Paquete Debian (`.deb`)**: Para distribuciones basadas en Debian/Ubuntu (`sudo dpkg -i eduschedule_*.deb`).
+* **Debian Package (`.deb`)**: For Debian/Ubuntu-based systems (`sudo dpkg -i eduschedule_*.deb`).
 
 ---
 
-## 🛠️ Compilación y Desarrollo Local
+## 🛠️ Local Development & Building from Source
 
-### Requisitos Previos
+### Prerequisites
 * **Java JDK 21+**
 * **Node.js 20+**
-* **Rust & Cargo** (estable)
+* **Rust & Cargo** (stable toolchain)
 * **Tauri CLI**: `npm install -g @tauri-apps/cli`
 
-### Pasos para Ejecutar en Modo Desarrollo
+### Development Setup
 
-1. **Clonar el repositorio**:
+1. **Clone the repository**:
    ```bash
    git clone https://github.com/guillemo12/Horarios-profesores.git
    cd Horarios-profesores
    ```
 
-2. **Compilar el Frontend Web**:
+2. **Bundle the Web Frontend**:
    ```bash
    npx esbuild Web/src/Datos.ts --bundle --outfile=src/main/resources/static/Datos.js --format=iife
    cp Web/src/eduschedule.html src/main/resources/static/index.html
    ```
 
-3. **Ejecutar el Servidor Backend (Kotlin)**:
+3. **Run the Backend Server (Kotlin)**:
    ```bash
    ./gradlew run
    ```
-   > La aplicación web estará disponible en `http://localhost:8080`.
+   > The web app will be available at `http://localhost:8080`.
 
-4. **Lanzar la App de Escritorio (Tauri)**:
+4. **Launch the Desktop App (Tauri)**:
    ```bash
    cd Proyecto_Horarios
    npm run tauri dev
    ```
 
-### Ejecutar Pruebas
+### Running Tests
 ```bash
 ./gradlew test --info
 ```
 
 ---
 
-## 📦 Pipeline de CI/CD (GitHub Actions)
+## 📦 CI/CD Pipeline (GitHub Actions)
 
-El proyecto incluye un flujo de integración y despliegue continuo automatizado en [`.github/workflows/build-and-release.yml`](.github/workflows/build-and-release.yml):
-* Compilación paralela en entornos limpios de **Windows** y **Linux**.
-* Generación del Fat JAR y empaquetado de la JVM con `jpackage`.
-* Sincronización automática de versión con el Git Tag (`v*`).
-* Creación automática de la **GitHub Release** con todos los binarios listos para su descarga.
+EduSchedule features an automated continuous delivery pipeline configured in [`.github/workflows/build-and-release.yml`](.github/workflows/build-and-release.yml):
+* Matrix builds on clean **Windows** and **Linux** runners.
+* Fat JAR creation and JVM runtime packaging with `jpackage`.
+* Automatic version synchronization with Git Tags (`v*`).
+* Automated **GitHub Release** creation with all production installers and binaries attached.
 
 ---
 
-## 📄 Licencia
+## 📄 License
 
-Este proyecto está desarrollado para la optimización y gestión de centros educativos. Consulta el archivo de licencia para más detalles.
+This project is developed for educational schedule optimization and management. See the license file for further details.
