@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "proyecto-horarios",
+  "productName": "EduSchedule",
   "version": "0.1.0",
-  "identifier": "com.guill.proyecto-horarios",
+  "identifier": "com.guill.eduschedule",
   "build": {
     "devUrl": "http://localhost:8080",
     "frontendDist": "../../src/main/resources/static"

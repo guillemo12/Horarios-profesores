@@ -92,7 +92,8 @@ jobs:
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Path "dist\EduSchedule" -Force
-          Copy-Item "Proyecto_Horarios\src-tauri\target\release\proyecto_horarios.exe" -Destination "dist\EduSchedule\EduSchedule.exe"
+          $builtExe = Get-ChildItem -Path "Proyecto_Horarios\src-tauri\target\release" -Filter "*.exe" | Where-Object { $_.Name -ne "backend_ktor.exe" } | Select-Object -First 1
+          Copy-Item $builtExe.FullName -Destination "dist\EduSchedule\EduSchedule.exe"
           Copy-Item "Proyecto_Horarios\src-tauri\target\release\backend_ktor" -Destination "dist\EduSchedule\backend_ktor" -Recurse
           if (Test-Path "Proyecto_Horarios\src-tauri\target\release\resources") {
             Copy-Item "Proyecto_Horarios\src-tauri\target\release\resources" -Destination "dist\EduSchedule\resources" -Recurse
