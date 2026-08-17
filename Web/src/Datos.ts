@@ -55,8 +55,32 @@ console.error = (...args: any[]) => {
     sendErrorToServer('error', message, 'console.error', 0, stack);
 };
 
+async function waitForBackend(maxRetries: number = 15, delayMs: number = 1000): Promise<boolean> {
+    const loaderText = document.getElementById('loader-text');
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+            if (loaderText && attempt > 1) {
+                loaderText.textContent = `Iniciando motor y servidor local... (${attempt}/${maxRetries})`;
+            }
+            const res = await fetch('/api/v1/config', { cache: 'no-store' });
+            if (res.ok) {
+                return true;
+            }
+        } catch (_) {
+            // El servidor aún está iniciando
+        }
+        await new Promise(r => setTimeout(r, delayMs));
+    }
+    return false;
+}
+
 window.onload = async function(): Promise<void> {
     try {
+        const isReady = await waitForBackend();
+        if (!isReady) {
+            throw new Error("No se pudo conectar con el servidor Ktor tras varios intentos.");
+        }
+
         AppData.subjects = await AppData.API.getSubjects();
         AppData.teachers = await AppData.API.getTeachers();
         AppData.courses = await AppData.API.getCourses();
@@ -84,7 +108,7 @@ window.onload = async function(): Promise<void> {
         console.error("Init Error:", err);
         const loaderText = document.getElementById('loader-text');
         if (loaderText) {
-            loaderText.textContent = "Error conectando con la API. Asegúrese de que el servidor Ktor esté encendido.";
+            loaderText.textContent = "Error conectando con la API local. Asegúrese de que el servidor Ktor esté encendido.";
             loaderText.className = "mt-4 text-red-600 font-bold px-4 text-center";
         }
     }

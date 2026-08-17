@@ -1849,8 +1849,29 @@
     const stack = args.find((a) => a instanceof Error)?.stack ?? "";
     sendErrorToServer("error", message, "console.error", 0, stack);
   };
+  async function waitForBackend(maxRetries = 15, delayMs = 1e3) {
+    const loaderText = document.getElementById("loader-text");
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        if (loaderText && attempt > 1) {
+          loaderText.textContent = `Iniciando motor y servidor local... (${attempt}/${maxRetries})`;
+        }
+        const res = await fetch("/api/v1/config", { cache: "no-store" });
+        if (res.ok) {
+          return true;
+        }
+      } catch (_) {
+      }
+      await new Promise((r) => setTimeout(r, delayMs));
+    }
+    return false;
+  }
   window.onload = async function() {
     try {
+      const isReady = await waitForBackend();
+      if (!isReady) {
+        throw new Error("No se pudo conectar con el servidor Ktor tras varios intentos.");
+      }
       AppData.subjects = await AppData.API.getSubjects();
       AppData.teachers = await AppData.API.getTeachers();
       AppData.courses = await AppData.API.getCourses();
@@ -1873,7 +1894,7 @@
       console.error("Init Error:", err);
       const loaderText = document.getElementById("loader-text");
       if (loaderText) {
-        loaderText.textContent = "Error conectando con la API. Aseg\xFArese de que el servidor Ktor est\xE9 encendido.";
+        loaderText.textContent = "Error conectando con la API local. Aseg\xFArese de que el servidor Ktor est\xE9 encendido.";
         loaderText.className = "mt-4 text-red-600 font-bold px-4 text-center";
       }
     }
