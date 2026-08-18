@@ -109,7 +109,7 @@ fun Route.systemRoutes() {
 
                 call.respond(HttpStatusCode.OK, InstallUpdateResponse(true, "Actualización iniciada. Reiniciando aplicación..."))
 
-                GlobalScope.launch {
+                kotlinx.coroutines.CoroutineScope(Dispatchers.Default).launch {
                     delay(1500)
                     System.exit(0)
                 }
@@ -157,6 +157,7 @@ fun Route.systemRoutes() {
                 multipart.forEachPart { part ->
                     if (part is PartData.FileItem) {
                         val tempFile = File(tempDir, "temp_import_${System.currentTimeMillis()}.db")
+                        @Suppress("DEPRECATION")
                         part.streamProvider().use { input ->
                             FileOutputStream(tempFile).use { output ->
                                 input.copyTo(output)
@@ -164,6 +165,7 @@ fun Route.systemRoutes() {
                         }
                         uploadedFile = tempFile
                     }
+                    @Suppress("DEPRECATION")
                     part.dispose()
                 }
 
