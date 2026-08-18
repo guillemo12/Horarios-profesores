@@ -65,7 +65,29 @@ function getBestAssetForPlatform(assets: GitHubReleaseAsset[]): GitHubReleaseAss
     return assets[0] || null;
 }
 
+export function isDevEnvironment(): boolean {
+    // Si corre dentro del contenedor de escritorio de Tauri (producción desktop)
+    const isTauri = typeof window !== 'undefined' && (
+        '__TAURI__' in window || 
+        '__TAURI_INTERNALS__' in window || 
+        '__TAURI_METADATA__' in window
+    );
+    if (isTauri) return false;
+
+    // En navegador web directo / localhost / desarrollo
+    const host = window.location.hostname;
+    return host === 'localhost' || host === '127.0.0.1' || host === '' || host.startsWith('192.168.');
+}
+
 export async function checkForUpdates(silent: boolean = false): Promise<void> {
+    // En desarrollo no saltar avisos de actualización
+    if (isDevEnvironment()) {
+        if (!silent) {
+            showToast("Modo Desarrollo", "Los avisos de actualización están desactivados en entorno de desarrollo.", "info");
+        }
+        return;
+    }
+
     try {
         const res = await fetch(`https://api.github.com/repos/${GITHUB_REPO}/releases/latest`, {
             headers: { 'Accept': 'application/vnd.github.v3+json' }
