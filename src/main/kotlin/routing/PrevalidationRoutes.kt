@@ -79,25 +79,7 @@ fun Route.prevalidationRoutes() {
                 }
             }
 
-            val conflictos = Prevalidation.detectarConflictosInviabilidad(lecciones, timeSlots, teachers, config)
-
-            if (conflictos.isEmpty()) {
-                PrevalidationResult(
-                    viable = true,
-                    checks = listOf(
-                        PrevalidationCheck("Déficit Profesores", "OK", "Capacidad docente correcta por especialidad"),
-                        PrevalidationCheck("Sobrecarga Docente", "OK", "Jornadas docentes dentro del máximo establecido"),
-                        PrevalidationCheck("Capacidad Horaria", "OK", "Horario semanal con espacio suficiente")
-                    )
-                )
-            } else {
-                PrevalidationResult(
-                    viable = false,
-                    checks = listOf(
-                        PrevalidationCheck("Diagnóstico de Factibilidad", "ERROR", "Se han detectado ${conflictos.size} inestabilidades en la plantilla", conflictos)
-                    )
-                )
-            }
+            Prevalidation.generarReportePrevalidacion(lecciones, timeSlots, teachers, config)
         }
 
         call.respond(result)
