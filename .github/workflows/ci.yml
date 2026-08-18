@@ -1,14 +1,23 @@
-name: CI & Tests
+name: Continuous Integration & Automated Tests
 
 on:
-  pull_request:
+  push:
     branches:
-      - master
+      - '**'
+    tags-ignore:
+      - 'v*'
+      - 'V*'
+  pull_request:
+    types: [opened, synchronize, reopened]
   workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   test-backend:
-    name: Backend Tests & Build (JVM)
+    name: Backend Tests (JVM / Kotlin / OR-Tools / SQLite)
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -27,11 +36,16 @@ jobs:
       - name: Run Backend Unit & Integration Tests
         run: ./gradlew test --info --no-daemon
 
-      - name: Verify Backend Build
-        run: ./gradlew build -x test --no-daemon
+      - name: Upload Test Report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: junit-test-reports
+          path: build/reports/tests/test/
+          retention-days: 7
 
   test-frontend:
-    name: Frontend Bundle Check
+    name: Frontend TypeScript & Bundle Check
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -42,6 +56,30 @@ jobs:
         with:
           deno-version: v2.x
 
-      - name: Test Frontend Bundle with Deno (esbuild)
+      - name: Check TypeScript Bundle with esbuild
         run: |
-          deno run -A npm:esbuild Web/src/Datos.ts --bundle --outfile=src/main/resources/static/Datos.js --format=iife
+          deno run -A npm:esbuild Web/src/Datos.ts --bundle --outfile=/tmp/Datos.check.js --minify
+
+  check-tauri-rust:
+    name: Tauri Rust Backend Validation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust Stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install Linux WebKit & Tauri system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf libssl-dev
+
+      - name: Rust Cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: "Proyecto_Horarios/src-tauri -> target"
+
+      - name: Check Rust Codebase
+        working-directory: Proyecto_Horarios/src-tauri
+        run: cargo check
