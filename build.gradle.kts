@@ -13,8 +13,6 @@ application {
     mainClass.set("com.colegio.MainKt")
 
     applicationDefaultJvmArgs = listOf(
-        "-Xms256m",
-        "-Xmx4g",
         "-XX:+UseParallelGC",
         "-XX:+UseStringDeduplication"
     )

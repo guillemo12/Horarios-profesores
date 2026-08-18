@@ -316,6 +316,74 @@ function onHeaderCourseChangeWrapper() {
     onHeaderCourseChange(null);
 }
 
+async function exportDatabase() {
+    try {
+        showToast("Copia de Seguridad", "Preparando archivo de base de datos...", "info");
+        const res = await fetch('/api/v1/system/database/export');
+        if (!res.ok) {
+            throw new Error(`Error en el servidor: ${res.statusText}`);
+        }
+        const blob = await res.blob();
+        const disposition = res.headers.get('Content-Disposition');
+        let filename = `EduSchedule_Backup_${new Date().toISOString().split('T')[0]}.db`;
+        if (disposition && disposition.includes('filename=')) {
+            const match = disposition.match(/filename="?([^"]+)"?/);
+            if (match && match[1]) filename = match[1];
+        }
+
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        a.remove();
+        showToast("Copia de Seguridad", `Base de datos exportada: ${filename}`, "success");
+    } catch (err: any) {
+        console.error("Error al exportar base de datos:", err);
+        showToast("Error", `No se pudo exportar la base de datos: ${err.message}`, "error");
+    }
+}
+
+async function handleImportDatabaseFile(input: HTMLInputElement) {
+    if (!input.files || input.files.length === 0) return;
+    const file = input.files[0];
+    input.value = '';
+
+    if (!file.name.endsWith('.db') && !file.name.endsWith('.sqlite')) {
+        showToast("Archivo no válido", "Por favor selecciona un archivo .db o .sqlite válido.", "warning");
+        return;
+    }
+
+    const confirmed = confirm(`¿Estás seguro de que deseas restaurar la copia de seguridad "${file.name}"?\n\nEsta acción reemplazará la base de datos actual y actualizará toda la información.`);
+    if (!confirmed) return;
+
+    try {
+        showToast("Restaurando", "Validando e importando base de datos...", "info");
+        const formData = new FormData();
+        formData.append("file", file);
+
+        const res = await fetch('/api/v1/system/database/import', {
+            method: 'POST',
+            body: formData
+        });
+
+        const data = await res.json();
+        if (res.ok && data.success) {
+            showToast("Restauración Completada", "La base de datos se ha restaurado con éxito. Actualizando vista...", "success");
+            await loadAllData();
+            refreshCalendarView();
+            updateEntitySelector();
+        } else {
+            throw new Error(data.message || "Error desconocido al importar.");
+        }
+    } catch (err: any) {
+        console.error("Error al restaurar base de datos:", err);
+        showToast("Error de Restauración", `No se pudo restaurar la base de datos: ${err.message}`, "error");
+    }
+}
+
 // Expose variables and functions to global scope for HTML inline calls
 Object.assign(window, {
     AppData,
@@ -352,5 +420,7 @@ Object.assign(window, {
     closePrevalidation,
     toggleColorMode,
     printAllSchedules,
-    checkForUpdates
+    checkForUpdates,
+    exportDatabase,
+    handleImportDatabaseFile
 });

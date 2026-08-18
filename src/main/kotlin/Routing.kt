@@ -56,6 +56,7 @@ fun Application.configureRouting() {
             scheduleRoutes()
             prevalidationRoutes()
             configRoutes()
+            systemRoutes()
         }
     }
 }

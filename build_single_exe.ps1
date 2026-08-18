@@ -29,7 +29,19 @@ namespace EduScheduleSingle {
                 string targetDir = Path.Combine(localAppData, "EduScheduleApp");
                 string targetExe = Path.Combine(targetDir, "EduSchedule.exe");
 
-                if (!File.Exists(targetExe)) {
+                string versionFile = Path.Combine(targetDir, ".version");
+                string currentVersion = "0.0.6_" + File.GetLastWriteTime(Assembly.GetExecutingAssembly().Location).Ticks.ToString();
+
+                bool needExtract = !File.Exists(targetExe) || !File.Exists(versionFile);
+                if (!needExtract) {
+                    try {
+                        needExtract = (File.ReadAllText(versionFile) != currentVersion);
+                    } catch {
+                        needExtract = true;
+                    }
+                }
+
+                if (needExtract) {
                     if (Directory.Exists(targetDir)) {
                         try { Directory.Delete(targetDir, true); } catch {}
                     }
@@ -43,6 +55,7 @@ namespace EduScheduleSingle {
                             }
                         }
                     }
+                    try { File.WriteAllText(versionFile, currentVersion); } catch {}
                 }
 
                 ProcessStartInfo psi = new ProcessStartInfo(targetExe);

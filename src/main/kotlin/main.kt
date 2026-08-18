@@ -15,10 +15,43 @@ import java.util.concurrent.atomic.AtomicBoolean
 
 private val isDbInitialized = AtomicBoolean(false)
 
+fun getDatabasePath(): String {
+    val customPath = System.getProperty("eduschedule.db.path") ?: System.getenv("EDUSCHEDULE_DB_PATH")
+    if (!customPath.isNullOrBlank()) {
+        return customPath
+    }
+
+    val appData = System.getenv("APPDATA") ?: System.getenv("LOCALAPPDATA")
+    val dbDir = if (!appData.isNullOrBlank()) {
+        java.io.File(appData, "EduSchedule")
+    } else {
+        java.io.File(System.getProperty("user.home"), ".eduschedule")
+    }
+
+    if (!dbDir.exists()) {
+        dbDir.mkdirs()
+    }
+
+    return java.io.File(dbDir, "colegio.db").absolutePath
+}
+
+fun reconnectDatabase() {
+    isDbInitialized.set(false)
+    val dbPath = getDatabasePath()
+    Database.connect("jdbc:sqlite:$dbPath", driver = "org.sqlite.JDBC")
+    transaction {
+        SchemaUtils.createMissingTablesAndColumns(
+            ProfesorTable, ConfiguracionTable, AsignaturaTable,
+            ProfesorAsignaturaTable, RepartoDocenteTable, GruposTable, CursoTable, ClaseTable
+        )
+    }
+}
+
 fun initDatabase() {
     if (!isDbInitialized.compareAndSet(false, true)) return
 
-    Database.connect("jdbc:sqlite:colegio.db", driver = "org.sqlite.JDBC")
+    val dbPath = getDatabasePath()
+    Database.connect("jdbc:sqlite:$dbPath", driver = "org.sqlite.JDBC")
 
     transaction {
         SchemaUtils.createMissingTablesAndColumns(

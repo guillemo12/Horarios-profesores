@@ -14,7 +14,10 @@
         "title": "EduSchedule",
         "width": 1200,
         "height": 800,
-        "url": "http://localhost:8080"
+        "url": "http://localhost:8080",
+        "visible": true,
+        "center": true,
+        "resizable": true
       }
     ],
     "security": {
