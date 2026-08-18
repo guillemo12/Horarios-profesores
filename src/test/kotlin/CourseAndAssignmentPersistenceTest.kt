@@ -10,6 +10,7 @@ import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.transaction
 import java.io.File
+import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -17,11 +18,24 @@ import kotlin.test.assertNotNull
 
 class CourseAndAssignmentPersistenceTest {
 
+    private val tempDb = File(System.getProperty("java.io.tmpdir"), "test_course_assignments.db")
+
     @BeforeTest
     fun setup() {
-        val tempDb = File(System.getProperty("java.io.tmpdir"), "test_course_assignments.db")
+        if (tempDb.exists()) {
+            tempDb.delete()
+        }
         System.setProperty("eduschedule.db.path", tempDb.absolutePath)
-        initDatabase()
+        reconnectDatabase()
+    }
+
+    @AfterTest
+    fun tearDown() {
+        System.clearProperty("eduschedule.db.path")
+        if (tempDb.exists()) {
+            tempDb.delete()
+        }
+        reconnectDatabase()
     }
 
     @Test
