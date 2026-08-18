@@ -16,8 +16,10 @@ import io.ktor.http.*
 import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
+import org.jetbrains.exposed.dao.id.EntityID
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.deleteWhere
+import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.transaction
 
@@ -126,9 +128,10 @@ fun Route.courseRoutes() {
                     val tutorEnt = ProfesorEntity.findById(parseId(gDto.tutorId)) ?: defaultProf
                     val gId = parseId(gDto.id ?: "0")
                     val existing = GruposEntity.findById(gId)
-                    if (existing != null) {
+                    val grupoEnt = if (existing != null) {
                         existing.nombre = gDto.name
                         if (tutorEnt != null) existing.tutor = tutorEnt
+                        existing
                     } else {
                         if (tutorEnt != null) {
                             GruposEntity.new {
@@ -136,13 +139,37 @@ fun Route.courseRoutes() {
                                 curso = c
                                 tutor = tutorEnt
                             }
+                        } else null
+                    }
+
+                    if (grupoEnt != null && gDto.assignments != null) {
+                        RepartoDocenteTable.deleteWhere { grupoId eq grupoEnt.id.value }
+                        gDto.assignments.forEach { (asigIdStr, profIdStr) ->
+                            val asigId = parseId(asigIdStr)
+                            val profId = parseId(profIdStr)
+                            if (asigId > 0 && profId > 0) {
+                                RepartoDocenteTable.insert { row ->
+                                    row[RepartoDocenteTable.grupoId] = grupoEnt.id
+                                    row[RepartoDocenteTable.asignaturaId] = EntityID(asigId, AsignaturaTable)
+                                    row[RepartoDocenteTable.profesorId] = EntityID(profId, com.colegio.modelos.tables.ProfesorTable)
+                                }
+                            }
                         }
                     }
                 }
 
                 val subjectsList = AsignaturaEntity.find { AsignaturaTable.curso eq c.id }.map { it.id.value.toString() }
                 val groupsList = GruposEntity.find { GruposTable.curso eq c.id }.map { g ->
-                    CourseGroupDto(g.id.value.toString(), g.nombre, g.tutor.id.value.toString(), emptyMap())
+                    val repartos = RepartoDocenteTable.selectAll().where { RepartoDocenteTable.grupoId eq g.id.value }
+                    val assignmentsMap = mutableMapOf<String, String>()
+                    repartos.forEach { row ->
+                        val subId = row[RepartoDocenteTable.asignaturaId].value.toString()
+                        val profId = row[RepartoDocenteTable.profesorId]?.value?.toString() ?: ""
+                        if (profId.isNotEmpty()) {
+                            assignmentsMap[subId] = profId
+                        }
+                    }
+                    CourseGroupDto(g.id.value.toString(), g.nombre, g.tutor.id.value.toString(), assignmentsMap)
                 }
 
                 CourseDto(
