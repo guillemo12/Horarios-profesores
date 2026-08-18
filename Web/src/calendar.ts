@@ -216,6 +216,9 @@ export function openAddClassModal(startDate: Date | null = null, endDate: Date |
         onModalCourseChange(); 
     }
 
+    const pinCheckbox = document.getElementById('modal-is-pinned') as HTMLInputElement;
+    if (pinCheckbox) pinCheckbox.checked = false;
+
     const modal = document.getElementById('add-class-modal');
     if (modal) {
         modal.classList.replace('hidden', 'flex');
@@ -273,27 +276,34 @@ export async function saveNewClass(): Promise<void> {
     }
 
     const durationInMs = baseEnd.getTime() - baseStart.getTime();
-    const durationInHours = durationInMs / (1000 * 60 * 60);
-
-    let nuevaClase: ScheduledClass = {
-        id: 'evt-' + Date.now(),
-        start: baseStart.toISOString(),
-        end: baseEnd.toISOString(),
-        duration: durationInHours,
-        subjectId: subjId,
-        groupId: groupId,
-        teacherId: teacherId,
-        isPinned: false
-    };
+    const slotMinutes = 30;
+    const numSlots = Math.max(1, Math.round(durationInMs / (slotMinutes * 60000)));
+    const isPinnedSelected = (document.getElementById('modal-is-pinned') as HTMLInputElement)?.checked ?? false;
 
     showToast('Guardando...', 'Enviando bloque a la base de datos API', 'info');
-    await AppData.API.saveClass(nuevaClase);
-    AppData.scheduledClasses.push(nuevaClase);
+
+    for (let i = 0; i < numSlots; i++) {
+        const slotStart = new Date(baseStart.getTime() + i * slotMinutes * 60000);
+        const slotEnd = new Date(slotStart.getTime() + slotMinutes * 60000);
+
+        let nuevaClase: ScheduledClass = {
+            id: 'evt-' + Date.now() + '-' + i,
+            start: slotStart.toISOString(),
+            end: slotEnd.toISOString(),
+            duration: 0.5,
+            subjectId: subjId,
+            groupId: groupId,
+            teacherId: teacherId,
+            isPinned: isPinnedSelected
+        };
+
+        await AppData.API.saveClass(nuevaClase);
+        AppData.scheduledClasses.push(nuevaClase);
+        AppData.WS.sendCommand('MANUAL_EDIT', { id: nuevaClase.id });
+    }
     
     closeAddClassModal();
     refreshCalendarView();
-    
-    AppData.WS.sendCommand('MANUAL_EDIT', { id: nuevaClase.id }); 
 }
 
 const SUBJECT_PALETTE = [

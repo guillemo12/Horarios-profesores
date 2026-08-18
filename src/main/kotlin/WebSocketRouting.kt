@@ -73,6 +73,39 @@ fun Application.configureSockets() {
         }
     }
 
+    fun findTimeSlots(startIso: String, endIso: String, timeSlots: List<TimeSlot>): List<TimeSlot> {
+        return try {
+            val cleanStart = startIso.replace(" ", "T").let { s ->
+                if (s.contains("T")) {
+                    val parts = s.split("T")
+                    val datePart = parts[0]
+                    val timePart = parts[1].split(".", "+", "Z")[0]
+                    "${datePart}T${timePart}"
+                } else s
+            }
+            val cleanEnd = endIso.replace(" ", "T").let { s ->
+                if (s.contains("T")) {
+                    val parts = s.split("T")
+                    val datePart = parts[0]
+                    val timePart = parts[1].split(".", "+", "Z")[0]
+                    "${datePart}T${timePart}"
+                } else s
+            }
+            val startDt = LocalDateTime.parse(cleanStart)
+            val endDt = LocalDateTime.parse(cleanEnd)
+            val day = startDt.dayOfWeek
+            val startTime = startDt.toLocalTime()
+            val endTime = endDt.toLocalTime()
+
+            val matched = timeSlots.filter { it.dayOfWeek == day && !it.startTime.isBefore(startTime) && it.endTime.isBefore(endTime.plusSeconds(1)) }
+                .sortedBy { it.startTime }
+            if (matched.isNotEmpty()) matched else listOfNotNull(findTimeSlot(startIso, timeSlots))
+        } catch (e: Exception) {
+            logger.warn("Error parsing ISO date range: $startIso - $endIso -> ${e.message}")
+            listOfNotNull(findTimeSlot(startIso, timeSlots))
+        }
+    }
+
     routing {
         webSocket("/ws") {
             logger.info("Cliente WS conectado: $this")
@@ -200,8 +233,27 @@ fun Application.configureSockets() {
                                                         (ClaseTable.groupId eq grupoEnt.id) and (ClaseTable.subjectId eq asigEnt.id)
                                                     }.toList()
 
-                                                    val pinnedClasses = existingClasses.filter { it.isPinned }
-                                                    val unpinnedClasses = existingClasses.filter { !it.isPinned }
+                                                    val expandedPinnedSlots = mutableListOf<Triple<ClaseEntity, TimeSlot, String>>()
+                                                    val expandedUnpinnedSlots = mutableListOf<Triple<ClaseEntity, TimeSlot?, String>>()
+
+                                                    existingClasses.forEach { cls ->
+                                                        val slots = findTimeSlots(cls.start, cls.end, franjasDisponibles)
+                                                        if (cls.isPinned) {
+                                                            slots.forEachIndexed { idx, slot ->
+                                                                val classId = if (idx == 0) cls.id.value else "${cls.id.value}_sub_${idx + 1}"
+                                                                expandedPinnedSlots.add(Triple(cls, slot, classId))
+                                                            }
+                                                        } else {
+                                                            if (slots.isNotEmpty()) {
+                                                                slots.forEachIndexed { idx, slot ->
+                                                                    val classId = if (idx == 0) cls.id.value else "${cls.id.value}_sub_${idx + 1}"
+                                                                    expandedUnpinnedSlots.add(Triple(cls, slot, classId))
+                                                                }
+                                                            } else {
+                                                                expandedUnpinnedSlots.add(Triple(cls, null, cls.id.value))
+                                                            }
+                                                        }
+                                                    }
 
                                                     var unpinnedIndex = 0
 
@@ -217,22 +269,23 @@ fun Application.configureSockets() {
                                                             profesorFijo = solverProfeFijo
                                                         )
 
-                                                        if (b <= pinnedClasses.size) {
-                                                            val cls = pinnedClasses[b - 1]
+                                                        if (b <= expandedPinnedSlots.size) {
+                                                            val (cls, slot, slotClassId) = expandedPinnedSlots[b - 1]
                                                             lec.isPinned = true
-                                                            lec.timeSlot = findTimeSlot(cls.start, franjasDisponibles) ?: franjasDisponibles.firstOrNull()
+                                                            lec.timeSlot = slot
 
                                                             val actualTeacher = try { profesorList.find { it.nombre == cls.teacher.nombre } } catch (_: Exception) { null }
                                                             val fallbackTeacher = profesorList.find { it.asignaturas.contains(asigEnt.nombre) }
                                                             lec.profesor = actualTeacher ?: solverProfeFijo ?: fallbackTeacher ?: profesorList.firstOrNull()
-                                                            lec.id = cls.id.value
+                                                            lec.id = slotClassId
                                                         } else {
-                                                            val uCls = unpinnedClasses.getOrNull(unpinnedIndex++)
-                                                            if (uCls != null) {
-                                                                lec.timeSlot = findTimeSlot(uCls.start, franjasDisponibles)
-                                                                val actualTeacher = try { profesorList.find { it.nombre == uCls.teacher.nombre } } catch (_: Exception) { null }
+                                                            val uTriple = expandedUnpinnedSlots.getOrNull(unpinnedIndex++)
+                                                            if (uTriple != null) {
+                                                                val (cls, slot, slotClassId) = uTriple
+                                                                lec.timeSlot = slot
+                                                                val actualTeacher = try { profesorList.find { it.nombre == cls.teacher.nombre } } catch (_: Exception) { null }
                                                                 lec.profesor = actualTeacher ?: solverProfeFijo
-                                                                lec.id = uCls.id.value
+                                                                lec.id = slotClassId
                                                             } else {
                                                                 lec.timeSlot = null
                                                                 lec.profesor = solverProfeFijo
