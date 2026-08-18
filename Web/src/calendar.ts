@@ -1,6 +1,6 @@
 import { AppData, updateEntitySelector } from './Datos';
 import { ScheduledClass } from './types';
-import { showToast } from './utils';
+import { showToast, formatHours } from './utils';
 
 declare const tui: any;
 
@@ -89,16 +89,23 @@ export function initCalendar(): void {
     AppData.calendarInstance.on('beforeUpdateEvent', async function(info: any) {
         const { event, changes } = info;
         
-        let cls = AppData.scheduledClasses.find(c => c.id === event.id);
-        if (!cls) return;
+        let mergedEvent = AppData.currentMergedEvents?.find(e => e.id === event.id || (e.mergedIds && e.mergedIds.includes(event.id)));
+        let constituentClasses: ScheduledClass[] = [];
+        if (mergedEvent && mergedEvent.mergedIds) {
+            constituentClasses = AppData.scheduledClasses.filter(c => mergedEvent.mergedIds.includes(c.id));
+        } else {
+            const singleCls = AppData.scheduledClasses.find(c => c.id === event.id);
+            if (singleCls) constituentClasses = [singleCls];
+        }
+        if (constituentClasses.length === 0) return;
 
-        if (cls.isPinned) {
+        if (constituentClasses.some(c => c.isPinned)) {
             showToast("Bloqueado", "No puedes mover ni alterar una clase que está fijada (Pin).", "warning");
             return;
         }
 
-        let startCandidate = cls.start;
-        let endCandidate = cls.end;
+        let startCandidate = mergedEvent ? mergedEvent.start : constituentClasses[0].start;
+        let endCandidate = mergedEvent ? mergedEvent.end : constituentClasses[constituentClasses.length - 1].end;
         if (changes.start) startCandidate = (typeof changes.start.toDate === 'function') ? changes.start.toDate() : new Date(changes.start);
         if (changes.end) endCandidate = (typeof changes.end.toDate === 'function') ? changes.end.toDate() : new Date(changes.end);
 
@@ -108,17 +115,36 @@ export function initCalendar(): void {
             return;
         }
 
-        if (changes.start) cls.start = (typeof changes.start.toDate === 'function') ? changes.start.toDate() : new Date(changes.start);
-        if (changes.end) cls.end = (typeof changes.end.toDate === 'function') ? changes.end.toDate() : new Date(changes.end);
-        
-        cls.duration = (new Date(cls.end).getTime() - new Date(cls.start).getTime()) / (1000 * 60 * 60);
-
-        AppData.calendarInstance.updateEvent(event.id, event.calendarId, changes);
-
+        const newStartDate = new Date(startCandidate);
         showToast("Sincronizando...", "Guardando nueva posición en el servidor...", "info");
-        await AppData.API.updateClass(cls);
-        
-        AppData.WS.sendCommand('MANUAL_EDIT', { id: cls.id, action: 'moved' });
+
+        if (constituentClasses.length === 2) {
+            const c1 = constituentClasses[0];
+            c1.start = newStartDate.toISOString();
+            const end1 = new Date(newStartDate.getTime() + 30 * 60000);
+            c1.end = end1.toISOString();
+            c1.duration = 0.5;
+            await AppData.API.updateClass(c1);
+            AppData.WS.sendCommand('MANUAL_EDIT', { id: c1.id, action: 'moved' });
+
+            const c2 = constituentClasses[1];
+            c2.start = end1.toISOString();
+            const end2 = new Date(newStartDate.getTime() + 60 * 60000);
+            c2.end = end2.toISOString();
+            c2.duration = 0.5;
+            await AppData.API.updateClass(c2);
+            AppData.WS.sendCommand('MANUAL_EDIT', { id: c2.id, action: 'moved' });
+        } else {
+            const cls = constituentClasses[0];
+            cls.start = newStartDate.toISOString();
+            const endCandidateDate = new Date(endCandidate);
+            cls.end = endCandidateDate.toISOString();
+            cls.duration = (endCandidateDate.getTime() - newStartDate.getTime()) / (1000 * 60 * 60);
+            await AppData.API.updateClass(cls);
+            AppData.WS.sendCommand('MANUAL_EDIT', { id: cls.id, action: 'moved' });
+        }
+
+        refreshCalendarView();
     });
 
     AppData.calendarInstance.on('clickEvent', (e: any) => openEventDetail(e.event));
@@ -314,6 +340,150 @@ export function toggleColorMode(): void {
     refreshCalendarView();
 }
 
+export interface MergedDisplayEvent {
+    id: string;
+    mergedIds: string[];
+    calendarId: string;
+    title: string;
+    body: string;
+    start: Date | string;
+    end: Date | string;
+    duration: number;
+    isReadOnly: boolean;
+    isPinned: boolean;
+    backgroundColor: string;
+    color: string;
+    customStyle: any;
+    raw: {
+        subjectId: string;
+        teacherId: string;
+        groupId: string;
+    };
+}
+
+export function getMergedCalendarEvents(classes: ScheduledClass[], type: string, entityId: string, colorMode: string): MergedDisplayEvent[] {
+    const filtered = classes.filter(cls => {
+        if (type === 'teacher') return cls.teacherId === entityId;
+        if (type === 'group') return cls.groupId === entityId;
+        return false;
+    });
+
+    const groupsMap = new Map<string, ScheduledClass[]>();
+    filtered.forEach(cls => {
+        const d = new Date(cls.start);
+        const dateKey = `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
+        const key = `${dateKey}_${cls.subjectId}_${cls.teacherId}_${cls.groupId}`;
+        if (!groupsMap.has(key)) {
+            groupsMap.set(key, []);
+        }
+        groupsMap.get(key)!.push(cls);
+    });
+
+    const displayEvents: MergedDisplayEvent[] = [];
+
+    groupsMap.forEach(groupClasses => {
+        groupClasses.sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());
+
+        let i = 0;
+        while (i < groupClasses.length) {
+            const current = groupClasses[i];
+            const next = (i + 1 < groupClasses.length) ? groupClasses[i + 1] : null;
+
+            const currentEnd = new Date(current.end).getTime();
+            const nextStart = next ? new Date(next.start).getTime() : -1;
+            const isContiguous = next !== null && Math.abs(currentEnd - nextStart) < 60000;
+            const currentDur = current.duration || ((new Date(current.end).getTime() - new Date(current.start).getTime()) / 3600000);
+            const nextDur = next ? (next.duration || ((new Date(next.end).getTime() - new Date(next.start).getTime()) / 3600000)) : 0;
+            
+            const crossesRecess = next !== null && overlapsRecess(new Date(current.start), new Date(next.end));
+
+            // Solo fusionar si son 2 bloques de 30m (<= 0.5h cada uno), la suma no excede 1.01h, contiguos y sin cruzar recreo
+            if (isContiguous && !crossesRecess && (currentDur <= 0.51 && nextDur <= 0.51) && (currentDur + nextDur <= 1.01)) {
+                const isPinned = (current.isPinned || next.isPinned) || false;
+                const subject = AppData.subjects.find(s => s.id === current.subjectId);
+                const teacher = AppData.teachers.find(t => t.id === current.teacherId);
+                const course = AppData.courses.find(c => c.groups.some(g => g.id === current.groupId));
+                const grp = course ? course.groups.find(g => g.id === current.groupId) : null;
+
+                const pin = isPinned ? '📌 ' : '';
+                const subjectTitle = subject ? `${pin}${subject.name}` : 'Clase API';
+                const subtitle = (type === 'group')
+                    ? (teacher ? `Prof: ${teacher.name}` : '')
+                    : (course && grp ? `${course.name} - G.${grp.name}` : (teacher ? `Prof: ${teacher.name}` : ''));
+
+                const eventBgColor = (colorMode === 'subject')
+                    ? getSubjectColor(current.subjectId)
+                    : (teacher ? teacher.color : '#4f46e5');
+
+                displayEvents.push({
+                    id: current.id,
+                    mergedIds: [current.id, next.id],
+                    calendarId: current.teacherId,
+                    title: subjectTitle,
+                    body: subtitle,
+                    start: current.start,
+                    end: next.end,
+                    duration: currentDur + nextDur,
+                    isReadOnly: isPinned,
+                    isPinned: isPinned,
+                    backgroundColor: eventBgColor,
+                    color: '#ffffff',
+                    customStyle: { borderRadius: '6px', border: 'none', padding: '2px' },
+                    raw: {
+                        subjectId: current.subjectId,
+                        teacherId: current.teacherId,
+                        groupId: current.groupId
+                    }
+                });
+
+                // Avanzar 2 posiciones para respetar el límite de solo juntar de una hora en una hora
+                i += 2;
+            } else {
+                const isPinned = current.isPinned || false;
+                const subject = AppData.subjects.find(s => s.id === current.subjectId);
+                const teacher = AppData.teachers.find(t => t.id === current.teacherId);
+                const course = AppData.courses.find(c => c.groups.some(g => g.id === current.groupId));
+                const grp = course ? course.groups.find(g => g.id === current.groupId) : null;
+
+                const pin = isPinned ? '📌 ' : '';
+                const subjectTitle = subject ? `${pin}${subject.name}` : 'Clase API';
+                const subtitle = (type === 'group')
+                    ? (teacher ? `Prof: ${teacher.name}` : '')
+                    : (course && grp ? `${course.name} - G.${grp.name}` : (teacher ? `Prof: ${teacher.name}` : ''));
+
+                const eventBgColor = (colorMode === 'subject')
+                    ? getSubjectColor(current.subjectId)
+                    : (teacher ? teacher.color : '#4f46e5');
+
+                displayEvents.push({
+                    id: current.id,
+                    mergedIds: [current.id],
+                    calendarId: current.teacherId,
+                    title: subjectTitle,
+                    body: subtitle,
+                    start: current.start,
+                    end: current.end,
+                    duration: currentDur,
+                    isReadOnly: isPinned,
+                    isPinned: isPinned,
+                    backgroundColor: eventBgColor,
+                    color: '#ffffff',
+                    customStyle: { borderRadius: '6px', border: 'none', padding: '2px' },
+                    raw: {
+                        subjectId: current.subjectId,
+                        teacherId: current.teacherId,
+                        groupId: current.groupId
+                    }
+                });
+
+                i += 1;
+            }
+        }
+    });
+
+    return displayEvents;
+}
+
 export function refreshCalendarView(): void {
     const typeSelect = document.getElementById('view-type-select') as HTMLSelectElement;
     const entitySelect = document.getElementById('view-entity-select') as HTMLSelectElement;
@@ -331,43 +501,10 @@ export function refreshCalendarView(): void {
 
     const colorMode = AppData.colorMode || 'teacher';
 
-    const events = AppData.scheduledClasses.filter(cls => {
-        if (type === 'teacher') return cls.teacherId === entityId;
-        if (type === 'group') return cls.groupId === entityId;
-        return false;
-    }).map(cls => {
-        const subject = AppData.subjects.find(s => s.id === cls.subjectId);
-        const teacher = AppData.teachers.find(t => t.id === cls.teacherId);
-        const course = AppData.courses.find(c => c.groups.some(g => g.id === cls.groupId));
-        const group = course ? course.groups.find(g => g.id === cls.groupId) : null;
+    const mergedEvents = getMergedCalendarEvents(AppData.scheduledClasses, type, entityId, colorMode);
+    AppData.currentMergedEvents = mergedEvents;
 
-        const pin = cls.isPinned ? '📌 ' : '';
-        const subjectTitle = subject ? `${pin}${subject.name}` : 'Clase API';
-        
-        // En vista de Grupo mostramos el Profesor abajo. En vista de Profesor mostramos el Grupo abajo.
-        const subtitle = (type === 'group')
-            ? (teacher ? `Prof: ${teacher.name}` : '')
-            : (course && group ? `${course.name} - G.${group.name}` : (teacher ? `Prof: ${teacher.name}` : ''));
-
-        const eventBgColor = (colorMode === 'subject')
-            ? getSubjectColor(cls.subjectId)
-            : (teacher ? teacher.color : '#4f46e5');
-        
-        return {
-            id: cls.id, 
-            calendarId: cls.teacherId, 
-            title: subjectTitle,
-            body: subtitle,
-            start: cls.start, 
-            end: cls.end, 
-            isReadOnly: cls.isPinned || false,
-            backgroundColor: eventBgColor, 
-            color: '#ffffff',
-            customStyle: { borderRadius: '6px', border: 'none', padding: '2px' }
-        };
-    });
-
-    if (AppData.calendarInstance) AppData.calendarInstance.createEvents(events);
+    if (AppData.calendarInstance) AppData.calendarInstance.createEvents(mergedEvents);
 
     // Actualizar Tarjeta de Resumen Docente
     const summaryCard = document.getElementById('teacher-summary-card');
@@ -441,24 +578,35 @@ export function refreshCalendarView(): void {
 }
 
 export function openEventDetail(event: any): void {
-    const cls = AppData.scheduledClasses.find(c => c.id === event.id);
-    if (!cls) return;
+    let mergedEvent = AppData.currentMergedEvents?.find(e => e.id === event.id || (e.mergedIds && e.mergedIds.includes(event.id)));
+    let constituentClasses: ScheduledClass[] = [];
+    if (mergedEvent && mergedEvent.mergedIds) {
+        constituentClasses = AppData.scheduledClasses.filter(c => mergedEvent.mergedIds.includes(c.id));
+    } else {
+        const singleCls = AppData.scheduledClasses.find(c => c.id === event.id);
+        if (singleCls) constituentClasses = [singleCls];
+    }
+    if (constituentClasses.length === 0) return;
 
-    const subject = AppData.subjects.find(s => s.id === cls.subjectId);
-    const teacher = AppData.teachers.find(t => t.id === cls.teacherId);
+    const firstCls = constituentClasses[0];
+    const subject = AppData.subjects.find(s => s.id === firstCls.subjectId);
+    const teacher = AppData.teachers.find(t => t.id === firstCls.teacherId);
 
     if (!subject || !teacher) return;
 
-    const course = AppData.courses.find(c => c.groups.some(g => g.id === cls.groupId));
-    const group = course ? course.groups.find(g => g.id === cls.groupId) : null;
+    const totalDuration = constituentClasses.reduce((sum, c) => sum + (c.duration || 0.5), 0);
+    const isAnyPinned = constituentClasses.some(c => c.isPinned);
+
+    const course = AppData.courses.find(c => c.groups.some(g => g.id === firstCls.groupId));
+    const group = course ? course.groups.find(g => g.id === firstCls.groupId) : null;
     const courseGroupName = course && group ? `${course.name} - Grupo ${group.name}` : 'Sin grupo';
 
     const titleEl = document.getElementById('event-detail-title');
-    if (titleEl) titleEl.textContent = subject.name;
+    if (titleEl) titleEl.textContent = `${subject.name} (${formatHours(totalDuration)}h)`;
     
     const colorMode = AppData.colorMode || 'teacher';
     const headerColor = (colorMode === 'subject')
-        ? getSubjectColor(cls.subjectId)
+        ? getSubjectColor(firstCls.subjectId)
         : teacher.color;
 
     const headerEl = document.getElementById('event-detail-header');
@@ -466,23 +614,29 @@ export function openEventDetail(event: any): void {
     
     const bodyEl = document.getElementById('event-detail-body');
     if (bodyEl) {
+        const sTime = new Date(mergedEvent ? mergedEvent.start : firstCls.start).toTimeString().slice(0, 5);
+        const eTime = new Date(mergedEvent ? mergedEvent.end : constituentClasses[constituentClasses.length - 1].end).toTimeString().slice(0, 5);
         bodyEl.innerHTML = `
             <p class="text-sm mb-1.5">Curso/Grupo: <b>${courseGroupName}</b></p>
-            <p class="text-sm">Impartida por: <b>${teacher.name}</b></p>
+            <p class="text-sm mb-1.5">Impartida por: <b>${teacher.name}</b></p>
+            <p class="text-xs text-gray-500">Horario: <b>${sTime} - ${eTime}</b> (${formatHours(totalDuration)}h)</p>
         `;
     }
 
     const pinBtn = document.getElementById('btn-pin-event') as HTMLButtonElement;
     if (pinBtn) {
-        pinBtn.innerText = cls.isPinned ? "Desfijar" : "Fijar (Pin)";
+        pinBtn.innerText = isAnyPinned ? "Desfijar" : "Fijar (Pin)";
         pinBtn.onclick = async () => { 
-            cls.isPinned = !cls.isPinned; 
-            try {
-                await AppData.API.updateClass(cls); 
-            } catch (err) {
-                console.error("Error al actualizar estado del pin:", err);
+            const newPinState = !isAnyPinned;
+            for (const cls of constituentClasses) {
+                cls.isPinned = newPinState;
+                try {
+                    await AppData.API.updateClass(cls); 
+                } catch (err) {
+                    console.error("Error al actualizar estado del pin:", err);
+                }
+                AppData.WS.sendCommand('PIN_UPDATE', { id: cls.id, state: cls.isPinned });
             }
-            AppData.WS.sendCommand('PIN_UPDATE', { id: cls.id, state: cls.isPinned }); 
             closeEventDetail(); 
             refreshCalendarView(); 
         };
@@ -491,9 +645,11 @@ export function openEventDetail(event: any): void {
     const delBtn = document.getElementById('btn-delete-event') as HTMLButtonElement;
     if (delBtn) {
         delBtn.onclick = async () => { 
-            await AppData.API.deleteClass(cls.id); 
-            AppData.scheduledClasses = AppData.scheduledClasses.filter(c => c.id !== cls.id);
-            AppData.WS.sendCommand('MANUAL_EDIT', { delete: cls.id });
+            for (const cls of constituentClasses) {
+                await AppData.API.deleteClass(cls.id); 
+                AppData.scheduledClasses = AppData.scheduledClasses.filter(c => c.id !== cls.id);
+                AppData.WS.sendCommand('MANUAL_EDIT', { delete: cls.id });
+            }
             closeEventDetail(); 
             refreshCalendarView(); 
         };

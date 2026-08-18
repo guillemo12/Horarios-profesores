@@ -403,6 +403,7 @@ Object.assign(window, {
     closeAddClassModal,
     openAddClassModal,
     onModalCourseChange,
+    openEventDetail,
     closeEventDetail,
     refreshCalendarView,
     updateDateRange,

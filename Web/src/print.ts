@@ -86,7 +86,10 @@ export function printAllSchedules(): void {
                         <tbody>
             `;
 
-            slots.forEach(slot => {
+            const skipSlotDayCourse = new Map<number, Set<number>>();
+            days.forEach(d => skipSlotDayCourse.set(d.id, new Set<number>()));
+
+            slots.forEach((slot, sIdx) => {
                 let isRecess = false;
                 if (AppData.config) {
                     const rParts = AppData.config.horaInicioRecreo.split(':');
@@ -111,6 +114,10 @@ export function printAllSchedules(): void {
                 html += `<td class="p-1 border border-gray-300 text-center font-mono text-[9px] font-medium bg-gray-50">${slot.startStr} - ${slot.endStr}</td>`;
 
                 days.forEach(day => {
+                    if (skipSlotDayCourse.get(day.id)!.has(sIdx)) {
+                        return; // Omitir td por rowspan previo
+                    }
+
                     const matchCls = groupClasses.find(cls => {
                         const dt = new Date(cls.start);
                         const dNum = dt.getDay();
@@ -125,9 +132,37 @@ export function printAllSchedules(): void {
                         const bgColor = getSubjectColor(matchCls.subjectId);
                         const pinIcon = matchCls.isPinned ? '📌 ' : '';
 
+                        // Comprobar si la siguiente franja es fusionable en 1h
+                        let isMerged1h = false;
+                        const nextSlot = (sIdx + 1 < slots.length) ? slots[sIdx + 1] : null;
+                        if (nextSlot) {
+                            let nextIsRecess = false;
+                            if (AppData.config) {
+                                const rParts = AppData.config.horaInicioRecreo.split(':');
+                                const rStart = parseInt(rParts[0]) * 60 + parseInt(rParts[1]);
+                                const rEnd = rStart + AppData.config.duracionRecreo;
+                                if (nextSlot.startMin >= rStart && nextSlot.startMin < rEnd) nextIsRecess = true;
+                            }
+                            if (!nextIsRecess) {
+                                const nextCls = groupClasses.find(cls => {
+                                    const dt = new Date(cls.start);
+                                    if (dt.getDay() !== day.id) return false;
+                                    const cMin = dt.getHours() * 60 + dt.getMinutes();
+                                    return cMin === nextSlot.startMin;
+                                });
+                                if (nextCls && nextCls.subjectId === matchCls.subjectId && nextCls.teacherId === matchCls.teacherId && nextCls.groupId === matchCls.groupId) {
+                                    isMerged1h = true;
+                                    skipSlotDayCourse.get(day.id)!.add(sIdx + 1);
+                                }
+                            }
+                        }
+
+                        const rowspanAttr = isMerged1h ? 'rowspan="2"' : '';
+                        const durLabel = isMerged1h ? ' (1h)' : '';
+
                         html += `
-                            <td class="p-1 border border-gray-300 align-top text-white font-medium shadow-inner" style="background-color: ${bgColor} !important; color: white !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important;">
-                                <div class="font-bold text-[10px] truncate leading-tight">${pinIcon}${subject ? subject.name : 'Clase'}</div>
+                            <td ${rowspanAttr} class="p-1 border border-gray-300 align-middle text-white font-medium shadow-inner" style="background-color: ${bgColor} !important; color: white !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important;">
+                                <div class="font-bold text-[10px] truncate leading-tight">${pinIcon}${subject ? subject.name : 'Clase'}${durLabel}</div>
                                 ${teacher ? `<div class="text-[9px] opacity-95 truncate leading-tight font-normal">Prof: ${teacher.name}</div>` : ''}
                             </td>
                         `;
@@ -174,7 +209,10 @@ export function printAllSchedules(): void {
                     <tbody>
         `;
 
-        slots.forEach(slot => {
+        const skipSlotDayTeacher = new Map<number, Set<number>>();
+        days.forEach(d => skipSlotDayTeacher.set(d.id, new Set<number>()));
+
+        slots.forEach((slot, sIdx) => {
             let isRecess = false;
             if (AppData.config) {
                 const rParts = AppData.config.horaInicioRecreo.split(':');
@@ -199,6 +237,10 @@ export function printAllSchedules(): void {
             html += `<td class="p-1 border border-gray-300 text-center font-mono text-[9px] font-medium bg-gray-50">${slot.startStr} - ${slot.endStr}</td>`;
 
             days.forEach(day => {
+                if (skipSlotDayTeacher.get(day.id)!.has(sIdx)) {
+                    return; // Omitir td por rowspan previo
+                }
+
                 const matchCls = teacherClasses.find(cls => {
                     const dt = new Date(cls.start);
                     const dNum = dt.getDay();
@@ -216,9 +258,37 @@ export function printAllSchedules(): void {
                     const bgColor = getSubjectColor(matchCls.subjectId);
                     const pinIcon = matchCls.isPinned ? '📌 ' : '';
 
+                    // Comprobar si la siguiente franja es fusionable en 1h
+                    let isMerged1h = false;
+                    const nextSlot = (sIdx + 1 < slots.length) ? slots[sIdx + 1] : null;
+                    if (nextSlot) {
+                        let nextIsRecess = false;
+                        if (AppData.config) {
+                            const rParts = AppData.config.horaInicioRecreo.split(':');
+                            const rStart = parseInt(rParts[0]) * 60 + parseInt(rParts[1]);
+                            const rEnd = rStart + AppData.config.duracionRecreo;
+                            if (nextSlot.startMin >= rStart && nextSlot.startMin < rEnd) nextIsRecess = true;
+                        }
+                        if (!nextIsRecess) {
+                            const nextCls = teacherClasses.find(cls => {
+                                const dt = new Date(cls.start);
+                                if (dt.getDay() !== day.id) return false;
+                                const cMin = dt.getHours() * 60 + dt.getMinutes();
+                                return cMin === nextSlot.startMin;
+                            });
+                            if (nextCls && nextCls.subjectId === matchCls.subjectId && nextCls.teacherId === matchCls.teacherId && nextCls.groupId === matchCls.groupId) {
+                                isMerged1h = true;
+                                skipSlotDayTeacher.get(day.id)!.add(sIdx + 1);
+                            }
+                        }
+                    }
+
+                    const rowspanAttr = isMerged1h ? 'rowspan="2"' : '';
+                    const durLabel = isMerged1h ? ' (1h)' : '';
+
                     html += `
-                        <td class="p-1 border border-gray-300 align-top text-white font-medium shadow-inner" style="background-color: ${bgColor} !important; color: white !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important;">
-                            <div class="font-bold text-[10px] truncate leading-tight">${pinIcon}${subject ? subject.name : 'Clase'}</div>
+                        <td ${rowspanAttr} class="p-1 border border-gray-300 align-middle text-white font-medium shadow-inner" style="background-color: ${bgColor} !important; color: white !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important;">
+                            <div class="font-bold text-[10px] truncate leading-tight">${pinIcon}${subject ? subject.name : 'Clase'}${durLabel}</div>
                             ${groupLabel ? `<div class="text-[9px] opacity-95 truncate leading-tight font-normal">${groupLabel}</div>` : ''}
                         </td>
                     `;

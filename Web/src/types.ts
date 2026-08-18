@@ -88,6 +88,7 @@ export interface AppDataState {
     scheduledClasses: ScheduledClass[];
     calendarInstance: any;
     currentEventContext: any;
+    currentMergedEvents?: any[];
     colorMode?: 'teacher' | 'subject';
     config?: Configuracion;
 }
