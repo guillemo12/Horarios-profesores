@@ -28,13 +28,15 @@ jobs:
         with:
           distribution: 'temurin'
           java-version: '21'
-          cache: 'gradle'
+
+      - name: Setup Gradle Cache
+        uses: gradle/actions/setup-gradle@v3
 
       - name: Make gradlew executable
         run: chmod +x ./gradlew
 
       - name: Run Backend Unit & Integration Tests
-        run: ./gradlew test --info --no-daemon
+        run: ./gradlew test --no-daemon
 
       - name: Upload Test Report
         uses: actions/upload-artifact@v4
@@ -62,18 +64,13 @@ jobs:
 
   check-tauri-rust:
     name: Tauri Rust Backend Validation
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Install Rust Stable
         uses: dtolnay/rust-toolchain@stable
-
-      - name: Install Linux WebKit & Tauri system dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf libssl-dev
 
       - name: Rust Cache
         uses: Swatinem/rust-cache@v2
@@ -82,4 +79,6 @@ jobs:
 
       - name: Check Rust Codebase
         working-directory: Proyecto_Horarios/src-tauri
+        env:
+          CARGO_INCREMENTAL: "0"
         run: cargo check

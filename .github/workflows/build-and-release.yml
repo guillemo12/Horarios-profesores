@@ -10,6 +10,10 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
     name: Build on ${{ matrix.platform }}
@@ -32,7 +36,9 @@ jobs:
         with:
           distribution: 'temurin'
           java-version: '21'
-          cache: 'gradle'
+
+      - name: Setup Gradle Cache
+        uses: gradle/actions/setup-gradle@v3
 
       - name: Setup Deno
         uses: denoland/setup-deno@v2
@@ -103,7 +109,7 @@ jobs:
         if: matrix.platform == 'linux'
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y --no-install-recommends libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev patchelf libssl-dev binutils fakeroot squashfs-tools desktop-file-utils libxdo-dev build-essential libfuse2 file
+          sudo apt-get install -y --no-install-recommends libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev patchelf libssl-dev libfuse2
 
       - name: Make gradlew executable (Linux only)
         if: matrix.platform == 'linux'
@@ -111,35 +117,32 @@ jobs:
 
       - name: Bundle Frontend TypeScript with Deno
         run: |
-          deno run -A npm:esbuild Web/src/Datos.ts --bundle --outfile=src/main/resources/static/Datos.js --format=iife
+          deno run -A npm:esbuild Web/src/Datos.ts --bundle --outfile=src/main/resources/static/Datos.js --minify --sourcemap --target=es2020
           cp Web/src/eduschedule.html src/main/resources/static/index.html || copy Web\src\eduschedule.html src\main\resources\static\index.html
         shell: bash
 
       - name: Build Fat JAR with Gradle
         run: ./gradlew shadowJar --no-daemon --build-cache --parallel
 
-      - name: Create Embedded JVM Runtime with jpackage (Windows)
+      - name: Create Embedded JVM Runtime with jlink (Windows)
         if: matrix.platform == 'windows'
         shell: pwsh
         run: |
           if (Test-Path "Proyecto_Horarios\src-tauri\backend_ktor") {
             Remove-Item "Proyecto_Horarios\src-tauri\backend_ktor" -Recurse -Force
           }
-          if (Test-Path "build\jpackage_input") {
-            Remove-Item "build\jpackage_input" -Recurse -Force
-          }
-          New-Item -ItemType Directory -Path "build\jpackage_input" -Force
-          Copy-Item "build\libs\horarios-profesores-all.jar" -Destination "build\jpackage_input\"
-          jpackage --name backend_ktor --input build\jpackage_input --main-jar "horarios-profesores-all.jar" --main-class com.colegio.MainKt --type app-image --dest Proyecto_Horarios/src-tauri
+          New-Item -ItemType Directory -Path "Proyecto_Horarios\src-tauri\backend_ktor" -Force
+          Copy-Item "build\libs\horarios-profesores-all.jar" -Destination "Proyecto_Horarios\src-tauri\backend_ktor\horarios-profesores-all.jar" -Force
+          jlink --add-modules java.se,jdk.unsupported,jdk.crypto.ec,jdk.crypto.mscapi,jdk.zipfs,jdk.charsets,jdk.localedata,jdk.management --output "Proyecto_Horarios\src-tauri\backend_ktor\runtime" --strip-debug --no-man-pages --no-header-files
 
-      - name: Create Embedded JVM Runtime with jpackage (Linux)
+      - name: Create Embedded JVM Runtime with jlink (Linux)
         if: matrix.platform == 'linux'
         shell: bash
         run: |
-          rm -rf Proyecto_Horarios/src-tauri/backend_ktor build/jpackage_input
-          mkdir -p build/jpackage_input
-          cp build/libs/horarios-profesores-all.jar build/jpackage_input/
-          jpackage --name backend_ktor --input build/jpackage_input --main-jar "horarios-profesores-all.jar" --main-class com.colegio.MainKt --type app-image --dest Proyecto_Horarios/src-tauri
+          rm -rf Proyecto_Horarios/src-tauri/backend_ktor
+          mkdir -p Proyecto_Horarios/src-tauri/backend_ktor
+          cp build/libs/horarios-profesores-all.jar Proyecto_Horarios/src-tauri/backend_ktor/horarios-profesores-all.jar
+          jlink --add-modules java.se,jdk.unsupported,jdk.crypto.ec,jdk.zipfs,jdk.charsets,jdk.localedata,jdk.management --output Proyecto_Horarios/src-tauri/backend_ktor/runtime --strip-debug --no-man-pages --no-header-files
           chmod -R 755 Proyecto_Horarios/src-tauri/backend_ktor
 
       - name: Build Tauri Desktop App (Linux)
@@ -148,14 +151,15 @@ jobs:
         env:
           ARCH: x86_64
           NO_STRIP: "true"
+          CARGO_INCREMENTAL: "0"
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          LD_LIBRARY_PATH: ${{ github.workspace }}/Proyecto_Horarios/src-tauri/backend_ktor/lib/runtime/lib/server:${{ github.workspace }}/Proyecto_Horarios/src-tauri/backend_ktor/lib/runtime/lib
-        run: deno run -A npm:@tauri-apps/cli build --ci --bundles deb,appimage --verbose
+        run: deno run -A npm:@tauri-apps/cli build --ci --bundles deb,appimage
 
       - name: Build Tauri Desktop App (Windows)
         if: matrix.platform == 'windows'
         working-directory: Proyecto_Horarios
         env:
+          CARGO_INCREMENTAL: "0"
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: deno run -A npm:@tauri-apps/cli build --ci --bundles msi,nsis --ignore-version-mismatches
 
@@ -165,10 +169,10 @@ jobs:
         run: |
           New-Item -ItemType Directory -Path "dist\EduSchedule" -Force
           $builtExe = Get-ChildItem -Path "Proyecto_Horarios\src-tauri\target\release" -Filter "*.exe" | Where-Object { $_.Name -ne "backend_ktor.exe" } | Select-Object -First 1
-          Copy-Item $builtExe.FullName -Destination "dist\EduSchedule\EduSchedule.exe"
-          Copy-Item "Proyecto_Horarios\src-tauri\target\release\backend_ktor" -Destination "dist\EduSchedule\backend_ktor" -Recurse
+          Copy-Item $builtExe.FullName -Destination "dist\EduSchedule\EduSchedule.exe" -Force
+          Copy-Item "Proyecto_Horarios\src-tauri\target\release\backend_ktor" -Destination "dist\EduSchedule\backend_ktor" -Recurse -Force
           if (Test-Path "Proyecto_Horarios\src-tauri\target\release\resources") {
-            Copy-Item "Proyecto_Horarios\src-tauri\target\release\resources" -Destination "dist\EduSchedule\resources" -Recurse
+            Copy-Item "Proyecto_Horarios\src-tauri\target\release\resources" -Destination "dist\EduSchedule\resources" -Recurse -Force
           }
           powershell -ExecutionPolicy Bypass -File .\build_single_exe.ps1
 
@@ -178,13 +182,13 @@ jobs:
         run: |
           New-Item -ItemType Directory -Path "dist\windows_release" -Force
           if (Test-Path "EduSchedule_Unico.exe") {
-            Copy-Item "EduSchedule_Unico.exe" -Destination "dist\windows_release\"
+            Copy-Item "EduSchedule_Unico.exe" -Destination "dist\windows_release\" -Force
           }
           Get-ChildItem -Path "Proyecto_Horarios\src-tauri\target\release\bundle\nsis" -Filter "*.exe" -ErrorAction SilentlyContinue | ForEach-Object {
-            Copy-Item $_.FullName -Destination "dist\windows_release\"
+            Copy-Item $_.FullName -Destination "dist\windows_release\" -Force
           }
           Get-ChildItem -Path "Proyecto_Horarios\src-tauri\target\release\bundle\msi" -Filter "*.msi" -ErrorAction SilentlyContinue | ForEach-Object {
-            Copy-Item $_.FullName -Destination "dist\windows_release\"
+            Copy-Item $_.FullName -Destination "dist\windows_release\" -Force
           }
 
       - name: Stage Linux Release Files
