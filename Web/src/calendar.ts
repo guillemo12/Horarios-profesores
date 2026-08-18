@@ -155,7 +155,11 @@ export function openAddClassModal(startDate: Date | null = null, endDate: Date |
     const groupSelect = document.getElementById('modal-group') as HTMLSelectElement;
     const teacherSelect = document.getElementById('modal-teacher') as HTMLSelectElement;
 
-    subjSelect.innerHTML = AppData.subjects.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+    subjSelect.innerHTML = AppData.subjects.map(s => {
+        const course = AppData.courses.find(c => c.subjects.includes(s.id));
+        const courseLabel = course ? ` (${course.name})` : '';
+        return `<option value="${s.id}">${s.name}${courseLabel}</option>`;
+    }).join('');
     courseSelect.innerHTML = AppData.courses.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
     teacherSelect.innerHTML = AppData.teachers.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
     

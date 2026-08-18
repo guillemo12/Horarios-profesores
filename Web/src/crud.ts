@@ -81,13 +81,45 @@ export function openFormModal(type: string, id: string | null = null): void {
                 </div>
                 <div>
                     <label class="block text-sm font-semibold text-gray-700 mb-1">Especialidades (Materias habilitadas)</label>
-                    <div class="border border-gray-300 rounded-lg p-3 max-h-40 overflow-y-auto space-y-2 bg-gray-50">
-                        ${AppData.subjects.map(s => `
-                            <label class="flex items-center gap-2 cursor-pointer text-sm">
-                                <input type="checkbox" name="crud-teacher-subjects" value="${s.id}" ${t?.subjects.includes(s.id) ? 'checked' : ''} class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500">
-                                <span>${s.name}</span>
-                            </label>
-                        `).join('')}
+                    <div class="border border-gray-300 rounded-lg p-3 max-h-56 overflow-y-auto space-y-3 bg-gray-50">
+                        ${AppData.courses.map(c => {
+                            const courseSubjects = AppData.subjects.filter(s => c.subjects.includes(s.id));
+                            if (courseSubjects.length === 0) return '';
+                            return `
+                                <div class="space-y-1.5">
+                                    <div class="text-xs font-bold text-indigo-700 uppercase tracking-wider bg-indigo-50 border border-indigo-100 px-2 py-0.5 rounded inline-block">
+                                        📚 ${c.name}
+                                    </div>
+                                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-1.5 pl-1">
+                                        ${courseSubjects.map(s => `
+                                            <label class="flex items-center gap-2 cursor-pointer text-sm hover:bg-white p-1 rounded transition-colors">
+                                                <input type="checkbox" name="crud-teacher-subjects" value="${s.id}" ${t?.subjects.includes(s.id) ? 'checked' : ''} class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500">
+                                                <span class="truncate font-medium text-gray-700">${s.name} <span class="text-xs text-gray-400 font-normal">(${formatHours(s.hours)}h)</span></span>
+                                            </label>
+                                        `).join('')}
+                                    </div>
+                                </div>
+                            `;
+                        }).join('')}
+                        ${(() => {
+                            const unassignedSubjects = AppData.subjects.filter(s => !AppData.courses.some(c => c.subjects.includes(s.id)));
+                            if (unassignedSubjects.length === 0) return '';
+                            return `
+                                <div class="space-y-1.5">
+                                    <div class="text-xs font-bold text-gray-600 uppercase tracking-wider bg-gray-200 px-2 py-0.5 rounded inline-block">
+                                        Otras Asignaturas
+                                    </div>
+                                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-1.5 pl-1">
+                                        ${unassignedSubjects.map(s => `
+                                            <label class="flex items-center gap-2 cursor-pointer text-sm hover:bg-white p-1 rounded transition-colors">
+                                                <input type="checkbox" name="crud-teacher-subjects" value="${s.id}" ${t?.subjects.includes(s.id) ? 'checked' : ''} class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500">
+                                                <span class="truncate font-medium text-gray-700">${s.name} <span class="text-xs text-gray-400 font-normal">(${formatHours(s.hours)}h)</span></span>
+                                            </label>
+                                        `).join('')}
+                                    </div>
+                                </div>
+                            `;
+                        })()}
                     </div>
                 </div>
                 <div class="flex justify-end gap-2 pt-2">
@@ -325,7 +357,9 @@ export async function renderTeachers(): Promise<void> {
         AppData.teachers.forEach(t => {
             const subjNames = t.subjects.map(sId => {
                 const s = AppData.subjects.find(x => x.id === sId);
-                return s ? s.name : '';
+                if (!s) return '';
+                const course = AppData.courses.find(c => c.subjects.includes(sId));
+                return course ? `${s.name} (${course.name})` : s.name;
             }).filter(n => n !== '').join(', ');
 
             list.innerHTML += `

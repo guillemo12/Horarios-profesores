@@ -441,6 +441,32 @@
 
                 </form>
 
+                <!-- Tarjeta de Copias de Seguridad (Backup y Restauración) -->
+                <div class="mt-6 bg-white rounded-xl shadow-sm border border-gray-200 p-6 space-y-4">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-600 font-bold text-lg">
+                            💾
+                        </div>
+                        <div>
+                            <h4 class="font-bold text-slate-800 text-sm">Copia de Seguridad y Restauración</h4>
+                            <p class="text-xs text-slate-500">Guarda un archivo de seguridad de todos tus datos (profesores, cursos, horarios) o restáuralo en cualquier momento.</p>
+                        </div>
+                    </div>
+                    
+                    <div class="flex flex-col sm:flex-row items-center gap-3 pt-2">
+                        <button onclick="exportDatabase()" id="btn-export-db" class="w-full sm:w-auto px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold shadow-sm transition-colors flex items-center justify-center gap-2 cursor-pointer">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                            Exportar Base de Datos (.db)
+                        </button>
+                        
+                        <label for="input-import-db" id="btn-import-db" class="w-full sm:w-auto px-4 py-2.5 bg-slate-800 hover:bg-slate-900 text-white rounded-lg text-xs font-semibold shadow-sm transition-colors flex items-center justify-center gap-2 cursor-pointer text-center">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
+                            Restaurar Base de Datos (.db)
+                        </label>
+                        <input type="file" id="input-import-db" accept=".db,.sqlite" class="hidden" onchange="handleImportDatabaseFile(this)">
+                    </div>
+                </div>
+
                 <!-- Tarjeta de Versión y Actualizaciones -->
                 <div class="mt-6 bg-white rounded-xl shadow-sm border border-gray-200 p-6 flex flex-col sm:flex-row items-center justify-between gap-4">
                     <div class="flex items-center gap-3">
