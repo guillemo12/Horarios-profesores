@@ -13,10 +13,9 @@ application {
     mainClass.set("com.colegio.MainKt")
 
     applicationDefaultJvmArgs = listOf(
-        "-Xms8G",
-        "-Xmx8G",
-        "-XX:+AlwaysPreTouch",
-        "-XX:+UseParallelGC", // O cambia a ZGC Generacional si Ktor se bloquea
+        "-Xms256m",
+        "-Xmx4g",
+        "-XX:+UseParallelGC",
         "-XX:+UseStringDeduplication"
     )
 }

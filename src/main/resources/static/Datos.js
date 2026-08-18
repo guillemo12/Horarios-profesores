@@ -1706,7 +1706,7 @@
   }
 
   // Web/src/updater.ts
-  var CURRENT_VERSION = "0.0.5";
+  var CURRENT_VERSION = "0.0.6";
   var GITHUB_REPO = "guillemo12/Horarios-profesores";
   function parseVersion(versionStr) {
     const clean = versionStr.replace(/^v/, "").trim();
