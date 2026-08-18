@@ -127,3 +127,41 @@ test('Preservar estado de clase fijada (PIN 📌) en bloque fusionado', () => {
     assert.strictEqual(result[0].isPinned, true);
     assert.ok(result[0].title.startsWith('📌'));
 });
+
+test('Partición atómica de clase de 1 hora al guardar y renderizado unificado con Pin (📌)', () => {
+    // Simulación del algoritmo saveNewClass para una clase de 1 hora de 09:00 a 10:00
+    const baseStart = new Date('2026-08-17T09:00:00');
+    const baseEnd = new Date('2026-08-17T10:00:00');
+    const durationInMs = baseEnd.getTime() - baseStart.getTime();
+    const slotMinutes = 30;
+    const numSlots = Math.max(1, Math.round(durationInMs / (slotMinutes * 60000)));
+    const isPinned = true;
+
+    const generatedSlots = [];
+    for (let i = 0; i < numSlots; i++) {
+        const slotStart = new Date(baseStart.getTime() + i * slotMinutes * 60000);
+        const slotEnd = new Date(slotStart.getTime() + slotMinutes * 60000);
+        generatedSlots.push({
+            id: `evt-1h-${i}`,
+            start: slotStart.toISOString(),
+            end: slotEnd.toISOString(),
+            duration: 0.5,
+            subjectId: 'Inglés',
+            groupId: 'G1',
+            teacherId: 'T1',
+            isPinned
+        });
+    }
+
+    assert.strictEqual(generatedSlots.length, 2, 'Una clase de 1h debe particionarse en 2 bloques atómicos de 30m');
+    assert.strictEqual(generatedSlots[0].duration, 0.5);
+    assert.strictEqual(generatedSlots[1].duration, 0.5);
+    assert.strictEqual(generatedSlots[0].isPinned, true);
+    assert.strictEqual(generatedSlots[1].isPinned, true);
+
+    const merged = getMergedCalendarEvents(generatedSlots, 'group', 'G1');
+    assert.strictEqual(merged.length, 1, 'El calendario debe fusionar las 2 franjas de 30m contiguas en 1 solo bloque visible');
+    assert.strictEqual(merged[0].duration, 1.0, 'El bloque visible debe tener una duración exacta de 1.0 hora');
+    assert.strictEqual(merged[0].isPinned, true, 'El bloque fusionado debe conservar la chincheta (Pin 📌)');
+    assert.ok(merged[0].title.startsWith('📌 Inglés'));
+});

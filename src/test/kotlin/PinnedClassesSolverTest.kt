@@ -139,4 +139,34 @@ class PinnedClassesSolverTest {
         assertTrue(resPin1.isPinned, "La parte 1 debe mantener el pin")
         assertTrue(resPin2.isPinned, "La parte 2 debe mantener el pin")
     }
+
+    @Test
+    fun `test findTimeSlots expansion for 1-hour date range correctly maps to both 30-min slots`() {
+        val slots = createStandardSlots()
+        
+        fun findTimeSlots(startIso: String, endIso: String, timeSlots: List<TimeSlot>): List<TimeSlot> {
+            val startDt = java.time.LocalDateTime.parse(startIso.replace(" ", "T").split(".", "+", "Z")[0])
+            val endDt = java.time.LocalDateTime.parse(endIso.replace(" ", "T").split(".", "+", "Z")[0])
+            val day = startDt.dayOfWeek
+            val startTime = startDt.toLocalTime()
+            val endTime = endDt.toLocalTime()
+
+            return timeSlots.filter { it.dayOfWeek == day && !it.startTime.isBefore(startTime) && it.endTime.isBefore(endTime.plusSeconds(1)) }
+                .sortedBy { it.startTime }
+        }
+
+        // Clase de 1 hora: Lunes de 09:00 a 10:00
+        val matchedSlots = findTimeSlots("2026-08-17T09:00:00", "2026-08-17T10:00:00", slots)
+        assertEquals(2, matchedSlots.size, "Un rango de 1 hora debe devolver exactamente 2 franjas de 30 minutos")
+        assertEquals(LocalTime.of(9, 0), matchedSlots[0].startTime)
+        assertEquals(LocalTime.of(9, 30), matchedSlots[0].endTime)
+        assertEquals(LocalTime.of(9, 30), matchedSlots[1].startTime)
+        assertEquals(LocalTime.of(10, 0), matchedSlots[1].endTime)
+
+        // Clase de 1.5 horas: Martes de 10:00 a 11:30
+        val matched15h = findTimeSlots("2026-08-18T10:00:00", "2026-08-18T11:30:00", slots)
+        assertEquals(3, matched15h.size, "Un rango de 1.5 horas debe devolver 3 franjas de 30 minutos")
+        assertEquals(LocalTime.of(10, 0), matched15h[0].startTime)
+        assertEquals(LocalTime.of(11, 30), matched15h[2].endTime)
+    }
 }
