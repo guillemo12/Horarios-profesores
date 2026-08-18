@@ -2,7 +2,6 @@ package com.colegio
 
 import com.colegio.modelos.entities.*
 import com.colegio.modelos.tables.*
-import io.ktor.server.application.Application
 import org.jetbrains.exposed.sql.Database
 import org.jetbrains.exposed.sql.SchemaUtils
 import org.jetbrains.exposed.sql.SizedCollection
