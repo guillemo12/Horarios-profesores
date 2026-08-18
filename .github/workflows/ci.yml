@@ -77,6 +77,12 @@ jobs:
         with:
           workspaces: "Proyecto_Horarios/src-tauri -> target"
 
+      - name: Prepare Tauri resources placeholder
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Path "Proyecto_Horarios\src-tauri\backend_ktor" -Force
+          Set-Content -Path "Proyecto_Horarios\src-tauri\backend_ktor\.keep" -Value ""
+
       - name: Check Rust Codebase
         working-directory: Proyecto_Horarios/src-tauri
         env:
