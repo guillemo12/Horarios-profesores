@@ -152,7 +152,42 @@ powershell -ExecutionPolicy Bypass -File .\build_single_exe.ps1
 
 ---
 
-## ⚠️ 4. Problemas Frecuentes y Soluciones
+---
+
+## 🤖 5. Servidor MCP (Model Context Protocol para IAs)
+
+EduSchedule incluye un servidor **MCP oficial** en `mcp-server/index.mjs` para que agentes de IA (**Antigravity, Claude, Cursor, ChatGPT**) puedan consultar y modificar el sistema:
+
+### Configuración (`.agents/mcp_config.json` o `~/.gemini/config/mcp_config.json`):
+```json
+{
+  "mcpServers": {
+    "eduschedule": {
+      "command": "node",
+      "args": [
+        "D:\\Usuarios\\guill\\Escritorio\\Horarios profesores\\mcp-server\\index.mjs"
+      ],
+      "env": {
+        "EDUSCHEDULE_API_URL": "http://127.0.0.1:8080/api/v1"
+      }
+    }
+  }
+}
+```
+
+### Herramientas MCP Disponibles:
+- `eduschedule_status`: Estado, salud y conteo de entidades.
+- `eduschedule_check_viability`: Diagnóstico de 5 puntos de viabilidad del colegio.
+- `eduschedule_list_courses`, `eduschedule_save_course`, `eduschedule_delete_course`: Gestión de cursos y grupos.
+- `eduschedule_list_teachers`, `eduschedule_save_teacher`, `eduschedule_delete_teacher`: Gestión de profesores.
+- `eduschedule_list_subjects`, `eduschedule_save_subject`, `eduschedule_delete_subject`: Gestión de asignaturas.
+- `eduschedule_update_assignment`: Asignación de docentes en Reparto Docente.
+- `eduschedule_get_schedule`, `eduschedule_save_class` (soporta `isPinned: true`), `eduschedule_delete_class`: Gestión del horario escolar.
+- `eduschedule_get_config`, `eduschedule_save_config`: Configuración del optimizador.
+
+---
+
+## ⚠️ 6. Problemas Frecuentes y Soluciones
 
 1. **Rutas extendidas de Windows (`\\?\`) en Rust**:
    - `std::fs::canonicalize()` en Windows añade `\\?\`, lo que impide que Java reconozca los argumentos `-jar`.
@@ -161,3 +196,4 @@ powershell -ExecutionPolicy Bypass -File .\build_single_exe.ps1
    - Usar la ruta explícita al comando cmd: `& "C:\Program Files\nodejs\npx.cmd" ...`.
 3. **Bloqueos de compilación de Tauri**:
    - Asegurarse de que no haya instancias previas de `eduschedule.exe` o `javaw.exe` en ejecución en el Administrador de Tareas.
+
