@@ -57,6 +57,17 @@ export function printAllSchedules(): void {
         { id: 5, name: 'Viernes' }
     ];
 
+    // Precalcular índices O(1) para evitar búsquedas O(N) y O(N*M) dentro de los bucles de renderizado
+    const subjectMap = new Map(AppData.subjects.map(s => [s.id, s]));
+    const teacherMap = new Map(AppData.teachers.map(t => [t.id, t]));
+    const groupCourseMap = new Map<string, { course: (typeof AppData.courses)[0]; group: (typeof AppData.courses)[0]['groups'][0] }>();
+
+    AppData.courses.forEach(course => {
+        course.groups.forEach(group => {
+            groupCourseMap.set(group.id, { course, group });
+        });
+    });
+
     let html = '';
 
     // 1. HORARIOS POR CURSO Y GRUPO
@@ -127,8 +138,8 @@ export function printAllSchedules(): void {
                     });
 
                     if (matchCls) {
-                        const subject = AppData.subjects.find(s => s.id === matchCls.subjectId);
-                        const teacher = AppData.teachers.find(t => t.id === matchCls.teacherId);
+                        const subject = subjectMap.get(matchCls.subjectId);
+                        const teacher = teacherMap.get(matchCls.teacherId);
                         const bgColor = getSubjectColor(matchCls.subjectId);
                         const pinIcon = matchCls.isPinned ? '📌 ' : '';
 
@@ -250,9 +261,10 @@ export function printAllSchedules(): void {
                 });
 
                 if (matchCls) {
-                    const subject = AppData.subjects.find(s => s.id === matchCls.subjectId);
-                    const course = AppData.courses.find(c => c.groups.some(g => g.id === matchCls.groupId));
-                    const group = course ? course.groups.find(g => g.id === matchCls.groupId) : null;
+                    const subject = subjectMap.get(matchCls.subjectId);
+                    const groupInfo = groupCourseMap.get(matchCls.groupId);
+                    const course = groupInfo ? groupInfo.course : null;
+                    const group = groupInfo ? groupInfo.group : null;
                     const groupLabel = course && group ? `${course.name} G.${group.name}` : '';
 
                     const bgColor = getSubjectColor(matchCls.subjectId);
