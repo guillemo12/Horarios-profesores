@@ -20,8 +20,9 @@ class CourseAndAssignmentPersistenceTest {
     @BeforeTest
     fun setup() {
         val tempDb = File(System.getProperty("java.io.tmpdir"), "test_course_assignments.db")
+        if (tempDb.exists()) tempDb.delete()
         System.setProperty("eduschedule.db.path", tempDb.absolutePath)
-        initDatabase()
+        reconnectDatabase()
     }
 
     @Test

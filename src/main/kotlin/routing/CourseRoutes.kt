@@ -27,10 +27,26 @@ fun Route.courseRoutes() {
     route("/courses") {
         get {
             val list = transaction {
-                CursosEntity.all().map { c ->
-                    val subjectsList = AsignaturaEntity.find { AsignaturaTable.curso eq c.id }.map { it.id.value.toString() }
-                    val groupsList = GruposEntity.find { GruposTable.curso eq c.id }.map { g ->
-                        val repartos = RepartoDocenteTable.selectAll().where { RepartoDocenteTable.grupoId eq g.id.value }
+                val courses = CursosEntity.all().toList()
+
+                // Batch fetch subjects grouped by curso ID
+                val subjectsByCourse = AsignaturaEntity.all()
+                    .groupBy { it.curso.id.value.toString() }
+
+                // Batch fetch groups grouped by curso ID
+                val groupsByCourse = GruposEntity.all()
+                    .groupBy { it.curso.id.value.toString() }
+
+                // Batch fetch repartos grouped by grupo ID
+                val repartosByGroup = RepartoDocenteTable.selectAll()
+                    .groupBy { it[RepartoDocenteTable.grupoId].value.toString() }
+
+                courses.map { c ->
+                    val courseIdStr = c.id.value.toString()
+                    val subjectsList = subjectsByCourse[courseIdStr]?.map { it.id.value.toString() } ?: emptyList()
+                    val groupsList = groupsByCourse[courseIdStr]?.map { g ->
+                        val groupIdStr = g.id.value.toString()
+                        val repartos = repartosByGroup[groupIdStr] ?: emptyList()
                         val assignmentsMap = mutableMapOf<String, String>()
                         repartos.forEach { row ->
                             val subId = row[RepartoDocenteTable.asignaturaId].value.toString()
@@ -38,14 +54,15 @@ fun Route.courseRoutes() {
                             if (profId.isNotEmpty()) assignmentsMap[subId] = profId
                         }
                         CourseGroupDto(
-                            id = g.id.value.toString(),
+                            id = groupIdStr,
                             name = g.nombre,
                             tutorId = g.tutor.id.value.toString(),
                             assignments = assignmentsMap
                         )
-                    }
+                    } ?: emptyList()
+
                     CourseDto(
-                        id = c.id.value.toString(),
+                        id = courseIdStr,
                         name = c.nombre,
                         subjects = subjectsList,
                         groups = groupsList
