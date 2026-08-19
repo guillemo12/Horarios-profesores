@@ -44,67 +44,14 @@ fun Application.configureSockets() {
         masking = false
     }
 
-    val today = LocalDate.now()
-    val monday = today.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
+    fun getIsoDateTime(day: DayOfWeek, time: LocalTime): String =
+        com.colegio.routing.DateTimeSlotUtils.getIsoDateTime(day, time)
 
-    fun getIsoDateTime(day: DayOfWeek, time: LocalTime): String {
-        val date = monday.plusDays((day.value - 1).toLong())
-        val dateTime = LocalDateTime.of(date, time)
-        return dateTime.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME)
-    }
+    fun findTimeSlot(isoStr: String, timeSlots: List<TimeSlot>): TimeSlot? =
+        com.colegio.routing.DateTimeSlotUtils.findTimeSlot(isoStr, timeSlots)
 
-    fun findTimeSlot(isoStr: String, timeSlots: List<TimeSlot>): TimeSlot? {
-        return try {
-            val cleanStr = isoStr.replace(" ", "T").let { s ->
-                if (s.contains("T")) {
-                    val parts = s.split("T")
-                    val datePart = parts[0]
-                    val timePart = parts[1].split(".", "+", "Z")[0]
-                    "${datePart}T${timePart}"
-                } else s
-            }
-            val dt = LocalDateTime.parse(cleanStr)
-            val day = dt.dayOfWeek
-            val time = dt.toLocalTime()
-            timeSlots.find { it.dayOfWeek == day && it.startTime == time }
-        } catch (e: Exception) {
-            logger.warn("Error parsing ISO date: $isoStr -> ${e.message}")
-            null
-        }
-    }
-
-    fun findTimeSlots(startIso: String, endIso: String, timeSlots: List<TimeSlot>): List<TimeSlot> {
-        return try {
-            val cleanStart = startIso.replace(" ", "T").let { s ->
-                if (s.contains("T")) {
-                    val parts = s.split("T")
-                    val datePart = parts[0]
-                    val timePart = parts[1].split(".", "+", "Z")[0]
-                    "${datePart}T${timePart}"
-                } else s
-            }
-            val cleanEnd = endIso.replace(" ", "T").let { s ->
-                if (s.contains("T")) {
-                    val parts = s.split("T")
-                    val datePart = parts[0]
-                    val timePart = parts[1].split(".", "+", "Z")[0]
-                    "${datePart}T${timePart}"
-                } else s
-            }
-            val startDt = LocalDateTime.parse(cleanStart)
-            val endDt = LocalDateTime.parse(cleanEnd)
-            val day = startDt.dayOfWeek
-            val startTime = startDt.toLocalTime()
-            val endTime = endDt.toLocalTime()
-
-            val matched = timeSlots.filter { it.dayOfWeek == day && !it.startTime.isBefore(startTime) && it.endTime.isBefore(endTime.plusSeconds(1)) }
-                .sortedBy { it.startTime }
-            if (matched.isNotEmpty()) matched else listOfNotNull(findTimeSlot(startIso, timeSlots))
-        } catch (e: Exception) {
-            logger.warn("Error parsing ISO date range: $startIso - $endIso -> ${e.message}")
-            listOfNotNull(findTimeSlot(startIso, timeSlots))
-        }
-    }
+    fun findTimeSlots(startIso: String, endIso: String, timeSlots: List<TimeSlot>): List<TimeSlot> =
+        com.colegio.routing.DateTimeSlotUtils.findTimeSlots(startIso, endIso, timeSlots)
 
     routing {
         webSocket("/ws") {
