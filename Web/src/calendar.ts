@@ -1,21 +1,44 @@
 import { AppData, updateEntitySelector } from './Datos';
-import { ScheduledClass, MergedDisplayEvent } from './types';
-import { showToast, formatHours } from './utils';
+import { ScheduledClass } from './types';
+import { showToast } from './utils';
+import { toggleColorMode as toggleColorModeImpl, getSubjectColor } from './calendar_colors';
+import { 
+    overlapsRecess, getMergedCalendarEvents, addRecessEvents, parseTimeToMinutes, isRecess 
+} from './calendar_events';
+import { 
+    openAddClassModal, closeAddClassModal, updateModalTeacherOptions, onModalSubjectChange, 
+    onModalCourseChange, onModalGroupChange, saveNewClass as saveNewClassImpl, openEventDetail, closeEventDetail 
+} from './calendar_modal';
+
+export { 
+    getSubjectColor, toggleColorModeImpl, overlapsRecess, getMergedCalendarEvents, 
+    addRecessEvents, parseTimeToMinutes, isRecess, openAddClassModal, closeAddClassModal, 
+    updateModalTeacherOptions, onModalSubjectChange, onModalCourseChange, onModalGroupChange, 
+    openEventDetail, closeEventDetail 
+};
 
 declare const tui: any;
 
+export function toggleColorMode(): void {
+    toggleColorModeImpl(() => refreshCalendarView());
+}
+
+export function saveNewClass(): Promise<void> {
+    return saveNewClassImpl(() => refreshCalendarView());
+}
+
 export function updateDateRange(): void {
     if (!AppData.calendarInstance) return;
-    
+
     const start = AppData.calendarInstance.getDateRangeStart();
     const end = AppData.calendarInstance.getDateRangeEnd();
-    
+
     const formatDate = (date: any): string => {
         const d = typeof date.toDate === 'function' ? date.toDate() : new Date(date);
         const months = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
         return `${d.getDate()} ${months[d.getMonth()]}`;
     };
-    
+
     const rangeEl = document.getElementById('calendar-date-range');
     if (rangeEl) rangeEl.textContent = `${formatDate(start)} - ${formatDate(end)}`;
 }
@@ -23,12 +46,12 @@ export function updateDateRange(): void {
 export function onHeaderCourseChange(previousVal: string | null = null): void {
     const courseSelect = document.getElementById('header-course-select') as HTMLSelectElement;
     const select = document.getElementById('view-entity-select') as HTMLSelectElement;
-    
+
     if (!courseSelect || !select) return;
 
     const courseId = courseSelect.value;
-    
     const course = AppData.courses.find(c => c.id === courseId);
+
     if (course) {
         if (course.groups.length === 0) {
             select.innerHTML = `<option value="">Sin grupos</option>`;
@@ -38,7 +61,7 @@ export function onHeaderCourseChange(previousVal: string | null = null): void {
     } else {
         select.innerHTML = '';
     }
-    
+
     if (previousVal && Array.from(select.options).some(opt => opt.value === previousVal)) {
         select.value = previousVal;
     }
@@ -50,12 +73,21 @@ export function initCalendar(): void {
 
     const Calendar = tui.Calendar;
     AppData.calendarInstance = new Calendar('#calendar', {
-        defaultView: 'week', useFormPopup: false, useDetailPopup: false,
-        week: { taskView: false, eventView: ['time'], dayNames: ['Dom', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sáb'], workweek: true, hourStart: 8, hourEnd: 15 },
+        defaultView: 'week',
+        useFormPopup: false,
+        useDetailPopup: false,
+        week: {
+            taskView: false,
+            eventView: ['time'],
+            dayNames: ['Dom', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sáb'],
+            workweek: true,
+            hourStart: 8,
+            hourEnd: 15
+        },
         calendars: [
             { id: 'default', name: 'Clases', backgroundColor: '#4f46e5' },
-            { id: 'pinned',  name: 'Fijadas', backgroundColor: '#059669' },
-            { id: 'recess',  name: 'Recreo',  backgroundColor: '#f1f5f9', borderColor: '#94a3b8', color: '#64748b' },
+            { id: 'pinned', name: 'Fijadas', backgroundColor: '#059669' },
+            { id: 'recess', name: 'Recreo', backgroundColor: '#f1f5f9', borderColor: '#94a3b8', color: '#64748b' },
         ],
         template: {
             weekDayName(model: any) {
@@ -75,23 +107,20 @@ export function initCalendar(): void {
         }
     });
 
-    // Añadir bloque de recreo como evento de fondo (12:00 - 12:30, Lun-Vie)
     addRecessEvents();
 
-    AppData.calendarInstance.on('selectDateTime', function(info: any) {
+    AppData.calendarInstance.on('selectDateTime', function (info: any) {
         AppData.calendarInstance.clearGridSelections();
-        
-        let startObj = (typeof info.start.toDate === 'function') ? info.start.toDate() : new Date(info.start);
-        let endObj = (typeof info.end.toDate === 'function') ? info.end.toDate() : new Date(info.end);
-        
+        const startObj = (typeof info.start.toDate === 'function') ? info.start.toDate() : new Date(info.start);
+        const endObj = (typeof info.end.toDate === 'function') ? info.end.toDate() : new Date(info.end);
         openAddClassModal(startObj, endObj);
     });
 
-    AppData.calendarInstance.on('beforeUpdateEvent', async function(info: any) {
+    AppData.calendarInstance.on('beforeUpdateEvent', async function (info: any) {
         const { event, changes } = info;
-        
-        let mergedEvent = AppData.currentMergedEvents?.find(e => e.id === event.id || (e.mergedIds && e.mergedIds.includes(event.id)));
+        const mergedEvent = AppData.currentMergedEvents?.find(e => e.id === event.id || (e.mergedIds && e.mergedIds.includes(event.id)));
         let constituentClasses: ScheduledClass[] = [];
+
         if (mergedEvent && mergedEvent.mergedIds) {
             constituentClasses = AppData.scheduledClasses.filter(c => mergedEvent.mergedIds.includes(c.id));
         } else {
@@ -117,7 +146,6 @@ export function initCalendar(): void {
         }
 
         showToast("Sincronizando...", "Guardando nueva posición en el servidor...", "info");
-
         constituentClasses.sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());
 
         let currentSlotStart = new Date(startCandidate);
@@ -139,491 +167,18 @@ export function initCalendar(): void {
         refreshCalendarView();
     });
 
-    AppData.calendarInstance.on('clickEvent', (e: any) => openEventDetail(e.event));
-}
-
-export function updateModalTeacherOptions(preferredTeacherId: string | null = null): void {
-    const teacherSelect = document.getElementById('modal-teacher') as HTMLSelectElement;
-    const subjSelect = document.getElementById('modal-subject') as HTMLSelectElement;
-    const groupSelect = document.getElementById('modal-group') as HTMLSelectElement;
-    const courseSelect = document.getElementById('modal-course') as HTMLSelectElement;
-    const typeSelect = document.getElementById('view-type-select') as HTMLSelectElement;
-    const viewEntitySelect = document.getElementById('view-entity-select') as HTMLSelectElement;
-
-    if (!teacherSelect || !subjSelect || !groupSelect) return;
-
-    const currentTeacherVal = preferredTeacherId || teacherSelect.value;
-    const subjId = subjSelect.value;
-    const groupId = groupSelect.value;
-    const courseId = courseSelect?.value;
-    const viewType = typeSelect?.value;
-    const viewEntity = viewEntitySelect?.value;
-
-    if (viewType === 'teacher' && viewEntity) {
-        teacherSelect.innerHTML = AppData.teachers.map(t => {
-            return `<option value="${t.id}" ${t.id === viewEntity ? 'selected' : ''}>${t.name}</option>`;
-        }).join('');
-        teacherSelect.value = viewEntity;
-        teacherSelect.disabled = true;
-        return;
-    }
-
-    // Buscar si hay un profesor asignado en Reparto Docente para este grupo y asignatura
-    let assignedTeacherId = '';
-    const course = AppData.courses.find(c => c.id === courseId || c.groups.some(g => g.id === groupId));
-    const group = course?.groups.find(g => g.id === groupId);
-    if (group && group.assignments && group.assignments[subjId]) {
-        assignedTeacherId = group.assignments[subjId];
-    }
-
-    // Profesores especialistas (que imparten esta asignatura)
-    const qualifiedTeachers = AppData.teachers.filter(t => t.subjects.includes(subjId));
-
-    // Determinar qué profesor seleccionar por defecto
-    let selectedTeacherId = '';
-    if (assignedTeacherId && AppData.teachers.some(t => t.id === assignedTeacherId)) {
-        selectedTeacherId = assignedTeacherId;
-    } else if (currentTeacherVal && AppData.teachers.some(t => t.id === currentTeacherVal) && qualifiedTeachers.some(t => t.id === currentTeacherVal)) {
-        selectedTeacherId = currentTeacherVal;
-    } else if (qualifiedTeachers.length > 0) {
-        selectedTeacherId = qualifiedTeachers[0].id;
-    } else if (group?.tutor) {
-        const tutorTeacher = AppData.teachers.find(t => t.name === group.tutor);
-        selectedTeacherId = tutorTeacher ? tutorTeacher.id : (AppData.teachers[0]?.id || '');
-    } else {
-        selectedTeacherId = currentTeacherVal || (AppData.teachers[0]?.id || '');
-    }
-
-    // Ordenar profesores: 1º Asignado en reparto, 2º Especialistas, 3º Resto
-    const sortedTeachers = [...AppData.teachers].sort((a, b) => {
-        const aAssigned = a.id === assignedTeacherId ? 1 : 0;
-        const bAssigned = b.id === assignedTeacherId ? 1 : 0;
-        if (aAssigned !== bAssigned) return bAssigned - aAssigned;
-
-        const aQual = a.subjects.includes(subjId) ? 1 : 0;
-        const bQual = b.subjects.includes(subjId) ? 1 : 0;
-        if (aQual !== bQual) return bQual - aQual;
-
-        return a.name.localeCompare(b.name);
-    });
-
-    teacherSelect.innerHTML = sortedTeachers.map(t => {
-        let tag = '';
-        if (t.id === assignedTeacherId) {
-            tag = ' ⭐ (Asignado en Reparto)';
-        } else if (t.subjects.includes(subjId)) {
-            tag = ' ✓ (Especialista)';
-        }
-        return `<option value="${t.id}" ${t.id === selectedTeacherId ? 'selected' : ''}>${t.name}${tag}</option>`;
-    }).join('');
-
-    if (selectedTeacherId) {
-        teacherSelect.value = selectedTeacherId;
-    }
-}
-
-export function onModalSubjectChange(): void {
-    const typeSelect = document.getElementById('view-type-select') as HTMLSelectElement;
-    const viewType = typeSelect?.value;
-    const subjSelect = document.getElementById('modal-subject') as HTMLSelectElement;
-    const courseSelect = document.getElementById('modal-course') as HTMLSelectElement;
-    const groupSelect = document.getElementById('modal-group') as HTMLSelectElement;
-    const teacherSelect = document.getElementById('modal-teacher') as HTMLSelectElement;
-
-    if (!subjSelect) return;
-    const subjId = subjSelect.value;
-
-    if (viewType === 'teacher') {
-        const teacherId = teacherSelect?.value;
-        let foundCourse: Course | undefined;
-        let foundGroup: any;
-
-        for (const c of AppData.courses) {
-            for (const g of c.groups) {
-                if (g.assignments && g.assignments[subjId] === teacherId) {
-                    foundCourse = c;
-                    foundGroup = g;
-                    break;
-                }
-            }
-            if (foundCourse) break;
-        }
-
-        if (foundCourse && foundGroup) {
-            if (courseSelect) {
-                courseSelect.value = foundCourse.id;
-                onModalCourseChange(foundGroup.id);
-            }
-        } else {
-            const subjectObj = AppData.subjects.find(s => s.id === subjId);
-            const courseBySubj = AppData.courses.find(c => c.id === subjectObj?.courseId || c.subjects.includes(subjId));
-            if (courseBySubj && courseSelect) {
-                courseSelect.value = courseBySubj.id;
-                onModalCourseChange();
-            }
-        }
-    } else {
-        updateModalTeacherOptions();
-    }
-}
-
-export function onModalCourseChange(targetGroupId: string | null = null): void {
-    const courseId = (document.getElementById('modal-course') as HTMLSelectElement).value;
-    const groupSelect = document.getElementById('modal-group') as HTMLSelectElement;
-    
-    const course = AppData.courses.find(c => c.id === courseId);
-    if (course && course.groups.length > 0) {
-        groupSelect.innerHTML = course.groups.map(g => `<option value="${g.id}">Grupo ${g.name}</option>`).join('');
-        if (targetGroupId && course.groups.some(g => g.id === targetGroupId)) {
-            groupSelect.value = targetGroupId;
-        }
-    } else {
-        groupSelect.innerHTML = `<option value="">(Sin grupos)</option>`;
-    }
-    onModalGroupChange();
-}
-
-export function onModalGroupChange(): void {
-    updateModalTeacherOptions();
-}
-
-export function openAddClassModal(startDate: Date | null = null, endDate: Date | null = null): void {
-    if (!startDate) {
-        const now = new Date();
-        const diff = now.getDate() - now.getDay() + (now.getDay() === 0 ? -6 : 1);
-        startDate = new Date(now.setDate(diff));
-        startDate.setHours(9, 0, 0, 0);
-        
-        endDate = new Date(startDate);
-        endDate.setHours(10, 0, 0, 0);
-    }
-
-    const formatTime = (date: Date): string => date.toTimeString().slice(0, 5);
-    
-    (document.getElementById('modal-class-start') as HTMLInputElement).value = startDate.toISOString();
-    (document.getElementById('modal-class-end') as HTMLInputElement).value = endDate!.toISOString();
-    (document.getElementById('modal-time-start') as HTMLInputElement).value = formatTime(startDate);
-    (document.getElementById('modal-time-end') as HTMLInputElement).value = formatTime(endDate!);
-
-    const typeSelect = document.getElementById('view-type-select') as HTMLSelectElement;
-    const headerCourseSelect = document.getElementById('header-course-select') as HTMLSelectElement;
-    const viewEntitySelect = document.getElementById('view-entity-select') as HTMLSelectElement;
-
-    const viewType = typeSelect?.value;
-    const viewCourse = headerCourseSelect?.value;
-    const viewEntity = viewEntitySelect?.value; 
-
-    const subjSelect = document.getElementById('modal-subject') as HTMLSelectElement;
-    const courseSelect = document.getElementById('modal-course') as HTMLSelectElement;
-    const groupSelect = document.getElementById('modal-group') as HTMLSelectElement;
-    const teacherSelect = document.getElementById('modal-teacher') as HTMLSelectElement;
-
-    courseSelect.innerHTML = AppData.courses.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
-    
-    courseSelect.disabled = false; 
-    groupSelect.disabled = false; 
-    teacherSelect.disabled = false;
-
-    if (viewType === 'group' && viewCourse) {
-        courseSelect.value = viewCourse;
-        courseSelect.disabled = true;
-        onModalCourseChange(viewEntity || null);
-        
-        if (viewEntity) {
-            groupSelect.value = viewEntity;
-            groupSelect.disabled = true;
-        }
-
-        const courseObj = AppData.courses.find(c => c.id === viewCourse);
-        const courseSubjIds = courseObj ? courseObj.subjects : [];
-        
-        const filteredSubjects = AppData.subjects.filter(s => courseSubjIds.length === 0 || courseSubjIds.includes(s.id) || s.courseId === viewCourse);
-        const targetSubjects = filteredSubjects.length > 0 ? filteredSubjects : AppData.subjects;
-
-        subjSelect.innerHTML = targetSubjects.map(s => {
-            const c = AppData.courses.find(x => x.subjects.includes(s.id) || x.id === s.courseId);
-            const courseLabel = c ? ` (${c.name})` : '';
-            return `<option value="${s.id}">${s.name}${courseLabel}</option>`;
-        }).join('');
-
-        updateModalTeacherOptions();
-    } 
-    else if (viewType === 'teacher' && viewEntity) {
-        teacherSelect.value = viewEntity;
-        teacherSelect.disabled = true;
-        
-        const teacherObj = AppData.teachers.find(t => t.id === viewEntity);
-        const teacherSubjIds = teacherObj ? teacherObj.subjects : [];
-
-        const teacherSubjects = AppData.subjects.filter(s => teacherSubjIds.includes(s.id));
-        const otherSubjects = AppData.subjects.filter(s => !teacherSubjIds.includes(s.id));
-
-        subjSelect.innerHTML = [
-            ...teacherSubjects.map(s => {
-                const c = AppData.courses.find(x => x.subjects.includes(s.id) || x.id === s.courseId);
-                return `<option value="${s.id}">✓ ${s.name}${c ? ` (${c.name})` : ''}</option>`;
-            }),
-            ...otherSubjects.map(s => {
-                const c = AppData.courses.find(x => x.subjects.includes(s.id) || x.id === s.courseId);
-                return `<option value="${s.id}">${s.name}${c ? ` (${c.name})` : ''}</option>`;
-            })
-        ].join('');
-
-        onModalSubjectChange();
-    } else {
-        subjSelect.innerHTML = AppData.subjects.map(s => {
-            const course = AppData.courses.find(c => c.subjects.includes(s.id) || c.id === s.courseId);
-            const courseLabel = course ? ` (${course.name})` : '';
-            return `<option value="${s.id}">${s.name}${courseLabel}</option>`;
-        }).join('');
-        onModalCourseChange(); 
-    }
-
-    const pinCheckbox = document.getElementById('modal-is-pinned') as HTMLInputElement;
-    if (pinCheckbox) pinCheckbox.checked = false;
-
-    const modal = document.getElementById('add-class-modal');
-    if (modal) {
-        modal.classList.replace('hidden', 'flex');
-        modal.onclick = (e: MouseEvent) => {
-            if (e.target === modal) {
-                closeAddClassModal();
-            }
-        };
-    }
-}
-
-export function closeAddClassModal(): void {
-    const modal = document.getElementById('add-class-modal');
-    if (modal) modal.classList.replace('flex', 'hidden');
-}
-
-export async function saveNewClass(): Promise<void> {
-    const baseStartStr = (document.getElementById('modal-class-start') as HTMLInputElement).value;
-    const baseEndStr = (document.getElementById('modal-class-end') as HTMLInputElement).value;
-    
-    const baseStart = new Date(baseStartStr);
-    const baseEnd = new Date(baseEndStr);
-    
-    const timeStartStr = (document.getElementById('modal-time-start') as HTMLInputElement).value.split(':');
-    const timeEndStr = (document.getElementById('modal-time-end') as HTMLInputElement).value.split(':');
-    
-    baseStart.setHours(parseInt(timeStartStr[0]), parseInt(timeStartStr[1]), 0, 0);
-    baseEnd.setHours(parseInt(timeEndStr[0]), parseInt(timeEndStr[1]), 0, 0);
-
-    const subjId = (document.getElementById('modal-subject') as HTMLSelectElement).value;
-    const groupId = (document.getElementById('modal-group') as HTMLSelectElement).value;
-    const teacherId = (document.getElementById('modal-teacher') as HTMLSelectElement).value;
-
-    if (!groupId || !teacherId || !subjId) {
-        showToast("Error", "Faltan datos por seleccionar (Asignatura, Grupo o Profesor)", "error");
-        return;
-    }
-
-    if (overlapsRecess(baseStart, baseEnd)) {
-        showToast("Error", "No se puede programar una clase durante el recreo (12:00 - 12:30).", "error");
-        return;
-    }
-
-    const durationInMs = baseEnd.getTime() - baseStart.getTime();
-    const slotMinutes = 30;
-    const numSlots = Math.max(1, Math.round(durationInMs / (slotMinutes * 60000)));
-    const isPinnedSelected = (document.getElementById('modal-is-pinned') as HTMLInputElement)?.checked ?? false;
-
-    showToast('Guardando...', 'Enviando bloque a la base de datos API', 'info');
-
-    for (let i = 0; i < numSlots; i++) {
-        const slotStart = new Date(baseStart.getTime() + i * slotMinutes * 60000);
-        const slotEnd = new Date(slotStart.getTime() + slotMinutes * 60000);
-
-        let nuevaClase: ScheduledClass = {
-            id: 'evt-' + Date.now() + '-' + i,
-            start: slotStart.toISOString(),
-            end: slotEnd.toISOString(),
-            duration: 0.5,
-            subjectId: subjId,
-            groupId: groupId,
-            teacherId: teacherId,
-            isPinned: isPinnedSelected
-        };
-
-        await AppData.API.saveClass(nuevaClase);
-        AppData.scheduledClasses.push(nuevaClase);
-        AppData.WS.sendCommand('MANUAL_EDIT', { id: nuevaClase.id });
-    }
-    
-    closeAddClassModal();
-    refreshCalendarView();
-
-    const assignedTeacher = AppData.teachers.find(t => t.id === teacherId);
-    showToast("Clase Guardada", `Programada correctamente para el profesor ${assignedTeacher ? assignedTeacher.name : ''}`, "success");
-}
-
-const SUBJECT_PALETTE = [
-    '#4f46e5', // Indigo
-    '#0284c7', // Sky Blue
-    '#059669', // Emerald
-    '#d97706', // Amber
-    '#dc2626', // Red
-    '#7c3aed', // Purple
-    '#db2777', // Pink
-    '#2563eb', // Blue
-    '#0d9488', // Teal
-    '#ca8a04', // Yellow
-    '#ea580c', // Orange
-    '#e11d48', // Rose
-    '#9333ea', // Violet
-    '#16a34a'  // Green
-];
-
-export function getSubjectColor(subjectId: string): string {
-    if (!subjectId) return '#4f46e5';
-    let hash = 0;
-    for (let i = 0; i < subjectId.length; i++) {
-        hash = subjectId.charCodeAt(i) + ((hash << 5) - hash);
-    }
-    const idx = Math.abs(hash) % SUBJECT_PALETTE.length;
-    return SUBJECT_PALETTE[idx];
-}
-
-export function toggleColorMode(): void {
-    if (!AppData.colorMode) AppData.colorMode = 'teacher';
-    AppData.colorMode = AppData.colorMode === 'teacher' ? 'subject' : 'teacher';
-
-    const btnText = document.getElementById('btn-color-mode-text');
-    if (btnText) {
-        btnText.textContent = AppData.colorMode === 'teacher' ? 'Color: Profesor' : 'Color: Asignatura';
-    }
-
-    const btnIcon = document.getElementById('btn-color-mode-icon');
-    if (btnIcon) {
-        btnIcon.textContent = AppData.colorMode === 'teacher' ? '🎨' : '📚';
-    }
-
-    refreshCalendarView();
-}
-
-export function getMergedCalendarEvents(
-    classes: ScheduledClass[],
-    type: string,
-    entityId: string,
-    colorMode: string = 'teacher',
-    options: { maxBlockDuration?: number; recessConfig?: { start?: string; duration?: number } } = {}
-): MergedDisplayEvent[] {
-    const {
-        maxBlockDuration = 2.0,
-        recessConfig = AppData.config ? { start: AppData.config.horaInicioRecreo, duration: AppData.config.duracionRecreo } : { start: '12:00', duration: 30 }
-    } = options;
-
-    if (!Array.isArray(classes) || classes.length === 0) {
-        return [];
-    }
-
-    const filtered = classes.filter(cls => {
-        if (type === 'teacher') return cls.teacherId === entityId;
-        if (type === 'group') return cls.groupId === entityId;
-        return false;
-    });
-
-    const groupsMap = new Map<string, ScheduledClass[]>();
-    filtered.forEach(cls => {
-        const d = new Date(cls.start);
-        const dateKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-        const key = `${dateKey}_${cls.subjectId}_${cls.teacherId}_${cls.groupId}`;
-        if (!groupsMap.has(key)) {
-            groupsMap.set(key, []);
-        }
-        groupsMap.get(key)!.push(cls);
-    });
-
-    const displayEvents: MergedDisplayEvent[] = [];
-
-    groupsMap.forEach(groupClasses => {
-        groupClasses.sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());
-
-        let i = 0;
-        while (i < groupClasses.length) {
-            const current = groupClasses[i];
-            let mergedIds = [current.id];
-            let blockStart = current.start;
-            let blockEnd = current.end;
-            let blockDuration = current.duration || ((new Date(current.end).getTime() - new Date(current.start).getTime()) / 3600000);
-            let isPinned = Boolean(current.isPinned);
-
-            let j = i + 1;
-            while (j < groupClasses.length) {
-                const next = groupClasses[j];
-                const currentEndTime = new Date(blockEnd).getTime();
-                const nextStartTime = new Date(next.start).getTime();
-                const isContiguous = Math.abs(currentEndTime - nextStartTime) < 60000;
-                const nextDur = next.duration || ((new Date(next.end).getTime() - new Date(next.start).getTime()) / 3600000);
-                const crossesRecess = overlapsRecess(new Date(blockStart), new Date(next.end), recessConfig);
-
-                if (isContiguous && !crossesRecess && (blockDuration + nextDur <= maxBlockDuration + 0.01)) {
-                    blockEnd = next.end;
-                    blockDuration += nextDur;
-                    mergedIds.push(next.id);
-                    if (next.isPinned) {
-                        isPinned = true;
-                    }
-                    j++;
-                } else {
-                    break;
-                }
-            }
-
-            const subject = AppData.subjects.find(s => s.id === current.subjectId);
-            const teacher = AppData.teachers.find(t => t.id === current.teacherId);
-            const course = AppData.courses.find(c => c.groups.some(g => g.id === current.groupId));
-            const grp = course ? course.groups.find(g => g.id === current.groupId) : null;
-
-            const pin = isPinned ? '📌 ' : '';
-            const subjectTitle = subject ? `${pin}${subject.name}` : `${pin}Clase API`;
-            const subtitle = (type === 'group')
-                ? (teacher ? `Prof: ${teacher.name}` : '')
-                : (course && grp ? `${course.name} - G.${grp.name}` : (teacher ? `Prof: ${teacher.name}` : ''));
-
-            const eventBgColor = (colorMode === 'subject')
-                ? getSubjectColor(current.subjectId)
-                : (teacher ? teacher.color : '#4f46e5');
-
-            displayEvents.push({
-                id: current.id,
-                mergedIds: [...mergedIds],
-                calendarId: current.teacherId,
-                title: subjectTitle,
-                body: subtitle,
-                start: blockStart,
-                end: blockEnd,
-                duration: Math.round(blockDuration * 100) / 100,
-                isReadOnly: isPinned,
-                isPinned: isPinned,
-                backgroundColor: eventBgColor,
-                color: '#ffffff',
-                customStyle: { borderRadius: '6px', border: 'none', padding: '2px' },
-                raw: {
-                    subjectId: current.subjectId,
-                    teacherId: current.teacherId,
-                    groupId: current.groupId
-                }
-            });
-
-            i = j;
-        }
-    });
-
-    return displayEvents;
+    AppData.calendarInstance.on('clickEvent', (e: any) => openEventDetail(e.event, () => refreshCalendarView()));
 }
 
 export function refreshCalendarView(): void {
     const typeSelect = document.getElementById('view-type-select') as HTMLSelectElement;
     const entitySelect = document.getElementById('view-entity-select') as HTMLSelectElement;
-    
+
     if (!typeSelect || !entitySelect) return;
 
     const type = typeSelect.value;
     const entityId = entitySelect.value;
-    
+
     if (AppData.calendarInstance) {
         AppData.calendarInstance.clear();
         addRecessEvents();
@@ -631,13 +186,15 @@ export function refreshCalendarView(): void {
     if (!entityId) return;
 
     const colorMode = AppData.colorMode || 'teacher';
-
     const mergedEvents = getMergedCalendarEvents(AppData.scheduledClasses, type, entityId, colorMode);
     AppData.currentMergedEvents = mergedEvents;
 
     if (AppData.calendarInstance) AppData.calendarInstance.createEvents(mergedEvents);
 
-    // Actualizar Tarjeta de Resumen Docente
+    renderTeacherSummaryCard(type, entityId);
+}
+
+function renderTeacherSummaryCard(type: string, entityId: string): void {
     const summaryCard = document.getElementById('teacher-summary-card');
     const summaryContent = document.getElementById('teacher-summary-content');
 
@@ -706,181 +263,6 @@ export function refreshCalendarView(): void {
     }
 }
 
-export function openEventDetail(event: any): void {
-    let mergedEvent = AppData.currentMergedEvents?.find(e => e.id === event.id || (e.mergedIds && e.mergedIds.includes(event.id)));
-    let constituentClasses: ScheduledClass[] = [];
-    if (mergedEvent && mergedEvent.mergedIds) {
-        constituentClasses = AppData.scheduledClasses.filter(c => mergedEvent.mergedIds.includes(c.id));
-    } else {
-        const singleCls = AppData.scheduledClasses.find(c => c.id === event.id);
-        if (singleCls) constituentClasses = [singleCls];
-    }
-    if (constituentClasses.length === 0) return;
-
-    const firstCls = constituentClasses[0];
-    const subject = AppData.subjects.find(s => s.id === firstCls.subjectId);
-    const teacher = AppData.teachers.find(t => t.id === firstCls.teacherId);
-
-    if (!subject || !teacher) return;
-
-    const totalDuration = constituentClasses.reduce((sum, c) => sum + (c.duration || 0.5), 0);
-    const isAnyPinned = constituentClasses.some(c => c.isPinned);
-
-    const course = AppData.courses.find(c => c.groups.some(g => g.id === firstCls.groupId));
-    const group = course ? course.groups.find(g => g.id === firstCls.groupId) : null;
-    const courseGroupName = course && group ? `${course.name} - Grupo ${group.name}` : 'Sin grupo';
-
-    const titleEl = document.getElementById('event-detail-title');
-    if (titleEl) titleEl.textContent = `${subject.name} (${formatHours(totalDuration)}h)`;
-    
-    const colorMode = AppData.colorMode || 'teacher';
-    const headerColor = (colorMode === 'subject')
-        ? getSubjectColor(firstCls.subjectId)
-        : teacher.color;
-
-    const headerEl = document.getElementById('event-detail-header');
-    if (headerEl) headerEl.style.backgroundColor = headerColor;
-    
-    const bodyEl = document.getElementById('event-detail-body');
-    if (bodyEl) {
-        const sTime = new Date(mergedEvent ? mergedEvent.start : firstCls.start).toTimeString().slice(0, 5);
-        const eTime = new Date(mergedEvent ? mergedEvent.end : constituentClasses[constituentClasses.length - 1].end).toTimeString().slice(0, 5);
-        bodyEl.innerHTML = `
-            <p class="text-sm mb-1.5">Curso/Grupo: <b>${courseGroupName}</b></p>
-            <p class="text-sm mb-1.5">Impartida por: <b>${teacher.name}</b></p>
-            <p class="text-xs text-gray-500">Horario: <b>${sTime} - ${eTime}</b> (${formatHours(totalDuration)}h)</p>
-        `;
-    }
-
-    const pinBtn = document.getElementById('btn-pin-event') as HTMLButtonElement;
-    if (pinBtn) {
-        pinBtn.innerText = isAnyPinned ? "Desfijar" : "Fijar (Pin)";
-        pinBtn.onclick = async () => { 
-            const newPinState = !isAnyPinned;
-            for (const cls of constituentClasses) {
-                cls.isPinned = newPinState;
-                try {
-                    await AppData.API.updateClass(cls); 
-                } catch (err) {
-                    console.error("Error al actualizar estado del pin:", err);
-                }
-                AppData.WS.sendCommand('PIN_UPDATE', { id: cls.id, state: cls.isPinned });
-            }
-            closeEventDetail(); 
-            refreshCalendarView(); 
-        };
-    }
-    
-    const delBtn = document.getElementById('btn-delete-event') as HTMLButtonElement;
-    if (delBtn) {
-        delBtn.onclick = async () => { 
-            for (const cls of constituentClasses) {
-                await AppData.API.deleteClass(cls.id); 
-                AppData.scheduledClasses = AppData.scheduledClasses.filter(c => c.id !== cls.id);
-                AppData.WS.sendCommand('MANUAL_EDIT', { delete: cls.id });
-            }
-            closeEventDetail(); 
-            refreshCalendarView(); 
-        };
-    }
-
-    const modal = document.getElementById('event-detail-modal');
-    if (modal) {
-        modal.classList.replace('hidden', 'flex');
-        modal.onclick = (e: MouseEvent) => {
-            if (e.target === modal) {
-                closeEventDetail();
-            }
-        };
-    }
-}
-
-export function closeEventDetail(): void { 
-    const modal = document.getElementById('event-detail-modal');
-    if (modal) modal.classList.replace('flex', 'hidden'); 
-}
-
-export function overlapsRecess(start: Date | string, end: Date | string, recessConfig?: { start?: string; duration?: number }): boolean {
-    const s = new Date(start);
-    const e = new Date(end);
-    const startHour = s.getHours();
-    const startMin = s.getMinutes();
-    const endHour = e.getHours();
-    const endMin = e.getMinutes();
-
-    const startMinutes = startHour * 60 + startMin;
-    const endMinutes = endHour * 60 + endMin;
-
-    let recessStart = 12 * 60; // 12:00 -> 720 min
-    let recessDuration = 30;
-
-    if (recessConfig) {
-        if (typeof recessConfig.start === 'string') {
-            const parts = recessConfig.start.split(':').map(Number);
-            recessStart = parts[0] * 60 + parts[1];
-        }
-        if (typeof recessConfig.duration === 'number') {
-            recessDuration = recessConfig.duration;
-        }
-    } else if (AppData.config) {
-        const parts = AppData.config.horaInicioRecreo.split(':');
-        recessStart = parseInt(parts[0]) * 60 + parseInt(parts[1]);
-        recessDuration = AppData.config.duracionRecreo;
-    }
-
-    const recessEnd = recessStart + recessDuration;
-
-    return startMinutes < recessEnd && endMinutes > recessStart;
-}
-
-// Añade bloques visuales de recreo (fondo gris) para Lun-Vie dinámicamente según configuración
-function addRecessEvents(): void {
-    if (!AppData.calendarInstance) return;
-
-    // Calcular el lunes de la semana actual
-    const today = new Date();
-    const dayOfWeek = today.getDay(); // 0 Dom, 1 Lun...
-    const diff = today.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1);
-    const monday = new Date(today);
-    monday.setDate(diff);
-    monday.setHours(0, 0, 0, 0);
-
-    let startHour = 12;
-    let startMin = 0;
-    let duration = 30;
-
-    if (AppData.config) {
-        const parts = AppData.config.horaInicioRecreo.split(':');
-        startHour = parseInt(parts[0]);
-        startMin = parseInt(parts[1]);
-        duration = AppData.config.duracionRecreo;
-    }
-
-    for (let i = 0; i < 5; i++) {
-        const day = new Date(monday);
-        day.setDate(monday.getDate() + i);
-
-        const start = new Date(day);
-        start.setHours(startHour, startMin, 0, 0);
-
-        const end = new Date(start);
-        end.setMinutes(start.getMinutes() + duration);
-
-        AppData.calendarInstance.createEvents([{
-            id: `recess-${i}`,
-            calendarId: 'recess',
-            title: '☕ Recreo',
-            start: start.toISOString(),
-            end: end.toISOString(),
-            isReadOnly: true,
-            isAllDay: false,
-            backgroundColor: '#f1f5f9',
-            borderColor: '#94a3b8',
-            color: '#64748b',
-        }]);
-    }
-}
-
 export async function clearGroupSchedule(): Promise<void> {
     const typeSelect = document.getElementById('view-type-select') as HTMLSelectElement;
     const entitySelect = document.getElementById('view-entity-select') as HTMLSelectElement;
@@ -907,11 +289,10 @@ export async function clearGroupSchedule(): Promise<void> {
     try {
         showToast("Limpiando...", "Eliminando clases de la base de datos...", "info");
         await AppData.API.deleteGroupSchedule(groupId);
-        
-        // Quitar de local
+
         AppData.scheduledClasses = AppData.scheduledClasses.filter(c => c.groupId !== groupId);
         refreshCalendarView();
-        
+
         showToast("Éxito", "El horario del grupo se ha vaciado.", "success");
         AppData.WS.sendCommand('MANUAL_EDIT', { action: 'cleared', groupId });
     } catch (err) {

@@ -173,118 +173,222 @@
     }
   };
 
-  // Web/src/calendar.ts
-  function updateDateRange() {
-    if (!AppData.calendarInstance) return;
-    const start = AppData.calendarInstance.getDateRangeStart();
-    const end = AppData.calendarInstance.getDateRangeEnd();
-    const formatDate = (date) => {
-      const d = typeof date.toDate === "function" ? date.toDate() : new Date(date);
-      const months = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
-      return `${d.getDate()} ${months[d.getMonth()]}`;
-    };
-    const rangeEl = document.getElementById("calendar-date-range");
-    if (rangeEl) rangeEl.textContent = `${formatDate(start)} - ${formatDate(end)}`;
+  // Web/src/calendar_colors.ts
+  var SUBJECT_PALETTE = [
+    "#4f46e5",
+    // Indigo
+    "#0284c7",
+    // Sky Blue
+    "#059669",
+    // Emerald
+    "#d97706",
+    // Amber
+    "#dc2626",
+    // Red
+    "#7c3aed",
+    // Purple
+    "#db2777",
+    // Pink
+    "#2563eb",
+    // Blue
+    "#0d9488",
+    // Teal
+    "#ca8a04",
+    // Yellow
+    "#ea580c",
+    // Orange
+    "#e11d48",
+    // Rose
+    "#9333ea",
+    // Violet
+    "#16a34a"
+    // Green
+  ];
+  function getSubjectColor(subjectId) {
+    if (!subjectId) return "#4f46e5";
+    let hash = 0;
+    for (let i = 0; i < subjectId.length; i++) {
+      hash = subjectId.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    const index = Math.abs(hash) % SUBJECT_PALETTE.length;
+    return SUBJECT_PALETTE[index];
   }
-  function onHeaderCourseChange(previousVal = null) {
-    const courseSelect = document.getElementById("header-course-select");
-    const select = document.getElementById("view-entity-select");
-    if (!courseSelect || !select) return;
-    const courseId = courseSelect.value;
-    const course = AppData.courses.find((c) => c.id === courseId);
-    if (course) {
-      if (course.groups.length === 0) {
-        select.innerHTML = `<option value="">Sin grupos</option>`;
-      } else {
-        select.innerHTML = course.groups.map((g) => `<option value="${g.id}">Grupo ${g.name}</option>`).join("");
+  function toggleColorMode(onModeChanged) {
+    if (!AppData.colorMode) AppData.colorMode = "teacher";
+    AppData.colorMode = AppData.colorMode === "teacher" ? "subject" : "teacher";
+    const buttonText = document.getElementById("btn-color-mode-text");
+    if (buttonText) {
+      buttonText.textContent = AppData.colorMode === "teacher" ? "Color: Profesor" : "Color: Asignatura";
+    }
+    const buttonIcon = document.getElementById("btn-color-mode-icon");
+    if (buttonIcon) {
+      buttonIcon.textContent = AppData.colorMode === "teacher" ? "\u{1F3A8}" : "\u{1F4DA}";
+    }
+    if (typeof onModeChanged === "function") {
+      onModeChanged();
+    }
+  }
+
+  // Web/src/calendar_events.ts
+  function parseTimeToMinutes(timeString) {
+    if (!timeString || typeof timeString !== "string") return 0;
+    const cleanTime = timeString.trim();
+    if (!cleanTime.includes(":")) return 0;
+    const parts = cleanTime.split(":");
+    const hours = parseInt(parts[0], 10);
+    const minutes = parseInt(parts[1], 10);
+    if (isNaN(hours) || isNaN(minutes) || hours < 0 || minutes < 0 || minutes >= 60) return 0;
+    return hours * 60 + minutes;
+  }
+  function overlapsRecess(start, end, recessConfig) {
+    const startDate = new Date(start);
+    const endDate = new Date(end);
+    if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) return false;
+    const startMinutes = startDate.getHours() * 60 + startDate.getMinutes();
+    const endMinutes = endDate.getHours() * 60 + endDate.getMinutes();
+    let recessStartMinutes = 12 * 60;
+    let recessDurationMinutes = 30;
+    if (recessConfig) {
+      if (typeof recessConfig.start === "string") {
+        recessStartMinutes = parseTimeToMinutes(recessConfig.start);
       }
-    } else {
-      select.innerHTML = "";
+      if (typeof recessConfig.duration === "number" && recessConfig.duration > 0) {
+        recessDurationMinutes = recessConfig.duration;
+      }
+    } else if (AppData.config) {
+      recessStartMinutes = parseTimeToMinutes(AppData.config.horaInicioRecreo);
+      recessDurationMinutes = AppData.config.duracionRecreo;
     }
-    if (previousVal && Array.from(select.options).some((opt) => opt.value === previousVal)) {
-      select.value = previousVal;
-    }
-    refreshCalendarView();
+    const recessEndMinutes = recessStartMinutes + recessDurationMinutes;
+    return startMinutes < recessEndMinutes && endMinutes > recessStartMinutes;
   }
-  function initCalendar() {
-    if (typeof tui === "undefined") return;
-    const Calendar = tui.Calendar;
-    AppData.calendarInstance = new Calendar("#calendar", {
-      defaultView: "week",
-      useFormPopup: false,
-      useDetailPopup: false,
-      week: { taskView: false, eventView: ["time"], dayNames: ["Dom", "Lunes", "Martes", "Mi\xE9rcoles", "Jueves", "Viernes", "S\xE1b"], workweek: true, hourStart: 8, hourEnd: 15 },
-      calendars: [
-        { id: "default", name: "Clases", backgroundColor: "#4f46e5" },
-        { id: "pinned", name: "Fijadas", backgroundColor: "#059669" },
-        { id: "recess", name: "Recreo", backgroundColor: "#f1f5f9", borderColor: "#94a3b8", color: "#64748b" }
-      ],
-      template: {
-        weekDayName(model) {
-          return `<span class="toastui-calendar-day-name-item">${model.dayName}</span>`;
-        },
-        time(event) {
-          if (event.calendarId === "recess") {
-            return `<div class="p-1 font-semibold text-slate-500 text-xs">\u2615 Recreo</div>`;
+  function getMergedCalendarEvents(classes, type, entityId, colorMode = "teacher", options = {}) {
+    const {
+      maxBlockDuration = 2,
+      recessConfig = AppData.config ? { start: AppData.config.horaInicioRecreo, duration: AppData.config.duracionRecreo } : { start: "12:00", duration: 30 }
+    } = options;
+    if (!Array.isArray(classes) || classes.length === 0) {
+      return [];
+    }
+    const filtered = classes.filter((cls) => {
+      if (type === "teacher") return cls.teacherId === entityId;
+      if (type === "group") return cls.groupId === entityId;
+      return false;
+    });
+    const groupsMap = /* @__PURE__ */ new Map();
+    filtered.forEach((cls) => {
+      const d = new Date(cls.start);
+      const dateKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+      const key = `${dateKey}_${cls.subjectId}_${cls.teacherId}_${cls.groupId}`;
+      if (!groupsMap.has(key)) {
+        groupsMap.set(key, []);
+      }
+      groupsMap.get(key).push(cls);
+    });
+    const displayEvents = [];
+    groupsMap.forEach((groupClasses) => {
+      groupClasses.sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());
+      let index = 0;
+      while (index < groupClasses.length) {
+        const current = groupClasses[index];
+        let mergedIds = [current.id];
+        let blockStart = current.start;
+        let blockEnd = current.end;
+        let blockDuration = current.duration || (new Date(current.end).getTime() - new Date(current.start).getTime()) / 36e5;
+        let isPinned = Boolean(current.isPinned);
+        let nextIndex = index + 1;
+        while (nextIndex < groupClasses.length) {
+          const next = groupClasses[nextIndex];
+          const currentEndTime = new Date(blockEnd).getTime();
+          const nextStartTime = new Date(next.start).getTime();
+          const isContiguous = Math.abs(currentEndTime - nextStartTime) < 6e4;
+          const nextDuration = next.duration || (new Date(next.end).getTime() - new Date(next.start).getTime()) / 36e5;
+          const crossesRecess = overlapsRecess(new Date(blockStart), new Date(next.end), recessConfig);
+          if (isContiguous && !crossesRecess && blockDuration + nextDuration <= maxBlockDuration + 0.01) {
+            blockEnd = next.end;
+            blockDuration += nextDuration;
+            mergedIds.push(next.id);
+            if (next.isPinned) {
+              isPinned = true;
+            }
+            nextIndex++;
+          } else {
+            break;
           }
-          return `
-                    <div class="p-1 flex flex-col justify-center h-full overflow-hidden text-white leading-tight">
-                        <div class="font-bold text-xs truncate">${event.title}</div>
-                        ${event.body ? `<div class="text-[11px] font-medium opacity-90 truncate mt-0.5">${event.body}</div>` : ""}
-                    </div>
-                `;
         }
+        const subject = AppData.subjects.find((s) => s.id === current.subjectId);
+        const teacher = AppData.teachers.find((t) => t.id === current.teacherId);
+        const course = AppData.courses.find((c) => c.groups.some((g) => g.id === current.groupId));
+        const group = course ? course.groups.find((g) => g.id === current.groupId) : null;
+        const pin = isPinned ? "\u{1F4CC} " : "";
+        const subjectTitle = subject ? `${pin}${subject.name}` : `${pin}Clase API`;
+        const subtitle = type === "group" ? teacher ? `Prof: ${teacher.name}` : "" : course && group ? `${course.name} - G.${group.name}` : teacher ? `Prof: ${teacher.name}` : "";
+        const eventBgColor = colorMode === "subject" ? getSubjectColor(current.subjectId) : teacher ? teacher.color : "#4f46e5";
+        displayEvents.push({
+          id: current.id,
+          mergedIds: [...mergedIds],
+          calendarId: current.teacherId,
+          title: subjectTitle,
+          body: subtitle,
+          start: blockStart,
+          end: blockEnd,
+          duration: Math.round(blockDuration * 100) / 100,
+          isReadOnly: isPinned,
+          isPinned,
+          backgroundColor: eventBgColor,
+          color: "#ffffff",
+          customStyle: { borderRadius: "6px", border: "none", padding: "2px" },
+          raw: {
+            subjectId: current.subjectId,
+            teacherId: current.teacherId,
+            groupId: current.groupId
+          }
+        });
+        index = nextIndex;
       }
     });
-    addRecessEvents();
-    AppData.calendarInstance.on("selectDateTime", function(info) {
-      AppData.calendarInstance.clearGridSelections();
-      let startObj = typeof info.start.toDate === "function" ? info.start.toDate() : new Date(info.start);
-      let endObj = typeof info.end.toDate === "function" ? info.end.toDate() : new Date(info.end);
-      openAddClassModal(startObj, endObj);
-    });
-    AppData.calendarInstance.on("beforeUpdateEvent", async function(info) {
-      const { event, changes } = info;
-      let mergedEvent = AppData.currentMergedEvents?.find((e) => e.id === event.id || e.mergedIds && e.mergedIds.includes(event.id));
-      let constituentClasses = [];
-      if (mergedEvent && mergedEvent.mergedIds) {
-        constituentClasses = AppData.scheduledClasses.filter((c) => mergedEvent.mergedIds.includes(c.id));
-      } else {
-        const singleCls = AppData.scheduledClasses.find((c) => c.id === event.id);
-        if (singleCls) constituentClasses = [singleCls];
-      }
-      if (constituentClasses.length === 0) return;
-      if (constituentClasses.some((c) => c.isPinned)) {
-        showToast("Bloqueado", "No puedes mover ni alterar una clase que est\xE1 fijada (Pin).", "warning");
-        return;
-      }
-      let startCandidate = mergedEvent ? mergedEvent.start : constituentClasses[0].start;
-      let endCandidate = mergedEvent ? mergedEvent.end : constituentClasses[constituentClasses.length - 1].end;
-      if (changes.start) startCandidate = typeof changes.start.toDate === "function" ? changes.start.toDate() : new Date(changes.start);
-      if (changes.end) endCandidate = typeof changes.end.toDate === "function" ? changes.end.toDate() : new Date(changes.end);
-      if (overlapsRecess(new Date(startCandidate), new Date(endCandidate))) {
-        showToast("Error", "No se puede programar una clase durante el recreo (12:00 - 12:30).", "error");
-        refreshCalendarView();
-        return;
-      }
-      showToast("Sincronizando...", "Guardando nueva posici\xF3n en el servidor...", "info");
-      constituentClasses.sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());
-      let currentSlotStart = new Date(startCandidate);
-      for (const cls of constituentClasses) {
-        const slotDurationHours = cls.duration || 0.5;
-        const slotDurationMs = slotDurationHours * 36e5;
-        const slotEnd = new Date(currentSlotStart.getTime() + slotDurationMs);
-        cls.start = currentSlotStart.toISOString();
-        cls.end = slotEnd.toISOString();
-        cls.duration = slotDurationHours;
-        await AppData.API.updateClass(cls);
-        AppData.WS.sendCommand("MANUAL_EDIT", { id: cls.id, action: "moved" });
-        currentSlotStart = slotEnd;
-      }
-      refreshCalendarView();
-    });
-    AppData.calendarInstance.on("clickEvent", (e) => openEventDetail(e.event));
+    return displayEvents;
   }
+  function addRecessEvents() {
+    if (!AppData.calendarInstance) return;
+    const today = /* @__PURE__ */ new Date();
+    const dayOfWeek = today.getDay();
+    const diff = today.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1);
+    const monday = new Date(today);
+    monday.setDate(diff);
+    monday.setHours(0, 0, 0, 0);
+    let startHour = 12;
+    let startMin = 0;
+    let duration = 30;
+    if (AppData.config) {
+      const parts = AppData.config.horaInicioRecreo.split(":");
+      startHour = parseInt(parts[0], 10) || 12;
+      startMin = parseInt(parts[1], 10) || 0;
+      duration = AppData.config.duracionRecreo || 30;
+    }
+    for (let i = 0; i < 5; i++) {
+      const day = new Date(monday);
+      day.setDate(monday.getDate() + i);
+      const start = new Date(day);
+      start.setHours(startHour, startMin, 0, 0);
+      const end = new Date(start);
+      end.setMinutes(start.getMinutes() + duration);
+      AppData.calendarInstance.createEvents([{
+        id: `recess-${i}`,
+        calendarId: "recess",
+        title: "\u2615 Recreo",
+        start: start.toISOString(),
+        end: end.toISOString(),
+        isReadOnly: true,
+        isAllDay: false,
+        backgroundColor: "#f1f5f9",
+        borderColor: "#94a3b8",
+        color: "#64748b"
+      }]);
+    }
+  }
+
+  // Web/src/calendar_modal.ts
   function updateModalTeacherOptions(preferredTeacherId = null) {
     const teacherSelect = document.getElementById("modal-teacher");
     const subjSelect = document.getElementById("modal-subject");
@@ -390,295 +494,378 @@
     }
   }
   function onModalCourseChange(targetGroupId = null) {
-    const courseId = document.getElementById("modal-course").value;
+    const courseSelect = document.getElementById("modal-course");
     const groupSelect = document.getElementById("modal-group");
+    if (!courseSelect || !groupSelect) return;
+    const courseId = courseSelect.value;
     const course = AppData.courses.find((c) => c.id === courseId);
-    if (course && course.groups.length > 0) {
+    if (course) {
       groupSelect.innerHTML = course.groups.map((g) => `<option value="${g.id}">Grupo ${g.name}</option>`).join("");
       if (targetGroupId && course.groups.some((g) => g.id === targetGroupId)) {
         groupSelect.value = targetGroupId;
       }
     } else {
-      groupSelect.innerHTML = `<option value="">(Sin grupos)</option>`;
+      groupSelect.innerHTML = "";
     }
-    onModalGroupChange();
+    updateModalTeacherOptions();
   }
   function onModalGroupChange() {
     updateModalTeacherOptions();
   }
-  function openAddClassModal(startDate = null, endDate = null) {
-    if (!startDate) {
-      const now = /* @__PURE__ */ new Date();
-      const diff = now.getDate() - now.getDay() + (now.getDay() === 0 ? -6 : 1);
-      startDate = new Date(now.setDate(diff));
-      startDate.setHours(9, 0, 0, 0);
-      endDate = new Date(startDate);
-      endDate.setHours(10, 0, 0, 0);
-    }
-    const formatTime = (date) => date.toTimeString().slice(0, 5);
-    document.getElementById("modal-class-start").value = startDate.toISOString();
-    document.getElementById("modal-class-end").value = endDate.toISOString();
-    document.getElementById("modal-time-start").value = formatTime(startDate);
-    document.getElementById("modal-time-end").value = formatTime(endDate);
-    const typeSelect = document.getElementById("view-type-select");
-    const headerCourseSelect = document.getElementById("header-course-select");
-    const viewEntitySelect = document.getElementById("view-entity-select");
-    const viewType = typeSelect?.value;
-    const viewCourse = headerCourseSelect?.value;
-    const viewEntity = viewEntitySelect?.value;
+  function openAddClassModal(start, end) {
     const subjSelect = document.getElementById("modal-subject");
-    const courseSelect = document.getElementById("modal-course");
-    const groupSelect = document.getElementById("modal-group");
     const teacherSelect = document.getElementById("modal-teacher");
-    courseSelect.innerHTML = AppData.courses.map((c) => `<option value="${c.id}">${c.name}</option>`).join("");
-    courseSelect.disabled = false;
-    groupSelect.disabled = false;
-    teacherSelect.disabled = false;
-    if (viewType === "group" && viewCourse) {
-      courseSelect.value = viewCourse;
-      courseSelect.disabled = true;
-      onModalCourseChange(viewEntity || null);
-      if (viewEntity) {
-        groupSelect.value = viewEntity;
-        groupSelect.disabled = true;
-      }
-      const courseObj = AppData.courses.find((c) => c.id === viewCourse);
-      const courseSubjIds = courseObj ? courseObj.subjects : [];
-      const filteredSubjects = AppData.subjects.filter((s) => courseSubjIds.length === 0 || courseSubjIds.includes(s.id) || s.courseId === viewCourse);
-      const targetSubjects = filteredSubjects.length > 0 ? filteredSubjects : AppData.subjects;
-      subjSelect.innerHTML = targetSubjects.map((s) => {
-        const c = AppData.courses.find((x) => x.subjects.includes(s.id) || x.id === s.courseId);
-        const courseLabel = c ? ` (${c.name})` : "";
-        return `<option value="${s.id}">${s.name}${courseLabel}</option>`;
-      }).join("");
-      updateModalTeacherOptions();
+    const groupSelect = document.getElementById("modal-group");
+    const courseSelect = document.getElementById("modal-course");
+    const daySelect = document.getElementById("modal-day");
+    const startTimeInput = document.getElementById("modal-start-time");
+    const endTimeInput = document.getElementById("modal-end-time");
+    const typeSelect = document.getElementById("view-type-select");
+    const viewEntitySelect = document.getElementById("view-entity-select");
+    const headerCourseSelect = document.getElementById("header-course-select");
+    const viewType = typeSelect ? typeSelect.value : "group";
+    const viewEntity = viewEntitySelect ? viewEntitySelect.value : "";
+    if (courseSelect) {
+      courseSelect.innerHTML = AppData.courses.map((c) => `<option value="${c.id}">${c.name}</option>`).join("");
+    }
+    let defaultCourseId = headerCourseSelect ? headerCourseSelect.value : AppData.courses[0]?.id || "";
+    let defaultGroupId = "";
+    if (viewType === "group" && viewEntity) {
+      defaultGroupId = viewEntity;
+      const currentCourse = AppData.courses.find((c) => c.groups.some((g) => g.id === defaultGroupId));
+      if (currentCourse) defaultCourseId = currentCourse.id;
     } else if (viewType === "teacher" && viewEntity) {
-      teacherSelect.value = viewEntity;
-      teacherSelect.disabled = true;
       const teacherObj = AppData.teachers.find((t) => t.id === viewEntity);
-      const teacherSubjIds = teacherObj ? teacherObj.subjects : [];
-      const teacherSubjects = AppData.subjects.filter((s) => teacherSubjIds.includes(s.id));
-      const otherSubjects = AppData.subjects.filter((s) => !teacherSubjIds.includes(s.id));
-      subjSelect.innerHTML = [
-        ...teacherSubjects.map((s) => {
-          const c = AppData.courses.find((x) => x.subjects.includes(s.id) || x.id === s.courseId);
-          return `<option value="${s.id}">\u2713 ${s.name}${c ? ` (${c.name})` : ""}</option>`;
-        }),
-        ...otherSubjects.map((s) => {
-          const c = AppData.courses.find((x) => x.subjects.includes(s.id) || x.id === s.courseId);
-          return `<option value="${s.id}">${s.name}${c ? ` (${c.name})` : ""}</option>`;
-        })
-      ].join("");
-      onModalSubjectChange();
-    } else {
-      subjSelect.innerHTML = AppData.subjects.map((s) => {
-        const course = AppData.courses.find((c) => c.subjects.includes(s.id) || c.id === s.courseId);
-        const courseLabel = course ? ` (${course.name})` : "";
-        return `<option value="${s.id}">${s.name}${courseLabel}</option>`;
-      }).join("");
-      onModalCourseChange();
-    }
-    const pinCheckbox = document.getElementById("modal-is-pinned");
-    if (pinCheckbox) pinCheckbox.checked = false;
-    const modal = document.getElementById("add-class-modal");
-    if (modal) {
-      modal.classList.replace("hidden", "flex");
-      modal.onclick = (e) => {
-        if (e.target === modal) {
-          closeAddClassModal();
+      if (teacherObj) {
+        for (const c of AppData.courses) {
+          for (const g of c.groups) {
+            if (g.assignments && Object.values(g.assignments).includes(teacherObj.id)) {
+              defaultCourseId = c.id;
+              defaultGroupId = g.id;
+              break;
+            }
+          }
         }
-      };
+      }
     }
+    if (courseSelect) {
+      courseSelect.value = defaultCourseId;
+      courseSelect.disabled = viewType === "group";
+    }
+    onModalCourseChange(defaultGroupId);
+    if (groupSelect) {
+      groupSelect.disabled = viewType === "group";
+    }
+    let availableSubjects = AppData.subjects;
+    if (viewType === "teacher" && viewEntity) {
+      const teacherObj = AppData.teachers.find((t) => t.id === viewEntity);
+      if (teacherObj && teacherObj.subjects && teacherObj.subjects.length > 0) {
+        availableSubjects = AppData.subjects.filter((s) => teacherObj.subjects.includes(s.id));
+        if (availableSubjects.length === 0) availableSubjects = AppData.subjects;
+      }
+    } else if (defaultCourseId) {
+      const selectedCourse = AppData.courses.find((c) => c.id === defaultCourseId);
+      if (selectedCourse && selectedCourse.subjects && selectedCourse.subjects.length > 0) {
+        availableSubjects = AppData.subjects.filter((s) => selectedCourse.subjects.includes(s.id));
+        if (availableSubjects.length === 0) availableSubjects = AppData.subjects;
+      }
+    }
+    if (subjSelect) {
+      subjSelect.innerHTML = availableSubjects.map((s) => `<option value="${s.id}">${s.name}</option>`).join("");
+    }
+    updateModalTeacherOptions();
+    if (daySelect && start) {
+      const dayMap = { 1: "1", 2: "2", 3: "3", 4: "4", 5: "5" };
+      const day = start.getDay();
+      if (dayMap[day]) daySelect.value = dayMap[day];
+    }
+    if (startTimeInput && start) {
+      startTimeInput.value = `${String(start.getHours()).padStart(2, "0")}:${String(start.getMinutes()).padStart(2, "0")}`;
+    } else if (startTimeInput) {
+      startTimeInput.value = "09:00";
+    }
+    if (endTimeInput && end) {
+      endTimeInput.value = `${String(end.getHours()).padStart(2, "0")}:${String(end.getMinutes()).padStart(2, "0")}`;
+    } else if (endTimeInput) {
+      endTimeInput.value = "10:00";
+    }
+    const modal = document.getElementById("add-class-modal");
+    if (modal) modal.classList.replace("hidden", "flex");
   }
   function closeAddClassModal() {
     const modal = document.getElementById("add-class-modal");
     if (modal) modal.classList.replace("flex", "hidden");
   }
-  async function saveNewClass() {
-    const baseStartStr = document.getElementById("modal-class-start").value;
-    const baseEndStr = document.getElementById("modal-class-end").value;
-    const baseStart = new Date(baseStartStr);
-    const baseEnd = new Date(baseEndStr);
-    const timeStartStr = document.getElementById("modal-time-start").value.split(":");
-    const timeEndStr = document.getElementById("modal-time-end").value.split(":");
-    baseStart.setHours(parseInt(timeStartStr[0]), parseInt(timeStartStr[1]), 0, 0);
-    baseEnd.setHours(parseInt(timeEndStr[0]), parseInt(timeEndStr[1]), 0, 0);
-    const subjId = document.getElementById("modal-subject").value;
-    const groupId = document.getElementById("modal-group").value;
-    const teacherId = document.getElementById("modal-teacher").value;
-    if (!groupId || !teacherId || !subjId) {
-      showToast("Error", "Faltan datos por seleccionar (Asignatura, Grupo o Profesor)", "error");
+  async function saveNewClass(onSavedCallback) {
+    const subjSelect = document.getElementById("modal-subject");
+    const teacherSelect = document.getElementById("modal-teacher");
+    const groupSelect = document.getElementById("modal-group");
+    const daySelect = document.getElementById("modal-day");
+    const startTimeInput = document.getElementById("modal-start-time");
+    const endTimeInput = document.getElementById("modal-end-time");
+    if (!subjSelect || !teacherSelect || !groupSelect || !daySelect || !startTimeInput || !endTimeInput) return;
+    const subjectId = subjSelect.value;
+    const teacherId = teacherSelect.value;
+    const groupId = groupSelect.value;
+    const dayIndex = parseInt(daySelect.value, 10);
+    const startStr = startTimeInput.value;
+    const endStr = endTimeInput.value;
+    if (!subjectId || !teacherId || !groupId) {
+      showToast("Error de Validaci\xF3n", "Por favor completa todos los campos requeridos.", "warning");
       return;
     }
-    if (overlapsRecess(baseStart, baseEnd)) {
+    const [sH, sM] = startStr.split(":").map(Number);
+    const [eH, eM] = endStr.split(":").map(Number);
+    const startTotalMins = sH * 60 + sM;
+    const endTotalMins = eH * 60 + eM;
+    if (endTotalMins <= startTotalMins) {
+      showToast("Error de Validaci\xF3n", "La hora de fin debe ser posterior a la de inicio.", "warning");
+      return;
+    }
+    const durationHours = (endTotalMins - startTotalMins) / 60;
+    const numSlots = Math.round(durationHours / 0.5);
+    const now = /* @__PURE__ */ new Date();
+    const currentDay = now.getDay();
+    const diff = now.getDate() - currentDay + (currentDay === 0 ? -6 : 1);
+    const monday = new Date(now.setDate(diff));
+    const classDate = new Date(monday);
+    classDate.setDate(monday.getDate() + (dayIndex - 1));
+    const startDate = new Date(classDate);
+    startDate.setHours(sH, sM, 0, 0);
+    const endDate = new Date(classDate);
+    endDate.setHours(eH, eM, 0, 0);
+    if (overlapsRecess(startDate, endDate)) {
       showToast("Error", "No se puede programar una clase durante el recreo (12:00 - 12:30).", "error");
       return;
     }
-    const durationInMs = baseEnd.getTime() - baseStart.getTime();
-    const slotMinutes = 30;
-    const numSlots = Math.max(1, Math.round(durationInMs / (slotMinutes * 6e4)));
-    const isPinnedSelected = document.getElementById("modal-is-pinned")?.checked ?? false;
-    showToast("Guardando...", "Enviando bloque a la base de datos API", "info");
     for (let i = 0; i < numSlots; i++) {
-      const slotStart = new Date(baseStart.getTime() + i * slotMinutes * 6e4);
-      const slotEnd = new Date(slotStart.getTime() + slotMinutes * 6e4);
-      let nuevaClase = {
-        id: "evt-" + Date.now() + "-" + i,
+      const slotStart = new Date(startDate.getTime() + i * 30 * 6e4);
+      const slotEnd = new Date(slotStart.getTime() + 30 * 6e4);
+      const nuevaClase = {
+        id: `class-${Date.now()}-${Math.floor(Math.random() * 1e4)}`,
+        subjectId,
+        teacherId,
+        groupId,
         start: slotStart.toISOString(),
         end: slotEnd.toISOString(),
         duration: 0.5,
-        subjectId: subjId,
-        groupId,
-        teacherId,
-        isPinned: isPinnedSelected
+        isPinned: false
       };
       await AppData.API.saveClass(nuevaClase);
       AppData.scheduledClasses.push(nuevaClase);
       AppData.WS.sendCommand("MANUAL_EDIT", { id: nuevaClase.id });
     }
     closeAddClassModal();
-    refreshCalendarView();
+    if (typeof onSavedCallback === "function") {
+      onSavedCallback();
+    }
     const assignedTeacher = AppData.teachers.find((t) => t.id === teacherId);
     showToast("Clase Guardada", `Programada correctamente para el profesor ${assignedTeacher ? assignedTeacher.name : ""}`, "success");
   }
-  var SUBJECT_PALETTE = [
-    "#4f46e5",
-    // Indigo
-    "#0284c7",
-    // Sky Blue
-    "#059669",
-    // Emerald
-    "#d97706",
-    // Amber
-    "#dc2626",
-    // Red
-    "#7c3aed",
-    // Purple
-    "#db2777",
-    // Pink
-    "#2563eb",
-    // Blue
-    "#0d9488",
-    // Teal
-    "#ca8a04",
-    // Yellow
-    "#ea580c",
-    // Orange
-    "#e11d48",
-    // Rose
-    "#9333ea",
-    // Violet
-    "#16a34a"
-    // Green
-  ];
-  function getSubjectColor(subjectId) {
-    if (!subjectId) return "#4f46e5";
-    let hash = 0;
-    for (let i = 0; i < subjectId.length; i++) {
-      hash = subjectId.charCodeAt(i) + ((hash << 5) - hash);
+  function openEventDetail(event, onActionCallback) {
+    let mergedEvent = AppData.currentMergedEvents?.find((e) => e.id === event.id || e.mergedIds && e.mergedIds.includes(event.id));
+    let constituentClasses = [];
+    if (mergedEvent && mergedEvent.mergedIds) {
+      constituentClasses = AppData.scheduledClasses.filter((c) => mergedEvent.mergedIds.includes(c.id));
+    } else {
+      const singleCls = AppData.scheduledClasses.find((c) => c.id === event.id);
+      if (singleCls) constituentClasses = [singleCls];
     }
-    const idx = Math.abs(hash) % SUBJECT_PALETTE.length;
-    return SUBJECT_PALETTE[idx];
+    if (constituentClasses.length === 0) return;
+    const firstCls = constituentClasses[0];
+    const subject = AppData.subjects.find((s) => s.id === firstCls.subjectId);
+    const teacher = AppData.teachers.find((t) => t.id === firstCls.teacherId);
+    if (!subject || !teacher) return;
+    const totalDuration = constituentClasses.reduce((sum, c) => sum + (c.duration || 0.5), 0);
+    const isAnyPinned = constituentClasses.some((c) => c.isPinned);
+    const course = AppData.courses.find((c) => c.groups.some((g) => g.id === firstCls.groupId));
+    const group = course ? course.groups.find((g) => g.id === firstCls.groupId) : null;
+    const courseGroupName = course && group ? `${course.name} - Grupo ${group.name}` : "Sin grupo";
+    const titleEl = document.getElementById("event-detail-title");
+    if (titleEl) titleEl.textContent = `${subject.name} (${formatHours(totalDuration)}h)`;
+    const colorMode = AppData.colorMode || "teacher";
+    const headerColor = colorMode === "subject" ? getSubjectColor(firstCls.subjectId) : teacher.color;
+    const headerEl = document.getElementById("event-detail-header");
+    if (headerEl) headerEl.style.backgroundColor = headerColor;
+    const bodyEl = document.getElementById("event-detail-body");
+    if (bodyEl) {
+      const sTime = new Date(mergedEvent ? mergedEvent.start : firstCls.start).toTimeString().slice(0, 5);
+      const eTime = new Date(mergedEvent ? mergedEvent.end : constituentClasses[constituentClasses.length - 1].end).toTimeString().slice(0, 5);
+      bodyEl.innerHTML = `
+            <p class="text-sm mb-1.5">Curso/Grupo: <b>${courseGroupName}</b></p>
+            <p class="text-sm mb-1.5">Impartida por: <b>${teacher.name}</b></p>
+            <p class="text-xs text-gray-500">Horario: <b>${sTime} - ${eTime}</b> (${formatHours(totalDuration)}h)</p>
+        `;
+    }
+    const pinBtn = document.getElementById("btn-pin-event");
+    if (pinBtn) {
+      pinBtn.innerText = isAnyPinned ? "Desfijar" : "Fijar (Pin)";
+      pinBtn.onclick = async () => {
+        const newPinState = !isAnyPinned;
+        for (const cls of constituentClasses) {
+          cls.isPinned = newPinState;
+          try {
+            await AppData.API.updateClass(cls);
+          } catch (err) {
+            console.error("Error al actualizar estado del pin:", err);
+          }
+          AppData.WS.sendCommand("PIN_UPDATE", { id: cls.id, state: cls.isPinned });
+        }
+        closeEventDetail();
+        if (typeof onActionCallback === "function") onActionCallback();
+      };
+    }
+    const delBtn = document.getElementById("btn-delete-event");
+    if (delBtn) {
+      delBtn.onclick = async () => {
+        for (const cls of constituentClasses) {
+          await AppData.API.deleteClass(cls.id);
+          AppData.scheduledClasses = AppData.scheduledClasses.filter((c) => c.id !== cls.id);
+          AppData.WS.sendCommand("MANUAL_EDIT", { delete: cls.id });
+        }
+        closeEventDetail();
+        if (typeof onActionCallback === "function") onActionCallback();
+      };
+    }
+    const modal = document.getElementById("event-detail-modal");
+    if (modal) {
+      modal.classList.replace("hidden", "flex");
+      modal.onclick = (e) => {
+        if (e.target === modal) {
+          closeEventDetail();
+        }
+      };
+    }
   }
-  function toggleColorMode() {
-    if (!AppData.colorMode) AppData.colorMode = "teacher";
-    AppData.colorMode = AppData.colorMode === "teacher" ? "subject" : "teacher";
-    const btnText = document.getElementById("btn-color-mode-text");
-    if (btnText) {
-      btnText.textContent = AppData.colorMode === "teacher" ? "Color: Profesor" : "Color: Asignatura";
+  function closeEventDetail() {
+    const modal = document.getElementById("event-detail-modal");
+    if (modal) modal.classList.replace("flex", "hidden");
+  }
+
+  // Web/src/calendar.ts
+  function toggleColorMode2() {
+    toggleColorMode(() => refreshCalendarView());
+  }
+  function saveNewClass2() {
+    return saveNewClass(() => refreshCalendarView());
+  }
+  function updateDateRange() {
+    if (!AppData.calendarInstance) return;
+    const start = AppData.calendarInstance.getDateRangeStart();
+    const end = AppData.calendarInstance.getDateRangeEnd();
+    const formatDate = (date) => {
+      const d = typeof date.toDate === "function" ? date.toDate() : new Date(date);
+      const months = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
+      return `${d.getDate()} ${months[d.getMonth()]}`;
+    };
+    const rangeEl = document.getElementById("calendar-date-range");
+    if (rangeEl) rangeEl.textContent = `${formatDate(start)} - ${formatDate(end)}`;
+  }
+  function onHeaderCourseChange(previousVal = null) {
+    const courseSelect = document.getElementById("header-course-select");
+    const select = document.getElementById("view-entity-select");
+    if (!courseSelect || !select) return;
+    const courseId = courseSelect.value;
+    const course = AppData.courses.find((c) => c.id === courseId);
+    if (course) {
+      if (course.groups.length === 0) {
+        select.innerHTML = `<option value="">Sin grupos</option>`;
+      } else {
+        select.innerHTML = course.groups.map((g) => `<option value="${g.id}">Grupo ${g.name}</option>`).join("");
+      }
+    } else {
+      select.innerHTML = "";
     }
-    const btnIcon = document.getElementById("btn-color-mode-icon");
-    if (btnIcon) {
-      btnIcon.textContent = AppData.colorMode === "teacher" ? "\u{1F3A8}" : "\u{1F4DA}";
+    if (previousVal && Array.from(select.options).some((opt) => opt.value === previousVal)) {
+      select.value = previousVal;
     }
     refreshCalendarView();
   }
-  function getMergedCalendarEvents(classes, type, entityId, colorMode = "teacher", options = {}) {
-    const {
-      maxBlockDuration = 2,
-      recessConfig = AppData.config ? { start: AppData.config.horaInicioRecreo, duration: AppData.config.duracionRecreo } : { start: "12:00", duration: 30 }
-    } = options;
-    if (!Array.isArray(classes) || classes.length === 0) {
-      return [];
-    }
-    const filtered = classes.filter((cls) => {
-      if (type === "teacher") return cls.teacherId === entityId;
-      if (type === "group") return cls.groupId === entityId;
-      return false;
-    });
-    const groupsMap = /* @__PURE__ */ new Map();
-    filtered.forEach((cls) => {
-      const d = new Date(cls.start);
-      const dateKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-      const key = `${dateKey}_${cls.subjectId}_${cls.teacherId}_${cls.groupId}`;
-      if (!groupsMap.has(key)) {
-        groupsMap.set(key, []);
-      }
-      groupsMap.get(key).push(cls);
-    });
-    const displayEvents = [];
-    groupsMap.forEach((groupClasses) => {
-      groupClasses.sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());
-      let i = 0;
-      while (i < groupClasses.length) {
-        const current = groupClasses[i];
-        let mergedIds = [current.id];
-        let blockStart = current.start;
-        let blockEnd = current.end;
-        let blockDuration = current.duration || (new Date(current.end).getTime() - new Date(current.start).getTime()) / 36e5;
-        let isPinned = Boolean(current.isPinned);
-        let j = i + 1;
-        while (j < groupClasses.length) {
-          const next = groupClasses[j];
-          const currentEndTime = new Date(blockEnd).getTime();
-          const nextStartTime = new Date(next.start).getTime();
-          const isContiguous = Math.abs(currentEndTime - nextStartTime) < 6e4;
-          const nextDur = next.duration || (new Date(next.end).getTime() - new Date(next.start).getTime()) / 36e5;
-          const crossesRecess = overlapsRecess(new Date(blockStart), new Date(next.end), recessConfig);
-          if (isContiguous && !crossesRecess && blockDuration + nextDur <= maxBlockDuration + 0.01) {
-            blockEnd = next.end;
-            blockDuration += nextDur;
-            mergedIds.push(next.id);
-            if (next.isPinned) {
-              isPinned = true;
-            }
-            j++;
-          } else {
-            break;
+  function initCalendar() {
+    if (typeof tui === "undefined") return;
+    const Calendar = tui.Calendar;
+    AppData.calendarInstance = new Calendar("#calendar", {
+      defaultView: "week",
+      useFormPopup: false,
+      useDetailPopup: false,
+      week: {
+        taskView: false,
+        eventView: ["time"],
+        dayNames: ["Dom", "Lunes", "Martes", "Mi\xE9rcoles", "Jueves", "Viernes", "S\xE1b"],
+        workweek: true,
+        hourStart: 8,
+        hourEnd: 15
+      },
+      calendars: [
+        { id: "default", name: "Clases", backgroundColor: "#4f46e5" },
+        { id: "pinned", name: "Fijadas", backgroundColor: "#059669" },
+        { id: "recess", name: "Recreo", backgroundColor: "#f1f5f9", borderColor: "#94a3b8", color: "#64748b" }
+      ],
+      template: {
+        weekDayName(model) {
+          return `<span class="toastui-calendar-day-name-item">${model.dayName}</span>`;
+        },
+        time(event) {
+          if (event.calendarId === "recess") {
+            return `<div class="p-1 font-semibold text-slate-500 text-xs">\u2615 Recreo</div>`;
           }
+          return `
+                    <div class="p-1 flex flex-col justify-center h-full overflow-hidden text-white leading-tight">
+                        <div class="font-bold text-xs truncate">${event.title}</div>
+                        ${event.body ? `<div class="text-[11px] font-medium opacity-90 truncate mt-0.5">${event.body}</div>` : ""}
+                    </div>
+                `;
         }
-        const subject = AppData.subjects.find((s) => s.id === current.subjectId);
-        const teacher = AppData.teachers.find((t) => t.id === current.teacherId);
-        const course = AppData.courses.find((c) => c.groups.some((g) => g.id === current.groupId));
-        const grp = course ? course.groups.find((g) => g.id === current.groupId) : null;
-        const pin = isPinned ? "\u{1F4CC} " : "";
-        const subjectTitle = subject ? `${pin}${subject.name}` : `${pin}Clase API`;
-        const subtitle = type === "group" ? teacher ? `Prof: ${teacher.name}` : "" : course && grp ? `${course.name} - G.${grp.name}` : teacher ? `Prof: ${teacher.name}` : "";
-        const eventBgColor = colorMode === "subject" ? getSubjectColor(current.subjectId) : teacher ? teacher.color : "#4f46e5";
-        displayEvents.push({
-          id: current.id,
-          mergedIds: [...mergedIds],
-          calendarId: current.teacherId,
-          title: subjectTitle,
-          body: subtitle,
-          start: blockStart,
-          end: blockEnd,
-          duration: Math.round(blockDuration * 100) / 100,
-          isReadOnly: isPinned,
-          isPinned,
-          backgroundColor: eventBgColor,
-          color: "#ffffff",
-          customStyle: { borderRadius: "6px", border: "none", padding: "2px" },
-          raw: {
-            subjectId: current.subjectId,
-            teacherId: current.teacherId,
-            groupId: current.groupId
-          }
-        });
-        i = j;
       }
     });
-    return displayEvents;
+    addRecessEvents();
+    AppData.calendarInstance.on("selectDateTime", function(info) {
+      AppData.calendarInstance.clearGridSelections();
+      const startObj = typeof info.start.toDate === "function" ? info.start.toDate() : new Date(info.start);
+      const endObj = typeof info.end.toDate === "function" ? info.end.toDate() : new Date(info.end);
+      openAddClassModal(startObj, endObj);
+    });
+    AppData.calendarInstance.on("beforeUpdateEvent", async function(info) {
+      const { event, changes } = info;
+      const mergedEvent = AppData.currentMergedEvents?.find((e) => e.id === event.id || e.mergedIds && e.mergedIds.includes(event.id));
+      let constituentClasses = [];
+      if (mergedEvent && mergedEvent.mergedIds) {
+        constituentClasses = AppData.scheduledClasses.filter((c) => mergedEvent.mergedIds.includes(c.id));
+      } else {
+        const singleCls = AppData.scheduledClasses.find((c) => c.id === event.id);
+        if (singleCls) constituentClasses = [singleCls];
+      }
+      if (constituentClasses.length === 0) return;
+      if (constituentClasses.some((c) => c.isPinned)) {
+        showToast("Bloqueado", "No puedes mover ni alterar una clase que est\xE1 fijada (Pin).", "warning");
+        return;
+      }
+      let startCandidate = mergedEvent ? mergedEvent.start : constituentClasses[0].start;
+      let endCandidate = mergedEvent ? mergedEvent.end : constituentClasses[constituentClasses.length - 1].end;
+      if (changes.start) startCandidate = typeof changes.start.toDate === "function" ? changes.start.toDate() : new Date(changes.start);
+      if (changes.end) endCandidate = typeof changes.end.toDate === "function" ? changes.end.toDate() : new Date(changes.end);
+      if (overlapsRecess(new Date(startCandidate), new Date(endCandidate))) {
+        showToast("Error", "No se puede programar una clase durante el recreo (12:00 - 12:30).", "error");
+        refreshCalendarView();
+        return;
+      }
+      showToast("Sincronizando...", "Guardando nueva posici\xF3n en el servidor...", "info");
+      constituentClasses.sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());
+      let currentSlotStart = new Date(startCandidate);
+      for (const cls of constituentClasses) {
+        const slotDurationHours = cls.duration || 0.5;
+        const slotDurationMs = slotDurationHours * 36e5;
+        const slotEnd = new Date(currentSlotStart.getTime() + slotDurationMs);
+        cls.start = currentSlotStart.toISOString();
+        cls.end = slotEnd.toISOString();
+        cls.duration = slotDurationHours;
+        await AppData.API.updateClass(cls);
+        AppData.WS.sendCommand("MANUAL_EDIT", { id: cls.id, action: "moved" });
+        currentSlotStart = slotEnd;
+      }
+      refreshCalendarView();
+    });
+    AppData.calendarInstance.on("clickEvent", (e) => openEventDetail(e.event, () => refreshCalendarView()));
   }
   function refreshCalendarView() {
     const typeSelect = document.getElementById("view-type-select");
@@ -695,6 +882,9 @@
     const mergedEvents = getMergedCalendarEvents(AppData.scheduledClasses, type, entityId, colorMode);
     AppData.currentMergedEvents = mergedEvents;
     if (AppData.calendarInstance) AppData.calendarInstance.createEvents(mergedEvents);
+    renderTeacherSummaryCard(type, entityId);
+  }
+  function renderTeacherSummaryCard(type, entityId) {
     const summaryCard = document.getElementById("teacher-summary-card");
     const summaryContent = document.getElementById("teacher-summary-content");
     if (type === "teacher" && entityId) {
@@ -750,150 +940,6 @@
       }
     } else {
       if (summaryCard) summaryCard.classList.add("hidden");
-    }
-  }
-  function openEventDetail(event) {
-    let mergedEvent = AppData.currentMergedEvents?.find((e) => e.id === event.id || e.mergedIds && e.mergedIds.includes(event.id));
-    let constituentClasses = [];
-    if (mergedEvent && mergedEvent.mergedIds) {
-      constituentClasses = AppData.scheduledClasses.filter((c) => mergedEvent.mergedIds.includes(c.id));
-    } else {
-      const singleCls = AppData.scheduledClasses.find((c) => c.id === event.id);
-      if (singleCls) constituentClasses = [singleCls];
-    }
-    if (constituentClasses.length === 0) return;
-    const firstCls = constituentClasses[0];
-    const subject = AppData.subjects.find((s) => s.id === firstCls.subjectId);
-    const teacher = AppData.teachers.find((t) => t.id === firstCls.teacherId);
-    if (!subject || !teacher) return;
-    const totalDuration = constituentClasses.reduce((sum, c) => sum + (c.duration || 0.5), 0);
-    const isAnyPinned = constituentClasses.some((c) => c.isPinned);
-    const course = AppData.courses.find((c) => c.groups.some((g) => g.id === firstCls.groupId));
-    const group = course ? course.groups.find((g) => g.id === firstCls.groupId) : null;
-    const courseGroupName = course && group ? `${course.name} - Grupo ${group.name}` : "Sin grupo";
-    const titleEl = document.getElementById("event-detail-title");
-    if (titleEl) titleEl.textContent = `${subject.name} (${formatHours(totalDuration)}h)`;
-    const colorMode = AppData.colorMode || "teacher";
-    const headerColor = colorMode === "subject" ? getSubjectColor(firstCls.subjectId) : teacher.color;
-    const headerEl = document.getElementById("event-detail-header");
-    if (headerEl) headerEl.style.backgroundColor = headerColor;
-    const bodyEl = document.getElementById("event-detail-body");
-    if (bodyEl) {
-      const sTime = new Date(mergedEvent ? mergedEvent.start : firstCls.start).toTimeString().slice(0, 5);
-      const eTime = new Date(mergedEvent ? mergedEvent.end : constituentClasses[constituentClasses.length - 1].end).toTimeString().slice(0, 5);
-      bodyEl.innerHTML = `
-            <p class="text-sm mb-1.5">Curso/Grupo: <b>${courseGroupName}</b></p>
-            <p class="text-sm mb-1.5">Impartida por: <b>${teacher.name}</b></p>
-            <p class="text-xs text-gray-500">Horario: <b>${sTime} - ${eTime}</b> (${formatHours(totalDuration)}h)</p>
-        `;
-    }
-    const pinBtn = document.getElementById("btn-pin-event");
-    if (pinBtn) {
-      pinBtn.innerText = isAnyPinned ? "Desfijar" : "Fijar (Pin)";
-      pinBtn.onclick = async () => {
-        const newPinState = !isAnyPinned;
-        for (const cls of constituentClasses) {
-          cls.isPinned = newPinState;
-          try {
-            await AppData.API.updateClass(cls);
-          } catch (err) {
-            console.error("Error al actualizar estado del pin:", err);
-          }
-          AppData.WS.sendCommand("PIN_UPDATE", { id: cls.id, state: cls.isPinned });
-        }
-        closeEventDetail();
-        refreshCalendarView();
-      };
-    }
-    const delBtn = document.getElementById("btn-delete-event");
-    if (delBtn) {
-      delBtn.onclick = async () => {
-        for (const cls of constituentClasses) {
-          await AppData.API.deleteClass(cls.id);
-          AppData.scheduledClasses = AppData.scheduledClasses.filter((c) => c.id !== cls.id);
-          AppData.WS.sendCommand("MANUAL_EDIT", { delete: cls.id });
-        }
-        closeEventDetail();
-        refreshCalendarView();
-      };
-    }
-    const modal = document.getElementById("event-detail-modal");
-    if (modal) {
-      modal.classList.replace("hidden", "flex");
-      modal.onclick = (e) => {
-        if (e.target === modal) {
-          closeEventDetail();
-        }
-      };
-    }
-  }
-  function closeEventDetail() {
-    const modal = document.getElementById("event-detail-modal");
-    if (modal) modal.classList.replace("flex", "hidden");
-  }
-  function overlapsRecess(start, end, recessConfig) {
-    const s = new Date(start);
-    const e = new Date(end);
-    const startHour = s.getHours();
-    const startMin = s.getMinutes();
-    const endHour = e.getHours();
-    const endMin = e.getMinutes();
-    const startMinutes = startHour * 60 + startMin;
-    const endMinutes = endHour * 60 + endMin;
-    let recessStart = 12 * 60;
-    let recessDuration = 30;
-    if (recessConfig) {
-      if (typeof recessConfig.start === "string") {
-        const parts = recessConfig.start.split(":").map(Number);
-        recessStart = parts[0] * 60 + parts[1];
-      }
-      if (typeof recessConfig.duration === "number") {
-        recessDuration = recessConfig.duration;
-      }
-    } else if (AppData.config) {
-      const parts = AppData.config.horaInicioRecreo.split(":");
-      recessStart = parseInt(parts[0]) * 60 + parseInt(parts[1]);
-      recessDuration = AppData.config.duracionRecreo;
-    }
-    const recessEnd = recessStart + recessDuration;
-    return startMinutes < recessEnd && endMinutes > recessStart;
-  }
-  function addRecessEvents() {
-    if (!AppData.calendarInstance) return;
-    const today = /* @__PURE__ */ new Date();
-    const dayOfWeek = today.getDay();
-    const diff = today.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1);
-    const monday = new Date(today);
-    monday.setDate(diff);
-    monday.setHours(0, 0, 0, 0);
-    let startHour = 12;
-    let startMin = 0;
-    let duration = 30;
-    if (AppData.config) {
-      const parts = AppData.config.horaInicioRecreo.split(":");
-      startHour = parseInt(parts[0]);
-      startMin = parseInt(parts[1]);
-      duration = AppData.config.duracionRecreo;
-    }
-    for (let i = 0; i < 5; i++) {
-      const day = new Date(monday);
-      day.setDate(monday.getDate() + i);
-      const start = new Date(day);
-      start.setHours(startHour, startMin, 0, 0);
-      const end = new Date(start);
-      end.setMinutes(start.getMinutes() + duration);
-      AppData.calendarInstance.createEvents([{
-        id: `recess-${i}`,
-        calendarId: "recess",
-        title: "\u2615 Recreo",
-        start: start.toISOString(),
-        end: end.toISOString(),
-        isReadOnly: true,
-        isAllDay: false,
-        backgroundColor: "#f1f5f9",
-        borderColor: "#94a3b8",
-        color: "#64748b"
-      }]);
     }
   }
   async function clearGroupSchedule() {
@@ -1874,16 +1920,16 @@
         const skipSlotDayCourse = /* @__PURE__ */ new Map();
         days.forEach((d) => skipSlotDayCourse.set(d.id, /* @__PURE__ */ new Set()));
         slots.forEach((slot, sIdx) => {
-          let isRecess = false;
+          let isRecess2 = false;
           if (AppData.config) {
             const rParts = AppData.config.horaInicioRecreo.split(":");
             const rStart = parseInt(rParts[0]) * 60 + parseInt(rParts[1]);
             const rEnd = rStart + AppData.config.duracionRecreo;
             if (slot.startMin >= rStart && slot.startMin < rEnd) {
-              isRecess = true;
+              isRecess2 = true;
             }
           }
-          if (isRecess) {
+          if (isRecess2) {
             html += `
                         <tr class="bg-gray-100 text-gray-500 font-semibold">
                             <td class="p-1 border border-gray-300 text-center font-mono text-[9px]">${slot.startStr} - ${slot.endStr}</td>
@@ -1981,16 +2027,16 @@
       const skipSlotDayTeacher = /* @__PURE__ */ new Map();
       days.forEach((d) => skipSlotDayTeacher.set(d.id, /* @__PURE__ */ new Set()));
       slots.forEach((slot, sIdx) => {
-        let isRecess = false;
+        let isRecess2 = false;
         if (AppData.config) {
           const rParts = AppData.config.horaInicioRecreo.split(":");
           const rStart = parseInt(rParts[0]) * 60 + parseInt(rParts[1]);
           const rEnd = rStart + AppData.config.duracionRecreo;
           if (slot.startMin >= rStart && slot.startMin < rEnd) {
-            isRecess = true;
+            isRecess2 = true;
           }
         }
-        if (isRecess) {
+        if (isRecess2) {
           html += `
                     <tr class="bg-gray-100 text-gray-500 font-semibold">
                         <td class="p-1 border border-gray-300 text-center font-mono text-[9px]">${slot.startStr} - ${slot.endStr}</td>
@@ -2599,7 +2645,7 @@ Esta acci\xF3n reemplazar\xE1 la base de datos actual y actualizar\xE1 toda la i
     deleteCourse,
     deleteGroup,
     updateAssignment,
-    saveNewClass,
+    saveNewClass: saveNewClass2,
     closeAddClassModal,
     openAddClassModal,
     onModalCourseChange,
@@ -2622,7 +2668,7 @@ Esta acci\xF3n reemplazar\xE1 la base de datos actual y actualizar\xE1 toda la i
     toggleAvailabilitySlot,
     runPrevalidation,
     closePrevalidation,
-    toggleColorMode,
+    toggleColorMode: toggleColorMode2,
     printAllSchedules,
     checkForUpdates,
     exportDatabase,
