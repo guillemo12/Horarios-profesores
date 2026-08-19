@@ -123,32 +123,7 @@ fun Application.configureSockets() {
                                         )
                                     }
 
-                                    val franjasDisponibles = mutableListOf<TimeSlot>()
-                                    var idFranja = 1
-                                    var indiceGlobal = 0
-
-                                    for (i in 1..5) {
-                                        val dia = DayOfWeek.of(i)
-                                        var horaActual = LocalTime.parse(config.horaInicioClases)
-                                        val horaFinDia = LocalTime.parse(config.horaFinClases)
-                                        val recreoInicio = LocalTime.parse(config.horaInicioRecreo)
-                                        val recreoFin = recreoInicio.plusMinutes(config.duracionRecreo.toLong())
-
-                                        while (horaActual.isBefore(horaFinDia)) {
-                                            val horaSiguiente = horaActual.plusMinutes(config.tiempoMinimo.toLong())
-                                            val solapaRecreo = horaActual.isBefore(recreoFin) && horaSiguiente.isAfter(recreoInicio)
-                                            if (!solapaRecreo) {
-                                                franjasDisponibles.add(
-                                                    TimeSlot(
-                                                        id = "T_${idFranja++}", dayOfWeek = dia,
-                                                        startTime = horaActual, endTime = horaSiguiente,
-                                                        indiceDeFranja = indiceGlobal++, duracionMinutos = config.tiempoMinimo
-                                                    )
-                                                )
-                                            }
-                                            horaActual = horaSiguiente
-                                        }
-                                    }
+                                    val franjasDisponibles = com.colegio.solver.SolverLessonDataLoader.generateTimeSlots(config)
 
                                     val profesorList = transaction {
                                         ProfesorEntity.all().map { it.toProfesor() }
@@ -173,7 +148,7 @@ fun Application.configureSockets() {
                                                 val profEnt = pId?.let { ProfesorEntity.findById(it) }
 
                                                 val minutes = asigEnt.minutos
-                                                val blocksCount = minutes / config.tiempoMinimo
+                                                val blocksCount = com.colegio.solver.SolverLessonDataLoader.calculateBlocksCount(minutes, config.tiempoMinimo)
 
                                                 if (blocksCount > 0) {
                                                     val existingClasses = ClaseEntity.find {
