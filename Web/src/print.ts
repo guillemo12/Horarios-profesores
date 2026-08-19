@@ -1,6 +1,7 @@
 import { AppData } from './Datos';
 import { getSubjectColor } from './calendar';
 import { showToast } from './utils';
+import { generatePrintTimeSlots, isRecessTimeSlot, PRINT_DAYS } from './print_grid';
 
 export function printAllSchedules(): void {
     if (!AppData.courses || AppData.courses.length === 0) {
@@ -28,34 +29,8 @@ export function printAllSchedules(): void {
         slotMin = AppData.config.tiempoMinimo || 30;
     }
 
-    // Generar franjas horarias
-    const slots: { startStr: string, endStr: string, startMin: number, endMin: number }[] = [];
-    let currentMin = startHour * 60;
-    const finishMin = endHour * 60;
-
-    while (currentMin < finishMin) {
-        const nextMin = currentMin + slotMin;
-        const h1 = Math.floor(currentMin / 60).toString().padStart(2, '0');
-        const m1 = (currentMin % 60).toString().padStart(2, '0');
-        const h2 = Math.floor(nextMin / 60).toString().padStart(2, '0');
-        const m2 = (nextMin % 60).toString().padStart(2, '0');
-
-        slots.push({
-            startStr: `${h1}:${m1}`,
-            endStr: `${h2}:${m2}`,
-            startMin: currentMin,
-            endMin: nextMin
-        });
-        currentMin = nextMin;
-    }
-
-    const days = [
-        { id: 1, name: 'Lunes' },
-        { id: 2, name: 'Martes' },
-        { id: 3, name: 'Miércoles' },
-        { id: 4, name: 'Jueves' },
-        { id: 5, name: 'Viernes' }
-    ];
+    const slots = generatePrintTimeSlots(startHour, endHour, slotMin);
+    const days = PRINT_DAYS;
 
     // Precalcular índices O(1) para evitar búsquedas O(N) y O(N*M) dentro de los bucles de renderizado
     const subjectMap = new Map(AppData.subjects.map(s => [s.id, s]));
@@ -101,15 +76,9 @@ export function printAllSchedules(): void {
             days.forEach(d => skipSlotDayCourse.set(d.id, new Set<number>()));
 
             slots.forEach((slot, sIdx) => {
-                let isRecess = false;
-                if (AppData.config) {
-                    const rParts = AppData.config.horaInicioRecreo.split(':');
-                    const rStart = parseInt(rParts[0]) * 60 + parseInt(rParts[1]);
-                    const rEnd = rStart + AppData.config.duracionRecreo;
-                    if (slot.startMin >= rStart && slot.startMin < rEnd) {
-                        isRecess = true;
-                    }
-                }
+                const recessStart = AppData.config ? AppData.config.horaInicioRecreo : "11:30";
+                const recessDur = AppData.config ? AppData.config.duracionRecreo : 30;
+                const isRecess = isRecessTimeSlot(slot.startMin, recessStart, recessDur);
 
                 if (isRecess) {
                     html += `
@@ -126,7 +95,7 @@ export function printAllSchedules(): void {
 
                 days.forEach(day => {
                     if (skipSlotDayCourse.get(day.id)!.has(sIdx)) {
-                        return; // Omitir td por rowspan previo
+                        return;
                     }
 
                     const matchCls = groupClasses.find(cls => {
@@ -143,17 +112,10 @@ export function printAllSchedules(): void {
                         const bgColor = getSubjectColor(matchCls.subjectId);
                         const pinIcon = matchCls.isPinned ? '📌 ' : '';
 
-                        // Comprobar si la siguiente franja es fusionable en 1h
                         let isMerged1h = false;
                         const nextSlot = (sIdx + 1 < slots.length) ? slots[sIdx + 1] : null;
                         if (nextSlot) {
-                            let nextIsRecess = false;
-                            if (AppData.config) {
-                                const rParts = AppData.config.horaInicioRecreo.split(':');
-                                const rStart = parseInt(rParts[0]) * 60 + parseInt(rParts[1]);
-                                const rEnd = rStart + AppData.config.duracionRecreo;
-                                if (nextSlot.startMin >= rStart && nextSlot.startMin < rEnd) nextIsRecess = true;
-                            }
+                            const nextIsRecess = isRecessTimeSlot(nextSlot.startMin, recessStart, recessDur);
                             if (!nextIsRecess) {
                                 const nextCls = groupClasses.find(cls => {
                                     const dt = new Date(cls.start);
@@ -224,15 +186,9 @@ export function printAllSchedules(): void {
         days.forEach(d => skipSlotDayTeacher.set(d.id, new Set<number>()));
 
         slots.forEach((slot, sIdx) => {
-            let isRecess = false;
-            if (AppData.config) {
-                const rParts = AppData.config.horaInicioRecreo.split(':');
-                const rStart = parseInt(rParts[0]) * 60 + parseInt(rParts[1]);
-                const rEnd = rStart + AppData.config.duracionRecreo;
-                if (slot.startMin >= rStart && slot.startMin < rEnd) {
-                    isRecess = true;
-                }
-            }
+            const recessStart = AppData.config ? AppData.config.horaInicioRecreo : "11:30";
+            const recessDur = AppData.config ? AppData.config.duracionRecreo : 30;
+            const isRecess = isRecessTimeSlot(slot.startMin, recessStart, recessDur);
 
             if (isRecess) {
                 html += `
@@ -249,7 +205,7 @@ export function printAllSchedules(): void {
 
             days.forEach(day => {
                 if (skipSlotDayTeacher.get(day.id)!.has(sIdx)) {
-                    return; // Omitir td por rowspan previo
+                    return;
                 }
 
                 const matchCls = teacherClasses.find(cls => {
@@ -263,24 +219,13 @@ export function printAllSchedules(): void {
                 if (matchCls) {
                     const subject = subjectMap.get(matchCls.subjectId);
                     const groupInfo = groupCourseMap.get(matchCls.groupId);
-                    const course = groupInfo ? groupInfo.course : null;
-                    const group = groupInfo ? groupInfo.group : null;
-                    const groupLabel = course && group ? `${course.name} G.${group.name}` : '';
-
                     const bgColor = getSubjectColor(matchCls.subjectId);
                     const pinIcon = matchCls.isPinned ? '📌 ' : '';
 
-                    // Comprobar si la siguiente franja es fusionable en 1h
                     let isMerged1h = false;
                     const nextSlot = (sIdx + 1 < slots.length) ? slots[sIdx + 1] : null;
                     if (nextSlot) {
-                        let nextIsRecess = false;
-                        if (AppData.config) {
-                            const rParts = AppData.config.horaInicioRecreo.split(':');
-                            const rStart = parseInt(rParts[0]) * 60 + parseInt(rParts[1]);
-                            const rEnd = rStart + AppData.config.duracionRecreo;
-                            if (nextSlot.startMin >= rStart && nextSlot.startMin < rEnd) nextIsRecess = true;
-                        }
+                        const nextIsRecess = isRecessTimeSlot(nextSlot.startMin, recessStart, recessDur);
                         if (!nextIsRecess) {
                             const nextCls = teacherClasses.find(cls => {
                                 const dt = new Date(cls.start);
@@ -297,11 +242,12 @@ export function printAllSchedules(): void {
 
                     const rowspanAttr = isMerged1h ? 'rowspan="2"' : '';
                     const durLabel = isMerged1h ? ' (1h)' : '';
+                    const groupNameStr = groupInfo ? `${groupInfo.course.name} - ${groupInfo.group.name}` : `Grupo`;
 
                     html += `
                         <td ${rowspanAttr} class="p-1 border border-gray-300 align-middle text-white font-medium shadow-inner" style="background-color: ${bgColor} !important; color: white !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important;">
                             <div class="font-bold text-[10px] truncate leading-tight">${pinIcon}${subject ? subject.name : 'Clase'}${durLabel}</div>
-                            ${groupLabel ? `<div class="text-[9px] opacity-95 truncate leading-tight font-normal">${groupLabel}</div>` : ''}
+                            <div class="text-[9px] opacity-95 truncate leading-tight font-normal">${groupNameStr}</div>
                         </td>
                     `;
                 } else {
@@ -320,10 +266,5 @@ export function printAllSchedules(): void {
     });
 
     printArea.innerHTML = html;
-
-    showToast("Imprimiendo", "Preparando documento A4 Horizontal con horarios de grupos y profesores...", "info");
-
-    setTimeout(() => {
-        window.print();
-    }, 300);
+    window.print();
 }
