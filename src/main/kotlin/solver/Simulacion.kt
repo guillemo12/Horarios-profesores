@@ -14,16 +14,7 @@ import java.time.LocalTime
 
 private val logger = LoggerFactory.getLogger("SimuladorHorarios")
 
-fun traducirDia(dia: DayOfWeek): String {
-    return when (dia) {
-        DayOfWeek.MONDAY -> "LUNES"
-        DayOfWeek.TUESDAY -> "MARTES"
-        DayOfWeek.WEDNESDAY -> "MIÉRCOLES"
-        DayOfWeek.THURSDAY -> "JUEVES"
-        DayOfWeek.FRIDAY -> "VIERNES"
-        else -> dia.name
-    }
-}
+fun traducirDia(dia: DayOfWeek): String = SolverConstraintUtils.traducirDia(dia)
 
 fun Simulacion() {
     val configuracion = Configuracion(priorizarTutor = true, tiempoMinimo = 30, tiempoMaximo = 60)
@@ -40,7 +31,7 @@ fun Simulacion() {
             val grupos = GruposEntity.wrapRows(query).toList()
 
             val asigMinutos = asignatura.minutos
-            val cantidadDeFichas = asigMinutos / configuracion.tiempoMinimo
+            val cantidadDeFichas = SolverLessonDataLoader.calculateBlocksCount(asigMinutos, configuracion.tiempoMinimo)
 
             for (i in 1..cantidadDeFichas) {
                 for (grupo in grupos) {
@@ -58,31 +49,7 @@ fun Simulacion() {
     }
 
     logger.info("2. Generando el tablero de tiempo (09:00 a 14:00 saltando el recreo)...")
-    val franjasDisponibles = mutableListOf<TimeSlot>()
-    var idFranja = 1
-    var indiceGlobal = 0
-
-    for (i in 1..5) {
-        val dia = DayOfWeek.of(i)
-        var horaActual = LocalTime.of(9, 0)
-        val horaFinDia = LocalTime.of(14, 0)
-        val horaRecreo = LocalTime.of(12, 0)
-
-        while (horaActual.isBefore(horaFinDia)) {
-            val horaSiguiente = horaActual.plusMinutes(configuracion.tiempoMinimo.toLong())
-
-            if (horaActual != horaRecreo) {
-                franjasDisponibles.add(
-                    TimeSlot(
-                        id = "T_${idFranja++}", dayOfWeek = dia,
-                        startTime = horaActual, endTime = horaSiguiente,
-                        indiceDeFranja = indiceGlobal++, duracionMinutos = configuracion.tiempoMinimo
-                    )
-                )
-            }
-            horaActual = horaSiguiente
-        }
-    }
+    val franjasDisponibles = SolverLessonDataLoader.generateTimeSlots(configuracion)
 
     var profesorList = emptyList<Profesor>()
     transaction { profesorList = ProfesorEntity.all().map { it.toProfesor() } }

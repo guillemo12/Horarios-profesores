@@ -98,4 +98,19 @@ class SolverConstraintUtilsTest {
         assertTrue(SolverConstraintUtils.extractGroupNames(emptyList()).isEmpty())
         assertTrue(SolverConstraintUtils.extractGroupNames(null).isEmpty())
     }
+
+    // -------------------------------------------------------------
+    // 4. traducirDia - 2+ Tests
+    // -------------------------------------------------------------
+    @Test
+    fun `traducirDia - Happy Path translates DayOfWeek enum to Spanish weekday uppercase`() {
+        assertEquals("LUNES", SolverConstraintUtils.traducirDia(DayOfWeek.MONDAY))
+        assertEquals("VIERNES", SolverConstraintUtils.traducirDia(DayOfWeek.FRIDAY))
+        assertEquals("MIÉRCOLES", SolverConstraintUtils.traducirDia(DayOfWeek.WEDNESDAY))
+    }
+
+    @Test
+    fun `traducirDia - Edge Case handles null values safely`() {
+        assertEquals("DESCONOCIDO", SolverConstraintUtils.traducirDia(null))
+    }
 }

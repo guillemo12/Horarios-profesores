@@ -1,6 +1,7 @@
 package com.colegio.solver
 
 import com.colegio.DTO.TeacherAvailabilityDto
+import java.time.DayOfWeek
 
 /**
  * Clave única inmutable para agrupar lecciones por unidad académica (Curso, Grupo y Asignatura).
@@ -12,6 +13,22 @@ data class UnitKey(
 )
 
 object SolverConstraintUtils {
+
+    /**
+     * Traduce un DayOfWeek de la JVM al nombre del día en español para reportes y logs.
+     */
+    fun traducirDia(dia: DayOfWeek?): String {
+        if (dia == null) return "DESCONOCIDO"
+        return when (dia) {
+            DayOfWeek.MONDAY -> "LUNES"
+            DayOfWeek.TUESDAY -> "MARTES"
+            DayOfWeek.WEDNESDAY -> "MIÉRCOLES"
+            DayOfWeek.THURSDAY -> "JUEVES"
+            DayOfWeek.FRIDAY -> "VIERNES"
+            DayOfWeek.SATURDAY -> "SÁBADO"
+            DayOfWeek.SUNDAY -> "DOMINGO"
+        }
+    }
 
     /**
      * Comprueba si una franja horaria coincide con un periodo no disponible/bloqueado para un docente.
