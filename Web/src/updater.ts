@@ -1,4 +1,4 @@
-import { showToast } from './utils';
+import { showToast } from './utils.ts';
 
 export const CURRENT_VERSION = "0.0.6";
 export const GITHUB_REPO = "guillemo12/Horarios-profesores";
@@ -18,8 +18,8 @@ export interface GitHubRelease {
     assets: GitHubReleaseAsset[];
 }
 
-function parseVersion(versionStr: string): number[] {
-    const clean = versionStr.replace(/^v/, '').trim();
+export function parseVersion(versionStr: string): number[] {
+    const clean = versionStr.trim().replace(/^v/i, '');
     return clean.split('.').map(n => parseInt(n, 10) || 0);
 }
 
@@ -37,11 +37,15 @@ export function isNewerVersion(latestTag: string, currentVersion: string = CURRE
     return false;
 }
 
-function getBestAssetForPlatform(assets: GitHubReleaseAsset[]): GitHubReleaseAsset | null {
+export function getBestAssetForPlatform(
+    assets: GitHubReleaseAsset[],
+    userAgent: string = typeof navigator !== 'undefined' ? navigator.userAgent : '',
+    platform: string = typeof navigator !== 'undefined' ? navigator.platform : ''
+): GitHubReleaseAsset | null {
     if (!assets || assets.length === 0) return null;
 
-    const isWin = navigator.userAgent.includes('Windows') || navigator.platform.includes('Win');
-    const isLinux = navigator.userAgent.includes('Linux');
+    const isWin = userAgent.includes('Windows') || platform.includes('Win');
+    const isLinux = userAgent.includes('Linux') || platform.includes('Linux');
 
     if (isWin) {
         // Priorizar el instalador setup.exe o el exe único
@@ -65,17 +69,17 @@ function getBestAssetForPlatform(assets: GitHubReleaseAsset[]): GitHubReleaseAss
     return assets[0] || null;
 }
 
-export function isDevEnvironment(): boolean {
+export function isDevEnvironment(
+    win: any = typeof window !== 'undefined' ? window : null
+): boolean {
+    if (!win) return true;
+
     // Si corre dentro del contenedor de escritorio de Tauri (producción desktop)
-    const isTauri = typeof window !== 'undefined' && (
-        '__TAURI__' in window || 
-        '__TAURI_INTERNALS__' in window || 
-        '__TAURI_METADATA__' in window
-    );
+    const isTauri = '__TAURI__' in win || '__TAURI_INTERNALS__' in win || '__TAURI_METADATA__' in win;
     if (isTauri) return false;
 
     // En navegador web directo / localhost / desarrollo
-    const host = window.location.hostname;
+    const host = win.location?.hostname || '';
     return host === 'localhost' || host === '127.0.0.1' || host === '' || host.startsWith('192.168.');
 }
 
