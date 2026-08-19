@@ -4,7 +4,7 @@
   "description": "EduSchedule School Timetable & Teachers Management System",
   "main": "index.js",
   "scripts": {
-    "test": "node --test tests/calendar_merge_test.mjs tests/updater_test.mjs tests/mcp_server_test.mjs",
+    "test": "node --experimental-strip-types --test tests/calendar_merge_test.mjs tests/updater_test.mjs tests/mcp_server_test.mjs tests/utils_test.mjs",
     "test:backend": "./gradlew test --no-daemon"
   },
   "keywords": [],
