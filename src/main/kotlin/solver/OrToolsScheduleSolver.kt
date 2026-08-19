@@ -22,8 +22,6 @@ data class SolverProgress(
     val stoppedByStagnation: Boolean = false
 )
 
-data class UnitKey(val grupoCurso: String, val grupoNombre: String, val asignatura: String)
-
 object OrToolsScheduleSolver {
     private val logger = LoggerFactory.getLogger("OrToolsScheduleSolver")
 
@@ -34,16 +32,6 @@ object OrToolsScheduleSolver {
         } catch (e: Throwable) {
             logger.error("Error al cargar las librerías nativas de Google OR-Tools: ${e.message}", e)
         }
-    }
-
-    private fun franjaBloqueadaPorProfesor(slot: TimeSlot, bloqueos: List<com.colegio.DTO.TeacherAvailabilityDto>): Boolean {
-        for (b in bloqueos) {
-            if (b.dayOfWeek != slot.dayOfWeek.value) continue
-            if (slot.startTime.toString() >= b.startTime && slot.endTime.toString() <= b.endTime) {
-                return true
-            }
-        }
-        return false
     }
 
     fun solve(
@@ -85,16 +73,11 @@ object OrToolsScheduleSolver {
         // 1. MODELADO AGREGADO POR UNIDAD (GRUPO, ASIGNATURA) - ARQUITECTURA PYTHON
         // -------------------------------------------------------------------------
 
-        val unitsMap = mutableMapOf<UnitKey, MutableList<Leccion>>()
-        for (l in lessons) {
-            val key = UnitKey(l.grupo.curso, l.grupo.nombre, l.asignatura)
-            unitsMap.getOrPut(key) { mutableListOf() }.add(l)
-        }
-
+        val unitsMap = SolverConstraintUtils.groupLessonsIntoUnits(lessons)
         val teacherIndexMap = teachers.withIndex().associate { it.value.nombre to it.index }
         val slotIndexMap = timeSlots.withIndex().associate { it.value.id to it.index }
 
-        val groupNames = lessons.map { "${it.grupo.curso} ${it.grupo.nombre}" }.distinct()
+        val groupNames = SolverConstraintUtils.extractGroupNames(lessons)
         val groupIndexMap = groupNames.withIndex().associate { it.value to it.index }
         val numGroups = groupNames.size
 
@@ -143,7 +126,7 @@ object OrToolsScheduleSolver {
                     val pIdx = teacherIndexMap[t.nombre] ?: continue
 
                     if (config.respetarDisponibilidad && t.availability.isNotEmpty()) {
-                        if (franjaBloqueadaPorProfesor(slot, t.availability)) continue
+                        if (SolverConstraintUtils.isSlotBlockedForTeacher(slot, t.availability)) continue
                     }
 
                     val varName = "y_${uKey.grupoCurso}_${uKey.grupoNombre}_${uKey.asignatura}_${tIdx}_$pIdx"
