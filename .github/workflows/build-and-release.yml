@@ -109,7 +109,7 @@ jobs:
         if: matrix.platform == 'linux'
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y --no-install-recommends libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev patchelf libssl-dev libfuse2
+          sudo apt-get install -y --no-install-recommends libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev patchelf libssl-dev binutils fakeroot squashfs-tools desktop-file-utils libxdo-dev build-essential libfuse2 file
 
       - name: Make gradlew executable (Linux only)
         if: matrix.platform == 'linux'
@@ -153,7 +153,7 @@ jobs:
           NO_STRIP: "true"
           CARGO_INCREMENTAL: "0"
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: deno run -A npm:@tauri-apps/cli build --ci --bundles deb,appimage
+        run: deno run -A npm:@tauri-apps/cli build --ci --bundles deb,appimage --ignore-version-mismatches
 
       - name: Build Tauri Desktop App (Windows)
         if: matrix.platform == 'windows'
