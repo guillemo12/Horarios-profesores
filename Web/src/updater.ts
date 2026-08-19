@@ -1,4 +1,4 @@
-import { showToast } from './utils';
+import { showToast } from './utils.ts';
 
 export const CURRENT_VERSION = "0.0.6";
 export const GITHUB_REPO = "guillemo12/Horarios-profesores";
@@ -18,8 +18,8 @@ export interface GitHubRelease {
     assets: GitHubReleaseAsset[];
 }
 
-function parseVersion(versionStr: string): number[] {
-    const clean = versionStr.replace(/^v/, '').trim();
+export function parseVersion(versionStr: string): number[] {
+    const clean = versionStr.trim().replace(/^v/, '').trim();
     return clean.split('.').map(n => parseInt(n, 10) || 0);
 }
 
@@ -37,11 +37,14 @@ export function isNewerVersion(latestTag: string, currentVersion: string = CURRE
     return false;
 }
 
-function getBestAssetForPlatform(assets: GitHubReleaseAsset[]): GitHubReleaseAsset | null {
+export function getBestAssetForPlatform(assets: GitHubReleaseAsset[], platformOverride?: string): GitHubReleaseAsset | null {
     if (!assets || assets.length === 0) return null;
 
-    const isWin = navigator.userAgent.includes('Windows') || navigator.platform.includes('Win');
-    const isLinux = navigator.userAgent.includes('Linux');
+    const userAgent = typeof navigator !== 'undefined' ? (navigator.userAgent || '') : '';
+    const platform = typeof navigator !== 'undefined' ? (navigator.platform || '') : '';
+
+    const isWin = platformOverride === 'win32' || userAgent.includes('Windows') || platform.includes('Win');
+    const isLinux = platformOverride === 'linux' || userAgent.includes('Linux');
 
     if (isWin) {
         // Priorizar el instalador setup.exe o el exe único
