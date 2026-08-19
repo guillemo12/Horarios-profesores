@@ -1,6 +1,6 @@
 {
   "name": "horarios-profesores",
-  "version": "1.0.0",
+  "version": "0.0.9",
   "description": "EduSchedule School Timetable & Teachers Management System",
   "main": "index.js",
   "scripts": {
