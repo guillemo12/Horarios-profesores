@@ -39,3 +39,9 @@ Este archivo define las directrices obligatorias de desarrollo para cualquier Ag
   - `refactor: ...` para mejoras de código sin cambio de comportamiento.
   - `docs: ...` para documentación y reglas.
 - Verificar que todos los tests pasen (`npm.cmd test` y `./gradlew.bat test`) antes de realizar el commit.
+
+---
+
+## 🏷️ 5. Política de Creación de Versiones y Releases
+- **NO crear ni subir tags de versión (`v*`) por cada cambio o commit.**
+- Las versiones y releases solo deben crearse, etiquetarse y desplegarse cuando el usuario lo solicite explícitamente.

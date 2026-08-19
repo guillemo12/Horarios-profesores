@@ -162,3 +162,10 @@ Antes de realizar cualquier commit:
    - Frontend: `npm.cmd test`
    - Backend: `./gradlew.bat test`
 5. ✅ El bundle compilado (`Datos.js`) está actualizado si hubo cambios en TypeScript.
+
+---
+
+## 🏷️ 6. Política de Creación de Versiones y Releases
+- **NO crear ni subir tags de versión (`v*`) por cada cambio o commit.**
+- Los cambios se integran en la rama principal (`master`) mediante commits atómicos.
+- Las versiones / releases solo deben empaquetarse, etiquetarse con tag y publicarse cuando el usuario lo solicite expresamente.
