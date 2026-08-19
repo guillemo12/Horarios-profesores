@@ -18,7 +18,7 @@ Este archivo define las directrices obligatorias de desarrollo para cualquier Ag
   2. **Test 2 (Caso Borde / Límite / Error)**: Verifica la robustez ante entradas vacías, `null`/`undefined`, límites de rango o fallos controlados.
 - **Suite de Tests**:
   - **Frontend**: Tests en formato ESM (`tests/*.test.mjs` o `tests/*_test.mjs`) ejecutados con `npm.cmd test`.
-  - **Backend**: Tests JUnit 5 en Kotlin (`src/test/kotlin/`) ejecutados con `./gradlew.bat test`.
+  - **Backend**: Tests unitarios y de persistencia rápidos en Kotlin (`src/test/kotlin/`) ejecutados con `./gradlew.bat test` (excluye por defecto las ejecuciones pesadas del motor CP-SAT / estrés, reservadas para `./gradlew.bat fullEngineTest`).
 
 ---
 

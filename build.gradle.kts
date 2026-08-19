@@ -55,7 +55,16 @@ dependencies {
 }
 
 tasks.test {
+    maxHeapSize = "2g"
+    // Excluir tests que ejecutan el motor completo de optimización (CP-SAT / Stress / Concurrency)
+    exclude("**/*StressTest*", "**/*SolverTest*", "**/*Concurrency*", "**/*Performance*")
+}
+
+tasks.register<Test>("fullEngineTest") {
+    group = "verification"
+    description = "Ejecuta todos los tests del motor de optimización matemática CP-SAT y pruebas de concurrencia pesadas."
     maxHeapSize = "4g"
+    include("**/*StressTest*", "**/*SolverTest*", "**/*Concurrency*", "**/*Performance*")
 }
 
 tasks.named<org.gradle.jvm.tasks.Jar>("shadowJar") {
