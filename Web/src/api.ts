@@ -7,7 +7,7 @@ export class ApiService {
         this.baseUrl = '/api/v1'; 
     }
 
-    private async _fetch<T>(endpoint: string, method: string = 'GET', payload: any = null): Promise<T> {
+    private async _fetch<T>(endpoint: string, method: string = 'GET', payload: unknown = null): Promise<T> {
         const url = `${this.baseUrl}/${endpoint}`;
         const options: RequestInit = {
             method,

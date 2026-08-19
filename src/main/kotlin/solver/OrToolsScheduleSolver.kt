@@ -242,19 +242,38 @@ object OrToolsScheduleSolver {
             }
         }
 
-        // REGLA 7 (PYTHON R7): Máximo 3 bloques/día por unidad (<= 1h30)
+        // Mapeo de slots fijados (pinned) por unidad
+        val pinnedSlotsPerUnit = mutableMapOf<UnitKey, MutableSet<Int>>()
+        for ((uKey, uLessons) in unitsMap) {
+            val pSlots = mutableSetOf<Int>()
+            for (pinned in uLessons.filter { it.isPinned && it.timeSlot != null }) {
+                val tSlot = pinned.timeSlot!!
+                val tIdx = timeSlots.indexOfFirst { it.dayOfWeek == tSlot.dayOfWeek && it.startTime == tSlot.startTime }
+                if (tIdx >= 0) {
+                    pSlots.add(tIdx)
+                }
+            }
+            if (pSlots.isNotEmpty()) {
+                pinnedSlotsPerUnit[uKey] = pSlots
+            }
+        }
+
+        // REGLA 7 (PYTHON R7): Máximo 3 bloques/día por unidad (<= 1h30), salvo bloques fijados manualmente
         for ((uKey, _) in unitsMap) {
+            val pinnedUnitSlots = pinnedSlotsPerUnit[uKey] ?: emptySet()
             for (day in DayOfWeek.values().filter { it.value in 1..5 }) {
                 val unitDayList = varsByUnitDay[Pair(uKey, day)] ?: continue
-                if (unitDayList.size > 3) {
+                val pinnedCountOnDay = unitDayList.count { it.first in pinnedUnitSlots }
+                val maxAllowed = maxOf(3, pinnedCountOnDay)
+                if (unitDayList.size > maxAllowed) {
                     val zs = unitDayList.map { it.second }
-                    model.addLessOrEqual(LinearExpr.sum(zs.toTypedArray()), 3)
+                    model.addLessOrEqual(LinearExpr.sum(zs.toTypedArray()), maxAllowed.toLong())
                 }
             }
         }
 
         // REGLA 8 (PYTHON R8): NUNCA 3 BLOQUES CONSECUTIVOS EN EL TIEMPO PARA LA MISMA MATERIA
-        // (Separa la clase suelta de 30 min del par de 60 min)
+        // (Separa la clase suelta de 30 min del par de 60 min, salvo bloques fijados manualmente)
         val days = DayOfWeek.values().filter { it.value in 1..5 }
         for (day in days) {
             val daySlots = timeSlots.withIndex().filter { it.value.dayOfWeek == day }.sortedBy { it.value.indiceDeFranja }
@@ -266,11 +285,17 @@ object OrToolsScheduleSolver {
                     s3.value.indiceDeFranja == s2.value.indiceDeFranja + 1) {
 
                     for ((uKey, _) in unitsMap) {
+                        val pinnedUnitSlots = pinnedSlotsPerUnit[uKey] ?: emptySet()
+                        val pinnedCountInWindow = (if (s1.index in pinnedUnitSlots) 1 else 0) +
+                                                  (if (s2.index in pinnedUnitSlots) 1 else 0) +
+                                                  (if (s3.index in pinnedUnitSlots) 1 else 0)
+                        val maxAllowed = maxOf(2, pinnedCountInWindow)
+
                         val z1 = zVars[Pair(uKey, s1.index)]
                         val z2 = zVars[Pair(uKey, s2.index)]
                         val z3 = zVars[Pair(uKey, s3.index)]
                         if (z1 != null && z2 != null && z3 != null) {
-                            model.addLessOrEqual(LinearExpr.newBuilder().add(z1).add(z2).add(z3).build(), 2)
+                            model.addLessOrEqual(LinearExpr.newBuilder().add(z1).add(z2).add(z3).build(), maxAllowed.toLong())
                         }
                     }
                 }

@@ -10,5 +10,6 @@ object AsignaturaTable : IntIdTable("asignatura") {
     
     init {
         uniqueIndex(nombre, curso)
+        index(isUnique = false, curso)
     }
 }

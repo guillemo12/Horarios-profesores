@@ -6,4 +6,9 @@ object GruposTable : IntIdTable("grupos") {
     val curso = reference("curso_id", CursoTable)
     val nombre = varchar("nombre", 100)
     val tutor = reference("profesor_id", ProfesorTable)
+
+    init {
+        uniqueIndex(curso, nombre)
+        index(isUnique = false, tutor)
+    }
 }

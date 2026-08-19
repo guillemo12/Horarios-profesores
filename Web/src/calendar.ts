@@ -1,5 +1,5 @@
 import { AppData, updateEntitySelector } from './Datos';
-import { ScheduledClass } from './types';
+import { ScheduledClass, MergedDisplayEvent } from './types';
 import { showToast, formatHours } from './utils';
 
 declare const tui: any;
@@ -27,15 +27,16 @@ export function onHeaderCourseChange(previousVal: string | null = null): void {
     if (!courseSelect || !select) return;
 
     const courseId = courseSelect.value;
-    select.innerHTML = '';
     
     const course = AppData.courses.find(c => c.id === courseId);
     if (course) {
         if (course.groups.length === 0) {
             select.innerHTML = `<option value="">Sin grupos</option>`;
         } else {
-            course.groups.forEach(g => select.innerHTML += `<option value="${g.id}">Grupo ${g.name}</option>`);
+            select.innerHTML = course.groups.map(g => `<option value="${g.id}">Grupo ${g.name}</option>`).join('');
         }
+    } else {
+        select.innerHTML = '';
     }
     
     if (previousVal && Array.from(select.options).some(opt => opt.value === previousVal)) {
@@ -115,33 +116,24 @@ export function initCalendar(): void {
             return;
         }
 
-        const newStartDate = new Date(startCandidate);
         showToast("Sincronizando...", "Guardando nueva posición en el servidor...", "info");
 
-        if (constituentClasses.length === 2) {
-            const c1 = constituentClasses[0];
-            c1.start = newStartDate.toISOString();
-            const end1 = new Date(newStartDate.getTime() + 30 * 60000);
-            c1.end = end1.toISOString();
-            c1.duration = 0.5;
-            await AppData.API.updateClass(c1);
-            AppData.WS.sendCommand('MANUAL_EDIT', { id: c1.id, action: 'moved' });
+        constituentClasses.sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());
 
-            const c2 = constituentClasses[1];
-            c2.start = end1.toISOString();
-            const end2 = new Date(newStartDate.getTime() + 60 * 60000);
-            c2.end = end2.toISOString();
-            c2.duration = 0.5;
-            await AppData.API.updateClass(c2);
-            AppData.WS.sendCommand('MANUAL_EDIT', { id: c2.id, action: 'moved' });
-        } else {
-            const cls = constituentClasses[0];
-            cls.start = newStartDate.toISOString();
-            const endCandidateDate = new Date(endCandidate);
-            cls.end = endCandidateDate.toISOString();
-            cls.duration = (endCandidateDate.getTime() - newStartDate.getTime()) / (1000 * 60 * 60);
+        let currentSlotStart = new Date(startCandidate);
+        for (const cls of constituentClasses) {
+            const slotDurationHours = cls.duration || 0.5;
+            const slotDurationMs = slotDurationHours * 3600000;
+            const slotEnd = new Date(currentSlotStart.getTime() + slotDurationMs);
+
+            cls.start = currentSlotStart.toISOString();
+            cls.end = slotEnd.toISOString();
+            cls.duration = slotDurationHours;
+
             await AppData.API.updateClass(cls);
             AppData.WS.sendCommand('MANUAL_EDIT', { id: cls.id, action: 'moved' });
+
+            currentSlotStart = slotEnd;
         }
 
         refreshCalendarView();
@@ -233,11 +225,10 @@ export function openAddClassModal(startDate: Date | null = null, endDate: Date |
 export function onModalCourseChange(): void {
     const courseId = (document.getElementById('modal-course') as HTMLSelectElement).value;
     const groupSelect = document.getElementById('modal-group') as HTMLSelectElement;
-    groupSelect.innerHTML = '';
     
     const course = AppData.courses.find(c => c.id === courseId);
     if (course && course.groups.length > 0) {
-        course.groups.forEach(g => { groupSelect.innerHTML += `<option value="${g.id}">Grupo ${g.name}</option>`; });
+        groupSelect.innerHTML = course.groups.map(g => `<option value="${g.id}">Grupo ${g.name}</option>`).join('');
     } else {
         groupSelect.innerHTML = `<option value="">(Sin grupos)</option>`;
     }
@@ -350,28 +341,22 @@ export function toggleColorMode(): void {
     refreshCalendarView();
 }
 
-export interface MergedDisplayEvent {
-    id: string;
-    mergedIds: string[];
-    calendarId: string;
-    title: string;
-    body: string;
-    start: Date | string;
-    end: Date | string;
-    duration: number;
-    isReadOnly: boolean;
-    isPinned: boolean;
-    backgroundColor: string;
-    color: string;
-    customStyle: any;
-    raw: {
-        subjectId: string;
-        teacherId: string;
-        groupId: string;
-    };
-}
+export function getMergedCalendarEvents(
+    classes: ScheduledClass[],
+    type: string,
+    entityId: string,
+    colorMode: string = 'teacher',
+    options: { maxBlockDuration?: number; recessConfig?: { start?: string; duration?: number } } = {}
+): MergedDisplayEvent[] {
+    const {
+        maxBlockDuration = 2.0,
+        recessConfig = AppData.config ? { start: AppData.config.horaInicioRecreo, duration: AppData.config.duracionRecreo } : { start: '12:00', duration: 30 }
+    } = options;
 
-export function getMergedCalendarEvents(classes: ScheduledClass[], type: string, entityId: string, colorMode: string): MergedDisplayEvent[] {
+    if (!Array.isArray(classes) || classes.length === 0) {
+        return [];
+    }
+
     const filtered = classes.filter(cls => {
         if (type === 'teacher') return cls.teacherId === entityId;
         if (type === 'group') return cls.groupId === entityId;
@@ -381,7 +366,7 @@ export function getMergedCalendarEvents(classes: ScheduledClass[], type: string,
     const groupsMap = new Map<string, ScheduledClass[]>();
     filtered.forEach(cls => {
         const d = new Date(cls.start);
-        const dateKey = `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
+        const dateKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
         const key = `${dateKey}_${cls.subjectId}_${cls.teacherId}_${cls.groupId}`;
         if (!groupsMap.has(key)) {
             groupsMap.set(key, []);
@@ -397,97 +382,71 @@ export function getMergedCalendarEvents(classes: ScheduledClass[], type: string,
         let i = 0;
         while (i < groupClasses.length) {
             const current = groupClasses[i];
-            const next = (i + 1 < groupClasses.length) ? groupClasses[i + 1] : null;
+            let mergedIds = [current.id];
+            let blockStart = current.start;
+            let blockEnd = current.end;
+            let blockDuration = current.duration || ((new Date(current.end).getTime() - new Date(current.start).getTime()) / 3600000);
+            let isPinned = Boolean(current.isPinned);
 
-            const currentEnd = new Date(current.end).getTime();
-            const nextStart = next ? new Date(next.start).getTime() : -1;
-            const isContiguous = next !== null && Math.abs(currentEnd - nextStart) < 60000;
-            const currentDur = current.duration || ((new Date(current.end).getTime() - new Date(current.start).getTime()) / 3600000);
-            const nextDur = next ? (next.duration || ((new Date(next.end).getTime() - new Date(next.start).getTime()) / 3600000)) : 0;
-            
-            const crossesRecess = next !== null && overlapsRecess(new Date(current.start), new Date(next.end));
+            let j = i + 1;
+            while (j < groupClasses.length) {
+                const next = groupClasses[j];
+                const currentEndTime = new Date(blockEnd).getTime();
+                const nextStartTime = new Date(next.start).getTime();
+                const isContiguous = Math.abs(currentEndTime - nextStartTime) < 60000;
+                const nextDur = next.duration || ((new Date(next.end).getTime() - new Date(next.start).getTime()) / 3600000);
+                const crossesRecess = overlapsRecess(new Date(blockStart), new Date(next.end), recessConfig);
 
-            // Solo fusionar si son 2 bloques de 30m (<= 0.5h cada uno), la suma no excede 1.01h, contiguos y sin cruzar recreo
-            if (isContiguous && !crossesRecess && (currentDur <= 0.51 && nextDur <= 0.51) && (currentDur + nextDur <= 1.01)) {
-                const isPinned = (current.isPinned || next.isPinned) || false;
-                const subject = AppData.subjects.find(s => s.id === current.subjectId);
-                const teacher = AppData.teachers.find(t => t.id === current.teacherId);
-                const course = AppData.courses.find(c => c.groups.some(g => g.id === current.groupId));
-                const grp = course ? course.groups.find(g => g.id === current.groupId) : null;
-
-                const pin = isPinned ? '📌 ' : '';
-                const subjectTitle = subject ? `${pin}${subject.name}` : 'Clase API';
-                const subtitle = (type === 'group')
-                    ? (teacher ? `Prof: ${teacher.name}` : '')
-                    : (course && grp ? `${course.name} - G.${grp.name}` : (teacher ? `Prof: ${teacher.name}` : ''));
-
-                const eventBgColor = (colorMode === 'subject')
-                    ? getSubjectColor(current.subjectId)
-                    : (teacher ? teacher.color : '#4f46e5');
-
-                displayEvents.push({
-                    id: current.id,
-                    mergedIds: [current.id, next.id],
-                    calendarId: current.teacherId,
-                    title: subjectTitle,
-                    body: subtitle,
-                    start: current.start,
-                    end: next.end,
-                    duration: currentDur + nextDur,
-                    isReadOnly: isPinned,
-                    isPinned: isPinned,
-                    backgroundColor: eventBgColor,
-                    color: '#ffffff',
-                    customStyle: { borderRadius: '6px', border: 'none', padding: '2px' },
-                    raw: {
-                        subjectId: current.subjectId,
-                        teacherId: current.teacherId,
-                        groupId: current.groupId
+                if (isContiguous && !crossesRecess && (blockDuration + nextDur <= maxBlockDuration + 0.01)) {
+                    blockEnd = next.end;
+                    blockDuration += nextDur;
+                    mergedIds.push(next.id);
+                    if (next.isPinned) {
+                        isPinned = true;
                     }
-                });
-
-                // Avanzar 2 posiciones para respetar el límite de solo juntar de una hora en una hora
-                i += 2;
-            } else {
-                const isPinned = current.isPinned || false;
-                const subject = AppData.subjects.find(s => s.id === current.subjectId);
-                const teacher = AppData.teachers.find(t => t.id === current.teacherId);
-                const course = AppData.courses.find(c => c.groups.some(g => g.id === current.groupId));
-                const grp = course ? course.groups.find(g => g.id === current.groupId) : null;
-
-                const pin = isPinned ? '📌 ' : '';
-                const subjectTitle = subject ? `${pin}${subject.name}` : 'Clase API';
-                const subtitle = (type === 'group')
-                    ? (teacher ? `Prof: ${teacher.name}` : '')
-                    : (course && grp ? `${course.name} - G.${grp.name}` : (teacher ? `Prof: ${teacher.name}` : ''));
-
-                const eventBgColor = (colorMode === 'subject')
-                    ? getSubjectColor(current.subjectId)
-                    : (teacher ? teacher.color : '#4f46e5');
-
-                displayEvents.push({
-                    id: current.id,
-                    mergedIds: [current.id],
-                    calendarId: current.teacherId,
-                    title: subjectTitle,
-                    body: subtitle,
-                    start: current.start,
-                    end: current.end,
-                    duration: currentDur,
-                    isReadOnly: isPinned,
-                    isPinned: isPinned,
-                    backgroundColor: eventBgColor,
-                    color: '#ffffff',
-                    customStyle: { borderRadius: '6px', border: 'none', padding: '2px' },
-                    raw: {
-                        subjectId: current.subjectId,
-                        teacherId: current.teacherId,
-                        groupId: current.groupId
-                    }
-                });
-
-                i += 1;
+                    j++;
+                } else {
+                    break;
+                }
             }
+
+            const subject = AppData.subjects.find(s => s.id === current.subjectId);
+            const teacher = AppData.teachers.find(t => t.id === current.teacherId);
+            const course = AppData.courses.find(c => c.groups.some(g => g.id === current.groupId));
+            const grp = course ? course.groups.find(g => g.id === current.groupId) : null;
+
+            const pin = isPinned ? '📌 ' : '';
+            const subjectTitle = subject ? `${pin}${subject.name}` : `${pin}Clase API`;
+            const subtitle = (type === 'group')
+                ? (teacher ? `Prof: ${teacher.name}` : '')
+                : (course && grp ? `${course.name} - G.${grp.name}` : (teacher ? `Prof: ${teacher.name}` : ''));
+
+            const eventBgColor = (colorMode === 'subject')
+                ? getSubjectColor(current.subjectId)
+                : (teacher ? teacher.color : '#4f46e5');
+
+            displayEvents.push({
+                id: current.id,
+                mergedIds: [...mergedIds],
+                calendarId: current.teacherId,
+                title: subjectTitle,
+                body: subtitle,
+                start: blockStart,
+                end: blockEnd,
+                duration: Math.round(blockDuration * 100) / 100,
+                isReadOnly: isPinned,
+                isPinned: isPinned,
+                backgroundColor: eventBgColor,
+                color: '#ffffff',
+                customStyle: { borderRadius: '6px', border: 'none', padding: '2px' },
+                raw: {
+                    subjectId: current.subjectId,
+                    teacherId: current.teacherId,
+                    groupId: current.groupId
+                }
+            });
+
+            i = j;
         }
     });
 
@@ -564,9 +523,8 @@ export function refreshCalendarView(): void {
             if (items.length === 0) {
                 summaryHtml += `<p class="text-xs text-gray-400 italic">No tiene clases asignadas en el horario actual.</p>`;
             } else {
-                summaryHtml += `<div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5">`;
-                items.forEach(item => {
-                    summaryHtml += `
+                summaryHtml += `<div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5">` +
+                    items.map(item => `
                         <div class="p-2.5 bg-slate-50 border border-slate-200 rounded-lg flex flex-col justify-between hover:bg-slate-100 transition-colors">
                             <span class="text-xs font-bold text-slate-800 truncate">${item.courseName} - G.${item.groupName}</span>
                             <div class="flex justify-between items-center mt-1 text-[11px]">
@@ -574,9 +532,8 @@ export function refreshCalendarView(): void {
                                 <span class="font-bold text-slate-700 bg-white px-1.5 py-0.5 rounded border border-slate-200">${item.hours.toFixed(1)}h</span>
                             </div>
                         </div>
-                    `;
-                });
-                summaryHtml += `</div>`;
+                    `).join('') +
+                    `</div>`;
             }
 
             summaryContent.innerHTML = summaryHtml;
@@ -681,11 +638,13 @@ export function closeEventDetail(): void {
     if (modal) modal.classList.replace('flex', 'hidden'); 
 }
 
-function overlapsRecess(start: Date, end: Date): boolean {
-    const startHour = start.getHours();
-    const startMin = start.getMinutes();
-    const endHour = end.getHours();
-    const endMin = end.getMinutes();
+export function overlapsRecess(start: Date | string, end: Date | string, recessConfig?: { start?: string; duration?: number }): boolean {
+    const s = new Date(start);
+    const e = new Date(end);
+    const startHour = s.getHours();
+    const startMin = s.getMinutes();
+    const endHour = e.getHours();
+    const endMin = e.getMinutes();
 
     const startMinutes = startHour * 60 + startMin;
     const endMinutes = endHour * 60 + endMin;
@@ -693,7 +652,15 @@ function overlapsRecess(start: Date, end: Date): boolean {
     let recessStart = 12 * 60; // 12:00 -> 720 min
     let recessDuration = 30;
 
-    if (AppData.config) {
+    if (recessConfig) {
+        if (typeof recessConfig.start === 'string') {
+            const parts = recessConfig.start.split(':').map(Number);
+            recessStart = parts[0] * 60 + parts[1];
+        }
+        if (typeof recessConfig.duration === 'number') {
+            recessDuration = recessConfig.duration;
+        }
+    } else if (AppData.config) {
         const parts = AppData.config.horaInicioRecreo.split(':');
         recessStart = parseInt(parts[0]) * 60 + parseInt(parts[1]);
         recessDuration = AppData.config.duracionRecreo;

@@ -18,11 +18,9 @@ export const AppData: AppDataState = {
     API: new ApiService(),
     WS: new EngineWebSocket(),
     subjects: [], teachers: [], courses: [], scheduledClasses: [],
-    calendarInstance: null, currentEventContext: null
+    calendarInstance: null, currentEventContext: null,
+    currentCourseId: null
 };
-
-// Extender la interfaz AppDataState de manera dinámica en el entrypoint para no tener problemas de tipado
-(AppData as any).currentCourseId = null;
 
 // ── Interceptor global de errores → reenvía al servidor para verlos en la terminal ──
 function sendErrorToServer(level: string, message: string, source: string = '', line: number = 0, stack: string = '') {
@@ -74,6 +72,21 @@ async function waitForBackend(maxRetries: number = 15, delayMs: number = 1000): 
     return false;
 }
 
+export async function loadAllData(): Promise<void> {
+    const [subjects, teachers, courses, scheduledClasses, config] = await Promise.all([
+        AppData.API.getSubjects(),
+        AppData.API.getTeachers(),
+        AppData.API.getCourses(),
+        AppData.API.getSchedule(),
+        AppData.API.getConfig()
+    ]);
+    AppData.subjects = subjects;
+    AppData.teachers = teachers;
+    AppData.courses = courses;
+    AppData.scheduledClasses = scheduledClasses;
+    AppData.config = config;
+}
+
 window.onload = async function(): Promise<void> {
     try {
         const isReady = await waitForBackend();
@@ -81,11 +94,7 @@ window.onload = async function(): Promise<void> {
             throw new Error("No se pudo conectar con el servidor Ktor tras varios intentos.");
         }
 
-        AppData.subjects = await AppData.API.getSubjects();
-        AppData.teachers = await AppData.API.getTeachers();
-        AppData.courses = await AppData.API.getCourses();
-        AppData.scheduledClasses = await AppData.API.getSchedule();
-        AppData.config = await AppData.API.getConfig();
+        await loadAllData();
         
         const loader = document.getElementById('app-loader');
         if (loader) {
@@ -291,8 +300,7 @@ export function updateEntitySelector(): void {
         courseSelect.classList.remove('hidden'); 
         courseSeparator.classList.remove('hidden');
         
-        courseSelect.innerHTML = '';
-        AppData.courses.forEach(c => courseSelect.innerHTML += `<option value="${c.id}">${c.name}</option>`);
+        courseSelect.innerHTML = AppData.courses.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
         
         if (currentCourseValue && Array.from(courseSelect.options).some(opt => opt.value === currentCourseValue)) {
             courseSelect.value = currentCourseValue;
@@ -302,8 +310,7 @@ export function updateEntitySelector(): void {
         courseSelect.classList.add('hidden'); 
         courseSeparator.classList.add('hidden');
         
-        entitySelect.innerHTML = '';
-        AppData.teachers.forEach(t => entitySelect.innerHTML += `<option value="${t.id}">${t.name}</option>`);
+        entitySelect.innerHTML = AppData.teachers.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
         
         if (currentValue && Array.from(entitySelect.options).some(opt => opt.value === currentValue)) {
             entitySelect.value = currentValue;
@@ -373,6 +380,7 @@ async function handleImportDatabaseFile(input: HTMLInputElement) {
         if (res.ok && data.success) {
             showToast("Restauración Completada", "La base de datos se ha restaurado con éxito. Actualizando vista...", "success");
             await loadAllData();
+            loadSettings();
             refreshCalendarView();
             updateEntitySelector();
         } else {
@@ -384,9 +392,54 @@ async function handleImportDatabaseFile(input: HTMLInputElement) {
     }
 }
 
+declare global {
+    interface Window {
+        AppData: AppDataState;
+        loadAllData: typeof loadAllData;
+        switchTab: typeof switchTab;
+        updateEntitySelector: typeof updateEntitySelector;
+        onHeaderCourseChange: typeof onHeaderCourseChangeWrapper;
+        toggleOptimizationEngine: typeof toggleOptimizationEngine;
+        openFormModal: typeof openFormModal;
+        closeCrudModal: typeof closeCrudModal;
+        openGroupModal: typeof openGroupModal;
+        deleteSubject: typeof deleteSubject;
+        deleteTeacher: typeof deleteTeacher;
+        deleteCourse: typeof deleteCourse;
+        deleteGroup: typeof deleteGroup;
+        updateAssignment: typeof updateAssignment;
+        saveNewClass: typeof saveNewClass;
+        closeAddClassModal: typeof closeAddClassModal;
+        openAddClassModal: typeof openAddClassModal;
+        onModalCourseChange: typeof onModalCourseChange;
+        openEventDetail: typeof openEventDetail;
+        closeEventDetail: typeof closeEventDetail;
+        refreshCalendarView: typeof refreshCalendarView;
+        updateDateRange: typeof updateDateRange;
+        showToast: typeof showToast;
+        openCourseSubjects: typeof openCourseSubjects;
+        openAvailabilityModal: typeof openAvailabilityModal;
+        closeAvailabilityModal: typeof closeAvailabilityModal;
+        saveAvailability: typeof saveAvailability;
+        saveSettings: typeof saveSettings;
+        clearGroupSchedule: typeof clearGroupSchedule;
+        clearGroupAssignments: typeof clearGroupAssignments;
+        clearCourseAssignments: typeof clearCourseAssignments;
+        toggleAvailabilitySlot: typeof toggleAvailabilitySlot;
+        runPrevalidation: typeof runPrevalidation;
+        closePrevalidation: typeof closePrevalidation;
+        toggleColorMode: typeof toggleColorMode;
+        printAllSchedules: typeof printAllSchedules;
+        checkForUpdates: typeof checkForUpdates;
+        exportDatabase: typeof exportDatabase;
+        handleImportDatabaseFile: typeof handleImportDatabaseFile;
+    }
+}
+
 // Expose variables and functions to global scope for HTML inline calls
 Object.assign(window, {
     AppData,
+    loadAllData,
     switchTab,
     updateEntitySelector,
     onHeaderCourseChange: onHeaderCourseChangeWrapper,

@@ -1,3 +1,6 @@
+import type { ApiService } from './api';
+import type { EngineWebSocket } from './websocket';
+
 export interface Subject {
     id: string;
     name: string;
@@ -79,18 +82,50 @@ export interface Database {
 
 export type WsCallback = (data?: any) => void;
 
+export interface MergedDisplayEvent {
+    id: string;
+    mergedIds: string[];
+    calendarId: string;
+    title: string;
+    body: string;
+    start: Date | string;
+    end: Date | string;
+    duration: number;
+    isReadOnly: boolean;
+    isPinned: boolean;
+    backgroundColor: string;
+    color: string;
+    customStyle?: Record<string, unknown>;
+    raw: {
+        subjectId: string;
+        teacherId: string;
+        groupId: string;
+    };
+}
+
+export interface TuiCalendarInstance {
+    clear: () => void;
+    render: () => void;
+    createEvents: (events: MergedDisplayEvent[] | unknown[]) => void;
+    getDateRangeStart: () => { toDate?: () => Date } | Date;
+    getDateRangeEnd: () => { toDate?: () => Date } | Date;
+    clearGridSelections: () => void;
+    on: (event: string, handler: (info: any) => void) => void;
+}
+
 export interface AppDataState {
-    API: any;
-    WS: any;
+    API: ApiService;
+    WS: EngineWebSocket;
     subjects: Subject[];
     teachers: Teacher[];
     courses: Course[];
     scheduledClasses: ScheduledClass[];
-    calendarInstance: any;
-    currentEventContext: any;
-    currentMergedEvents?: any[];
+    calendarInstance: TuiCalendarInstance | null;
+    currentEventContext?: unknown;
+    currentMergedEvents?: MergedDisplayEvent[];
     colorMode?: 'teacher' | 'subject';
     config?: Configuracion;
+    currentCourseId?: string | null;
 }
 
 export interface PrevalidationCheck {

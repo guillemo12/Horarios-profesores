@@ -10,6 +10,8 @@ Proyecto_Horarios/src-tauri/target/
 Proyecto_Horarios/src-tauri/backend_ktor/
 .idea/
 .agents/mcp.json
+.agents/mcp_config.json
+.kotlin/
 node_modules/
 mcp-server/node_modules/
 

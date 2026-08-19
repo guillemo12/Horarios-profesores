@@ -19,7 +19,7 @@ export function openFormModal(type: string, id: string | null = null): void {
     if (type === 'subject') {
         titleEl.textContent = id ? 'Editar Asignatura' : 'Nueva Asignatura';
         const s = id ? AppData.subjects.find(x => x.id === id) : null;
-        const currentCourseId = (AppData as any).currentCourseId;
+        const currentCourseId = AppData.currentCourseId;
 
         bodyEl.innerHTML = `
             <form id="form-crud" class="space-y-4">
@@ -158,7 +158,7 @@ export function openFormModal(type: string, id: string | null = null): void {
             if (type === 'subject') {
                 const name = (document.getElementById('crud-subject-name') as HTMLInputElement).value;
                 const hours = parseFloat((document.getElementById('crud-subject-hours') as HTMLInputElement).value);
-                const courseId = (AppData as any).currentCourseId;
+                const courseId = AppData.currentCourseId;
                 const checkboxes = document.querySelectorAll('input[name="crud-subject-teachers"]:checked');
                 const teachers = Array.from(checkboxes).map(cb => (cb as HTMLInputElement).value);
 
@@ -287,15 +287,15 @@ export function closeCrudModal(): void {
 }
 
 export function openCourseSubjects(courseId: string): void {
-    (AppData as any).currentCourseId = courseId;
-    (window as any).switchTab('subjects');
+    AppData.currentCourseId = courseId;
+    window.switchTab('subjects');
 }
 
 export async function renderSubjects(): Promise<void> {
     try {
         AppData.subjects = await AppData.API.getSubjects();
         AppData.courses = await AppData.API.getCourses();
-        const courseId = (AppData as any).currentCourseId;
+        const courseId = AppData.currentCourseId;
 
         const titleEl = document.getElementById('view-subjects-title');
         if (titleEl) {
@@ -305,7 +305,6 @@ export async function renderSubjects(): Promise<void> {
 
         const tbody = document.getElementById('table-subjects');
         if (!tbody) return;
-        tbody.innerHTML = '';
 
         if (!courseId) {
             tbody.innerHTML = '<tr><td colspan="3" class="p-4 text-center text-gray-500 italic">Por favor, selecciona un curso primero.</td></tr>';
@@ -318,18 +317,16 @@ export async function renderSubjects(): Promise<void> {
             return;
         }
 
-        filtered.forEach(s => {
-            tbody.innerHTML += `
-                <tr class="hover:bg-gray-50 border-b border-gray-100 text-sm">
-                    <td class="p-4 font-medium text-gray-800">${s.name}</td>
-                    <td class="p-4 text-center text-gray-600">${formatHours(s.hours)} h</td>
-                    <td class="p-4 text-center">
-                        <button onclick="openFormModal('subject', '${s.id}')" class="text-indigo-600 hover:text-indigo-900 font-semibold mr-3">Editar</button>
-                        <button onclick="deleteSubject('${s.id}')" class="text-red-600 hover:text-red-900 font-semibold">Eliminar</button>
-                    </td>
-                </tr>
-            `;
-        });
+        tbody.innerHTML = filtered.map(s => `
+            <tr class="hover:bg-gray-50 border-b border-gray-100 text-sm">
+                <td class="p-4 font-medium text-gray-800">${s.name}</td>
+                <td class="p-4 text-center text-gray-600">${formatHours(s.hours)} h</td>
+                <td class="p-4 text-center">
+                    <button onclick="openFormModal('subject', '${s.id}')" class="text-indigo-600 hover:text-indigo-900 font-semibold mr-3">Editar</button>
+                    <button onclick="deleteSubject('${s.id}')" class="text-red-600 hover:text-red-900 font-semibold">Eliminar</button>
+                </td>
+            </tr>
+        `).join('');
     } catch (err) {
         console.error(err);
         showToast("Error", "No se pudieron cargar las asignaturas", "error");
@@ -353,8 +350,8 @@ export async function renderTeachers(): Promise<void> {
         AppData.teachers = await AppData.API.getTeachers();
         const list = document.getElementById('list-teachers');
         if (!list) return;
-        list.innerHTML = '';
-        AppData.teachers.forEach(t => {
+
+        list.innerHTML = AppData.teachers.map(t => {
             const subjNames = t.subjects.map(sId => {
                 const s = AppData.subjects.find(x => x.id === sId);
                 if (!s) return '';
@@ -362,7 +359,7 @@ export async function renderTeachers(): Promise<void> {
                 return course ? `${s.name} (${course.name})` : s.name;
             }).filter(n => n !== '').join(', ');
 
-            list.innerHTML += `
+            return `
                 <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-5 flex flex-col justify-between">
                     <div>
                         <div class="flex items-center justify-between mb-2">
@@ -381,7 +378,7 @@ export async function renderTeachers(): Promise<void> {
                     </div>
                 </div>
             `;
-        });
+        }).join('');
     } catch (err) {
         console.error(err);
         showToast("Error", "No se pudieron cargar los profesores", "error");
@@ -406,8 +403,8 @@ export async function renderCourses(): Promise<void> {
         AppData.teachers = await AppData.API.getTeachers(); 
         const container = document.getElementById('list-courses');
         if (!container) return;
-        container.innerHTML = '';
-        AppData.courses.forEach(c => {
+
+        container.innerHTML = AppData.courses.map(c => {
             let groupsHtml = '';
             if (c.groups.length === 0) {
                 groupsHtml = '<p class="text-xs text-gray-400 italic">No hay grupos creados en este curso.</p>';
@@ -433,7 +430,7 @@ export async function renderCourses(): Promise<void> {
                 `;
             }
 
-            container.innerHTML += `
+            return `
                 <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-5 space-y-4">
                     <div class="flex items-center justify-between border-b pb-2">
                         <h3 class="font-bold text-gray-800 text-lg">${c.name}</h3>
@@ -447,7 +444,7 @@ export async function renderCourses(): Promise<void> {
                     ${groupsHtml}
                 </div>
             `;
-        });
+        }).join('');
     } catch (err) {
         console.error(err);
         showToast("Error", "No se pudieron cargar los cursos", "error");

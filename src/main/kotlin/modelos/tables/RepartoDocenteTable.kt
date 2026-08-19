@@ -7,4 +7,10 @@ object RepartoDocenteTable : IntIdTable("reparto_docente") {
     val profesorId = reference("profesor_id", ProfesorTable, onDelete = ReferenceOption.CASCADE)
     val asignaturaId = reference("asignatura_id", AsignaturaTable, onDelete = ReferenceOption.CASCADE)
     val grupoId = reference("grupo_id", GruposTable, onDelete = ReferenceOption.CASCADE)
+
+    init {
+        uniqueIndex(grupoId, asignaturaId)
+        index(isUnique = false, profesorId)
+        index(isUnique = false, asignaturaId)
+    }
 }

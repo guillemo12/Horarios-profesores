@@ -12,4 +12,12 @@ object ClaseTable : IdTable<String>("clase_programada") {
     val groupId = reference("group_id", GruposTable, onDelete = ReferenceOption.CASCADE)
     val teacherId = reference("teacher_id", ProfesorTable, onDelete = ReferenceOption.CASCADE)
     val isPinned = bool("is_pinned")
+
+    init {
+        index(isUnique = false, groupId)
+        index(isUnique = false, subjectId)
+        index(isUnique = false, teacherId)
+        index(isUnique = false, isPinned)
+        index(isUnique = false, groupId, subjectId, isPinned)
+    }
 }

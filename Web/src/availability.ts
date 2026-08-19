@@ -31,7 +31,7 @@ export function openAvailabilityModal(teacherId: string): void {
         { start: '13:30', end: '14:00' }
     ];
 
-    timeSlots.forEach((slot, index) => {
+    tbody.innerHTML = timeSlots.map((slot, index) => {
         let cellsHtml = '';
         for (let day = 1; day <= 5; day++) {
             const isUnavailable = currentTeacherAvailabilityList.some(av => 
@@ -55,13 +55,13 @@ export function openAvailabilityModal(teacherId: string): void {
             `;
         }
 
-        tbody.innerHTML += `
+        return `
             <tr class="hover:bg-gray-50">
                 <td class="p-3 border border-gray-200 font-semibold text-gray-700 text-center">${slot.start} - ${slot.end}</td>
                 ${cellsHtml}
             </tr>
         `;
-    });
+    }).join('');
 
     const modal = document.getElementById('availability-modal');
     if (modal) modal.classList.replace('hidden', 'flex');

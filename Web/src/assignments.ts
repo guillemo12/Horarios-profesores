@@ -16,22 +16,26 @@ export async function renderAssignmentsList(): Promise<void> {
             return;
         }
 
-        AppData.courses.forEach(c => {
-            const courseSubjects = AppData.subjects.filter(s => s.courseId === c.id);
-            if (c.groups.length === 0) return; 
+        const validCourses = AppData.courses.filter(c => c.groups.length > 0);
+        if (validCourses.length === 0) {
+            container.innerHTML = '<div class="text-center p-8 bg-gray-50 rounded-xl border border-dashed border-gray-300 text-gray-400 italic">No hay grupos creados en los cursos. Cree grupos primero.</div>';
+            return;
+        }
 
-            let groupsAssignmentsHtml = '';
-            c.groups.forEach(g => {
+        container.innerHTML = validCourses.map(c => {
+            const courseSubjects = AppData.subjects.filter(s => s.courseId === c.id);
+
+            const groupsAssignmentsHtml = c.groups.map(g => {
                 let subjectsListHtml = '';
                 
                 if (courseSubjects.length === 0) {
                     subjectsListHtml = '<p class="text-xs text-gray-400 italic py-2">No hay asignaturas en este curso.</p>';
                 } else {
-                    courseSubjects.forEach(s => {
+                    subjectsListHtml = courseSubjects.map(s => {
                         const assignedTeacherId = g.assignments[s.id] || '';
                         const qualifiedTeachers = AppData.teachers.filter(t => t.subjects.includes(s.id));
                         
-                        subjectsListHtml += `
+                        return `
                             <div class="flex flex-col gap-1.5 pb-3 border-b border-gray-100 last:border-b-0 last:pb-0">
                                 <span class="text-sm font-semibold text-gray-700 truncate block" title="${s.name}">${s.name} (${formatHours(s.hours)}h)</span>
                                 <select onchange="updateAssignment('${c.id}', '${g.id}', '${s.id}', this.value)" class="w-full text-xs border border-gray-300 rounded-lg p-2 bg-white hover:border-slate-400 focus:border-indigo-500 outline-none transition-colors">
@@ -44,10 +48,10 @@ export async function renderAssignmentsList(): Promise<void> {
                                 </select>
                             </div>
                         `;
-                    });
+                    }).join('');
                 }
 
-                groupsAssignmentsHtml += `
+                return `
                     <div id="group-card-${c.id}-${g.id}" class="bg-gray-50 rounded-xl p-4 border border-gray-200 shadow-sm space-y-3">
                         <div class="flex items-center justify-between border-b pb-2">
                             <h4 class="font-bold text-gray-800 text-sm">Grupo ${g.name}</h4>
@@ -61,9 +65,9 @@ export async function renderAssignmentsList(): Promise<void> {
                         </div>
                     </div>
                 `;
-            });
+            }).join('');
 
-            container.innerHTML += `
+            return `
                 <div id="course-card-${c.id}" class="mb-8 bg-white p-5 rounded-xl border border-gray-200 shadow-sm space-y-4">
                     <div class="flex items-center justify-between border-b pb-2">
                         <h3 class="font-bold text-gray-800 text-lg">${c.name}</h3>
@@ -77,7 +81,7 @@ export async function renderAssignmentsList(): Promise<void> {
                     </div>
                 </div>
             `;
-        });
+        }).join('');
     } catch (err) {
         console.error(err);
         showToast("Error", "No se pudieron cargar las asignaciones", "error");
