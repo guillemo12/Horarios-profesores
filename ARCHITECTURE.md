@@ -30,7 +30,8 @@ El backend está desarrollado en **Kotlin 2.1** sobre el framework **Ktor 3.0** 
 
 ### 4. Motor de Resolución y Diagnósticos (`src/main/kotlin/solver/`)
 - **[OrToolsScheduleSolver.kt](file:///src/main/kotlin/solver/OrToolsScheduleSolver.kt)**: Motor principal de optimización basado en Google OR-Tools CP-SAT Solver. Aplica restricciones duras y funciones de puntuación suave transmitiendo soluciones intermedias en tiempo real.
-- **[SolverConstraintUtils.kt](file:///src/main/kotlin/solver/SolverConstraintUtils.kt)**: Funciones puras para agrupación de unidades lectivas (`groupLessonsIntoUnits`), extracción de grupos y validación de disponibilidad docente.
+- **[SolverConstraintUtils.kt](file:///src/main/kotlin/solver/SolverConstraintUtils.kt)**: Funciones puras para agrupación de unidades lectivas (`groupLessonsIntoUnits`), extracción de grupos, traducción de días (`traducirDia`) y validación de disponibilidad docente.
+- **[SolverLessonDataLoader.kt](file:///src/main/kotlin/solver/SolverLessonDataLoader.kt)**: Generación de franjas horarias configuradas (`generateTimeSlots`) y cálculo de cantidad de bloques lectivos (`calculateBlocksCount`).
 - **[Prevalidation.kt](file:///src/main/kotlin/solver/Prevalidation.kt)**: Diagnóstico estático ultra-rápido de inviabilidad (déficits de horas, sobrecarga docente y consejos específicos).
 - **[TimeSlot.kt](file:///src/main/kotlin/solver/TimeSlot.kt)**: Representación de franjas horarias semanales (Día, hora inicio, hora fin y duración).
 - **[Leccion.kt](file:///src/main/kotlin/solver/Leccion.kt)**, **[Profesor.kt](file:///src/main/kotlin/solver/Profesor.kt)**, **[Grupo.kt](file:///src/main/kotlin/solver/Grupo.kt)**: Modelos de dominio del solver.
@@ -59,6 +60,7 @@ El frontend web está desarrollado en **TypeScript** estructurado bajo principio
 - **[calendar.ts](file:///Web/src/calendar.ts)**: Inicialización y renderizado de la cuadrícula con Toast UI Calendar.
 - **[calendar_events.ts](file:///Web/src/calendar_events.ts)**: Fusión inteligente de franjas contiguas en bloques multi-hora (30m, 1h, 1.5h, 2.0h) respetando el recreo y pines de fijado.
 - **[calendar_modal.ts](file:///Web/src/calendar_modal.ts)**: Modales interactivos de inserción/edición de clases y visualización de detalles.
+- **[calendar_validation.ts](file:///Web/src/calendar_validation.ts)**: Validaciones puras de rango de tiempo (`isValidTimeRange`), cálculo de franjas (`calculateSlotCount`) y comprobación de solapamiento con recreo.
 - **[calendar_colors.ts](file:///Web/src/calendar_colors.ts)**: Asignación y persistencia de colores por materia y profesor.
 
 ### 3. Módulos CRUD y Asignaciones
