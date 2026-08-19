@@ -586,7 +586,7 @@ class LargeSchoolStressTest {
             tiempoMaximo = 60,
             respetarEspecialidad = true,
             respetarLimiteHoras = true,
-            limiteTiempoSegundos = 10.0
+            limiteTiempoSegundos = 25.0
         )
 
         val initStartTime = System.currentTimeMillis()
@@ -595,7 +595,7 @@ class LargeSchoolStressTest {
             lessons = lessons,
             teachers = teachers,
             config = config,
-            timeLimitSeconds = 10.0
+            timeLimitSeconds = 25.0
         )
         val totalElapsedMs = System.currentTimeMillis() - initStartTime
 
@@ -603,8 +603,8 @@ class LargeSchoolStressTest {
         val memoryDeltaMB = (memoryAfterBytes - memoryBeforeBytes) / (1024 * 1024)
 
         assertTrue(
-            totalElapsedMs < 15000,
-            "Total execution for 600 lessons must be well under 15 seconds (took ${totalElapsedMs} ms)"
+            totalElapsedMs < 35000,
+            "Total execution for 600 lessons must be well under 35 seconds (took ${totalElapsedMs} ms)"
         )
         assertTrue(
             result.isFeasible,

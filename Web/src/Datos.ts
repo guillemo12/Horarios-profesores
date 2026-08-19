@@ -1,7 +1,11 @@
 import { AppDataState, Subject, Teacher, Course, ScheduledClass } from './types';
 import { ApiService } from './api';
 import { EngineWebSocket } from './websocket';
-import { initCalendar, updateDateRange, refreshCalendarView, openAddClassModal, closeAddClassModal, onModalCourseChange, saveNewClass, openEventDetail, closeEventDetail, onHeaderCourseChange, clearGroupSchedule, toggleColorMode } from './calendar';
+import { 
+    initCalendar, updateDateRange, refreshCalendarView, openAddClassModal, closeAddClassModal, 
+    onModalCourseChange, onModalSubjectChange, onModalGroupChange, updateModalTeacherOptions,
+    saveNewClass, openEventDetail, closeEventDetail, onHeaderCourseChange, clearGroupSchedule, toggleColorMode 
+} from './calendar';
 import { 
     openFormModal, closeCrudModal, openGroupModal, deleteSubject, deleteTeacher, deleteCourse, deleteGroup, 
     renderSubjects, renderTeachers, renderCourses, openCourseSubjects
@@ -412,6 +416,9 @@ declare global {
         closeAddClassModal: typeof closeAddClassModal;
         openAddClassModal: typeof openAddClassModal;
         onModalCourseChange: typeof onModalCourseChange;
+        onModalSubjectChange: typeof onModalSubjectChange;
+        onModalGroupChange: typeof onModalGroupChange;
+        updateModalTeacherOptions: typeof updateModalTeacherOptions;
         openEventDetail: typeof openEventDetail;
         closeEventDetail: typeof closeEventDetail;
         refreshCalendarView: typeof refreshCalendarView;
@@ -456,6 +463,9 @@ Object.assign(window, {
     closeAddClassModal,
     openAddClassModal,
     onModalCourseChange,
+    onModalSubjectChange,
+    onModalGroupChange,
+    updateModalTeacherOptions,
     openEventDetail,
     closeEventDetail,
     refreshCalendarView,

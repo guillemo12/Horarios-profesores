@@ -1,12 +1,8 @@
 (() => {
-  var __defProp = Object.defineProperty;
-  var __defNormalProp = (obj, key, value) => key in obj ? __defProp(obj, key, { enumerable: true, configurable: true, writable: true, value }) : obj[key] = value;
-  var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "symbol" ? key + "" : key, value);
-
   // Web/src/api.ts
   var ApiService = class {
+    baseUrl;
     constructor() {
-      __publicField(this, "baseUrl");
       this.baseUrl = "/api/v1";
     }
     async _fetch(endpoint, method = "GET", payload = null) {
@@ -106,12 +102,12 @@
 
   // Web/src/websocket.ts
   var EngineWebSocket = class {
+    isConnected;
+    isOptimizing;
+    wsUrl;
+    callbacks;
+    socket;
     constructor() {
-      __publicField(this, "isConnected");
-      __publicField(this, "isOptimizing");
-      __publicField(this, "wsUrl");
-      __publicField(this, "callbacks");
-      __publicField(this, "socket");
       this.wsUrl = (window.location.protocol === "https:" ? "wss://" : "ws://") + window.location.host + "/ws";
       this.isConnected = false;
       this.isOptimizing = false;
@@ -289,6 +285,127 @@
     });
     AppData.calendarInstance.on("clickEvent", (e) => openEventDetail(e.event));
   }
+  function updateModalTeacherOptions(preferredTeacherId = null) {
+    const teacherSelect = document.getElementById("modal-teacher");
+    const subjSelect = document.getElementById("modal-subject");
+    const groupSelect = document.getElementById("modal-group");
+    const courseSelect = document.getElementById("modal-course");
+    const typeSelect = document.getElementById("view-type-select");
+    const viewEntitySelect = document.getElementById("view-entity-select");
+    if (!teacherSelect || !subjSelect || !groupSelect) return;
+    const currentTeacherVal = preferredTeacherId || teacherSelect.value;
+    const subjId = subjSelect.value;
+    const groupId = groupSelect.value;
+    const courseId = courseSelect?.value;
+    const viewType = typeSelect?.value;
+    const viewEntity = viewEntitySelect?.value;
+    if (viewType === "teacher" && viewEntity) {
+      teacherSelect.innerHTML = AppData.teachers.map((t) => {
+        return `<option value="${t.id}" ${t.id === viewEntity ? "selected" : ""}>${t.name}</option>`;
+      }).join("");
+      teacherSelect.value = viewEntity;
+      teacherSelect.disabled = true;
+      return;
+    }
+    let assignedTeacherId = "";
+    const course = AppData.courses.find((c) => c.id === courseId || c.groups.some((g) => g.id === groupId));
+    const group = course?.groups.find((g) => g.id === groupId);
+    if (group && group.assignments && group.assignments[subjId]) {
+      assignedTeacherId = group.assignments[subjId];
+    }
+    const qualifiedTeachers = AppData.teachers.filter((t) => t.subjects.includes(subjId));
+    let selectedTeacherId = "";
+    if (assignedTeacherId && AppData.teachers.some((t) => t.id === assignedTeacherId)) {
+      selectedTeacherId = assignedTeacherId;
+    } else if (currentTeacherVal && AppData.teachers.some((t) => t.id === currentTeacherVal) && qualifiedTeachers.some((t) => t.id === currentTeacherVal)) {
+      selectedTeacherId = currentTeacherVal;
+    } else if (qualifiedTeachers.length > 0) {
+      selectedTeacherId = qualifiedTeachers[0].id;
+    } else if (group?.tutor) {
+      const tutorTeacher = AppData.teachers.find((t) => t.name === group.tutor);
+      selectedTeacherId = tutorTeacher ? tutorTeacher.id : AppData.teachers[0]?.id || "";
+    } else {
+      selectedTeacherId = currentTeacherVal || (AppData.teachers[0]?.id || "");
+    }
+    const sortedTeachers = [...AppData.teachers].sort((a, b) => {
+      const aAssigned = a.id === assignedTeacherId ? 1 : 0;
+      const bAssigned = b.id === assignedTeacherId ? 1 : 0;
+      if (aAssigned !== bAssigned) return bAssigned - aAssigned;
+      const aQual = a.subjects.includes(subjId) ? 1 : 0;
+      const bQual = b.subjects.includes(subjId) ? 1 : 0;
+      if (aQual !== bQual) return bQual - aQual;
+      return a.name.localeCompare(b.name);
+    });
+    teacherSelect.innerHTML = sortedTeachers.map((t) => {
+      let tag = "";
+      if (t.id === assignedTeacherId) {
+        tag = " \u2B50 (Asignado en Reparto)";
+      } else if (t.subjects.includes(subjId)) {
+        tag = " \u2713 (Especialista)";
+      }
+      return `<option value="${t.id}" ${t.id === selectedTeacherId ? "selected" : ""}>${t.name}${tag}</option>`;
+    }).join("");
+    if (selectedTeacherId) {
+      teacherSelect.value = selectedTeacherId;
+    }
+  }
+  function onModalSubjectChange() {
+    const typeSelect = document.getElementById("view-type-select");
+    const viewType = typeSelect?.value;
+    const subjSelect = document.getElementById("modal-subject");
+    const courseSelect = document.getElementById("modal-course");
+    const groupSelect = document.getElementById("modal-group");
+    const teacherSelect = document.getElementById("modal-teacher");
+    if (!subjSelect) return;
+    const subjId = subjSelect.value;
+    if (viewType === "teacher") {
+      const teacherId = teacherSelect?.value;
+      let foundCourse;
+      let foundGroup;
+      for (const c of AppData.courses) {
+        for (const g of c.groups) {
+          if (g.assignments && g.assignments[subjId] === teacherId) {
+            foundCourse = c;
+            foundGroup = g;
+            break;
+          }
+        }
+        if (foundCourse) break;
+      }
+      if (foundCourse && foundGroup) {
+        if (courseSelect) {
+          courseSelect.value = foundCourse.id;
+          onModalCourseChange(foundGroup.id);
+        }
+      } else {
+        const subjectObj = AppData.subjects.find((s) => s.id === subjId);
+        const courseBySubj = AppData.courses.find((c) => c.id === subjectObj?.courseId || c.subjects.includes(subjId));
+        if (courseBySubj && courseSelect) {
+          courseSelect.value = courseBySubj.id;
+          onModalCourseChange();
+        }
+      }
+    } else {
+      updateModalTeacherOptions();
+    }
+  }
+  function onModalCourseChange(targetGroupId = null) {
+    const courseId = document.getElementById("modal-course").value;
+    const groupSelect = document.getElementById("modal-group");
+    const course = AppData.courses.find((c) => c.id === courseId);
+    if (course && course.groups.length > 0) {
+      groupSelect.innerHTML = course.groups.map((g) => `<option value="${g.id}">Grupo ${g.name}</option>`).join("");
+      if (targetGroupId && course.groups.some((g) => g.id === targetGroupId)) {
+        groupSelect.value = targetGroupId;
+      }
+    } else {
+      groupSelect.innerHTML = `<option value="">(Sin grupos)</option>`;
+    }
+    onModalGroupChange();
+  }
+  function onModalGroupChange() {
+    updateModalTeacherOptions();
+  }
   function openAddClassModal(startDate = null, endDate = null) {
     if (!startDate) {
       const now = /* @__PURE__ */ new Date();
@@ -313,33 +430,52 @@
     const courseSelect = document.getElementById("modal-course");
     const groupSelect = document.getElementById("modal-group");
     const teacherSelect = document.getElementById("modal-teacher");
-    subjSelect.innerHTML = AppData.subjects.map((s) => {
-      const course = AppData.courses.find((c) => c.subjects.includes(s.id));
-      const courseLabel = course ? ` (${course.name})` : "";
-      return `<option value="${s.id}">${s.name}${courseLabel}</option>`;
-    }).join("");
     courseSelect.innerHTML = AppData.courses.map((c) => `<option value="${c.id}">${c.name}</option>`).join("");
-    teacherSelect.innerHTML = AppData.teachers.map((t) => `<option value="${t.id}">${t.name}</option>`).join("");
     courseSelect.disabled = false;
     groupSelect.disabled = false;
     teacherSelect.disabled = false;
     if (viewType === "group" && viewCourse) {
       courseSelect.value = viewCourse;
       courseSelect.disabled = true;
-      onModalCourseChange();
+      onModalCourseChange(viewEntity || null);
       if (viewEntity) {
         groupSelect.value = viewEntity;
         groupSelect.disabled = true;
       }
+      const courseObj = AppData.courses.find((c) => c.id === viewCourse);
+      const courseSubjIds = courseObj ? courseObj.subjects : [];
+      const filteredSubjects = AppData.subjects.filter((s) => courseSubjIds.length === 0 || courseSubjIds.includes(s.id) || s.courseId === viewCourse);
+      const targetSubjects = filteredSubjects.length > 0 ? filteredSubjects : AppData.subjects;
+      subjSelect.innerHTML = targetSubjects.map((s) => {
+        const c = AppData.courses.find((x) => x.subjects.includes(s.id) || x.id === s.courseId);
+        const courseLabel = c ? ` (${c.name})` : "";
+        return `<option value="${s.id}">${s.name}${courseLabel}</option>`;
+      }).join("");
+      updateModalTeacherOptions();
     } else if (viewType === "teacher" && viewEntity) {
       teacherSelect.value = viewEntity;
       teacherSelect.disabled = true;
-      onModalCourseChange();
       const teacherObj = AppData.teachers.find((t) => t.id === viewEntity);
-      if (teacherObj && teacherObj.subjects && teacherObj.subjects.length > 0) {
-        subjSelect.value = teacherObj.subjects[0];
-      }
+      const teacherSubjIds = teacherObj ? teacherObj.subjects : [];
+      const teacherSubjects = AppData.subjects.filter((s) => teacherSubjIds.includes(s.id));
+      const otherSubjects = AppData.subjects.filter((s) => !teacherSubjIds.includes(s.id));
+      subjSelect.innerHTML = [
+        ...teacherSubjects.map((s) => {
+          const c = AppData.courses.find((x) => x.subjects.includes(s.id) || x.id === s.courseId);
+          return `<option value="${s.id}">\u2713 ${s.name}${c ? ` (${c.name})` : ""}</option>`;
+        }),
+        ...otherSubjects.map((s) => {
+          const c = AppData.courses.find((x) => x.subjects.includes(s.id) || x.id === s.courseId);
+          return `<option value="${s.id}">${s.name}${c ? ` (${c.name})` : ""}</option>`;
+        })
+      ].join("");
+      onModalSubjectChange();
     } else {
+      subjSelect.innerHTML = AppData.subjects.map((s) => {
+        const course = AppData.courses.find((c) => c.subjects.includes(s.id) || c.id === s.courseId);
+        const courseLabel = course ? ` (${course.name})` : "";
+        return `<option value="${s.id}">${s.name}${courseLabel}</option>`;
+      }).join("");
       onModalCourseChange();
     }
     const pinCheckbox = document.getElementById("modal-is-pinned");
@@ -352,16 +488,6 @@
           closeAddClassModal();
         }
       };
-    }
-  }
-  function onModalCourseChange() {
-    const courseId = document.getElementById("modal-course").value;
-    const groupSelect = document.getElementById("modal-group");
-    const course = AppData.courses.find((c) => c.id === courseId);
-    if (course && course.groups.length > 0) {
-      groupSelect.innerHTML = course.groups.map((g) => `<option value="${g.id}">Grupo ${g.name}</option>`).join("");
-    } else {
-      groupSelect.innerHTML = `<option value="">(Sin grupos)</option>`;
     }
   }
   function closeAddClassModal() {
@@ -380,8 +506,8 @@
     const subjId = document.getElementById("modal-subject").value;
     const groupId = document.getElementById("modal-group").value;
     const teacherId = document.getElementById("modal-teacher").value;
-    if (!groupId || !teacherId) {
-      showToast("Error", "Faltan datos por seleccionar (Grupo o Profesor)", "error");
+    if (!groupId || !teacherId || !subjId) {
+      showToast("Error", "Faltan datos por seleccionar (Asignatura, Grupo o Profesor)", "error");
       return;
     }
     if (overlapsRecess(baseStart, baseEnd)) {
@@ -412,6 +538,8 @@
     }
     closeAddClassModal();
     refreshCalendarView();
+    const assignedTeacher = AppData.teachers.find((t) => t.id === teacherId);
+    showToast("Clase Guardada", `Programada correctamente para el profesor ${assignedTeacher ? assignedTeacher.name : ""}`, "success");
   }
   var SUBJECT_PALETTE = [
     "#4f46e5",
@@ -2475,6 +2603,9 @@ Esta acci\xF3n reemplazar\xE1 la base de datos actual y actualizar\xE1 toda la i
     closeAddClassModal,
     openAddClassModal,
     onModalCourseChange,
+    onModalSubjectChange,
+    onModalGroupChange,
+    updateModalTeacherOptions,
     openEventDetail,
     closeEventDetail,
     refreshCalendarView,

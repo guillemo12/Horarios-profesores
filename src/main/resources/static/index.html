@@ -514,7 +514,7 @@
 
                 <div>
                     <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Asignatura</label>
-                    <select id="modal-subject" class="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none bg-white">
+                    <select id="modal-subject" onchange="onModalSubjectChange()" class="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none bg-white">
                         <!-- Llenado dinámico -->
                     </select>
                 </div>
@@ -527,7 +527,7 @@
                     </div>
                     <div>
                         <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Grupo</label>
-                        <select id="modal-group" class="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none bg-gray-50 disabled:opacity-75">
+                        <select id="modal-group" onchange="onModalGroupChange()" class="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none bg-gray-50 disabled:opacity-75">
                         </select>
                     </div>
                 </div>
