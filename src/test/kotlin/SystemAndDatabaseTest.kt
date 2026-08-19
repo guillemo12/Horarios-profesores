@@ -56,6 +56,9 @@ class SystemAndDatabaseTest {
     fun `test database export produces valid sqlite header`() {
         initDatabase()
         val dbPath = getDatabasePath()
+        transaction {
+            ProfesorEntity.count()
+        }
         val dbFile = File(dbPath)
         assertTrue(dbFile.exists(), "El archivo de base de datos debe existir")
         assertTrue(dbFile.length() > 0, "La base de datos no debe estar vacía")
