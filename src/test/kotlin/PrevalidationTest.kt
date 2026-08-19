@@ -157,4 +157,59 @@ class PrevalidationTest {
         assertEquals(5, report.checks.size, "Debe contener los 5 chequeos")
         assertTrue(report.checks.all { it.status == "ok" }, "Todos los 5 chequeos deben estar en estado 'ok'")
     }
+
+    @Test
+    fun `isTeacherQualified returns true when respetarEspecialidad is false`() {
+        val teacher = Profesor(nombre = "Juan", asignaturas = listOf("Física"), asignaturasPreferidas = emptyList(), minutosMaximos = 1000)
+        val config = Configuracion(respetarEspecialidad = false)
+
+        val result = Prevalidation.isTeacherQualified(teacher, "Historia", config)
+        assertTrue(result, "Debe retornar true si respetarEspecialidad es false, ignorando las asignaturas del docente")
+    }
+
+    @Test
+    fun `isTeacherQualified when respetarEspecialidad is true and exact match`() {
+        val teacher = Profesor(nombre = "María", asignaturas = listOf("Matemáticas", "Física"), asignaturasPreferidas = emptyList(), minutosMaximos = 1000)
+        val config = Configuracion(respetarEspecialidad = true)
+
+        assertTrue(Prevalidation.isTeacherQualified(teacher, "Matemáticas", config))
+        assertTrue(Prevalidation.isTeacherQualified(teacher, "Física", config))
+    }
+
+    @Test
+    fun `isTeacherQualified handles case insensitive matching and whitespace trimming`() {
+        val teacher = Profesor(nombre = "Carlos", asignaturas = listOf("  Biología  ", "Química"), asignaturasPreferidas = emptyList(), minutosMaximos = 1000)
+        val config = Configuracion(respetarEspecialidad = true)
+
+        assertTrue(Prevalidation.isTeacherQualified(teacher, "biología", config))
+        assertTrue(Prevalidation.isTeacherQualified(teacher, "  QUÍMICA  ", config))
+    }
+
+    @Test
+    fun `isTeacherQualified handles substring matching in both directions`() {
+        val teacher = Profesor(nombre = "Ana", asignaturas = listOf("Matemáticas", "Lengua Castellana y Literatura"), asignaturasPreferidas = emptyList(), minutosMaximos = 1000)
+        val config = Configuracion(respetarEspecialidad = true)
+
+        // Asignatura del profesor contenida en la asignatura buscada ("Matemáticas" dentro de "Matemáticas II")
+        assertTrue(Prevalidation.isTeacherQualified(teacher, "Matemáticas II", config))
+
+        // Asignatura buscada contenida en la asignatura del profesor ("Lengua" dentro de "Lengua Castellana y Literatura")
+        assertTrue(Prevalidation.isTeacherQualified(teacher, "Lengua", config))
+    }
+
+    @Test
+    fun `isTeacherQualified returns false when teacher has no matching subjects`() {
+        val teacher = Profesor(nombre = "Pedro", asignaturas = listOf("Historia", "Geografía"), asignaturasPreferidas = emptyList(), minutosMaximos = 1000)
+        val config = Configuracion(respetarEspecialidad = true)
+
+        assertFalse(Prevalidation.isTeacherQualified(teacher, "Matemáticas", config))
+    }
+
+    @Test
+    fun `isTeacherQualified returns false when teacher has empty subjects list`() {
+        val teacher = Profesor(nombre = "SinEspecialidad", asignaturas = emptyList(), asignaturasPreferidas = emptyList(), minutosMaximos = 1000)
+        val config = Configuracion(respetarEspecialidad = true)
+
+        assertFalse(Prevalidation.isTeacherQualified(teacher, "Matemáticas", config))
+    }
 }
