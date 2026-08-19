@@ -148,9 +148,14 @@ Download the latest version from the **[GitHub Releases](https://github.com/guil
    ```
 
 ### Running Tests
-```bash
-./gradlew test --info
-```
+* **Frontend Tests (Node.js ESM Test Runner - 138 unit tests)**:
+  ```bash
+  npm test
+  ```
+* **Backend Tests (JUnit 5 & Exposed Persistence)**:
+  ```bash
+  ./gradlew test
+  ```
 
 ---
 
