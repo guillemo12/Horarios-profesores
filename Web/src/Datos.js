@@ -388,6 +388,33 @@
     }
   }
 
+  // Web/src/calendar_validation.ts
+  function parseTimeParts(timeStr) {
+    if (!timeStr || typeof timeStr !== "string" || !timeStr.includes(":")) {
+      return { hours: 0, minutes: 0 };
+    }
+    const [hours, minutes] = timeStr.split(":").map(Number);
+    return {
+      hours: isNaN(hours) ? 0 : hours,
+      minutes: isNaN(minutes) ? 0 : minutes
+    };
+  }
+  function isValidTimeRange(startTimeStr, endTimeStr) {
+    const start = parseTimeParts(startTimeStr);
+    const end = parseTimeParts(endTimeStr);
+    const startTotal = start.hours * 60 + start.minutes;
+    const endTotal = end.hours * 60 + end.minutes;
+    return endTotal > startTotal;
+  }
+  function calculateSlotCount(startTimeStr, endTimeStr, slotDurationMinutes = 30) {
+    const start = parseTimeParts(startTimeStr);
+    const end = parseTimeParts(endTimeStr);
+    const diffMinutes = end.hours * 60 + end.minutes - (start.hours * 60 + start.minutes);
+    const step = slotDurationMinutes > 0 ? slotDurationMinutes : 30;
+    if (diffMinutes <= 0) return 0;
+    return Math.floor(diffMinutes / step);
+  }
+
   // Web/src/calendar_modal.ts
   function updateModalTeacherOptions(preferredTeacherId = null) {
     const teacherSelect = document.getElementById("modal-teacher");
@@ -614,16 +641,13 @@
       showToast("Error de Validaci\xF3n", "Por favor completa todos los campos requeridos.", "warning");
       return;
     }
-    const [sH, sM] = startStr.split(":").map(Number);
-    const [eH, eM] = endStr.split(":").map(Number);
-    const startTotalMins = sH * 60 + sM;
-    const endTotalMins = eH * 60 + eM;
-    if (endTotalMins <= startTotalMins) {
+    if (!isValidTimeRange(startStr, endStr)) {
       showToast("Error de Validaci\xF3n", "La hora de fin debe ser posterior a la de inicio.", "warning");
       return;
     }
-    const durationHours = (endTotalMins - startTotalMins) / 60;
-    const numSlots = Math.round(durationHours / 0.5);
+    const numSlots = calculateSlotCount(startStr, endStr, 30);
+    const { hours: sH, minutes: sM } = parseTimeParts(startStr);
+    const { hours: eH, minutes: eM } = parseTimeParts(endStr);
     const now = /* @__PURE__ */ new Date();
     const currentDay = now.getDay();
     const diff = now.getDate() - currentDay + (currentDay === 0 ? -6 : 1);

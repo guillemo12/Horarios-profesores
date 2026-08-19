@@ -3,6 +3,7 @@ import { Course, ScheduledClass } from './types';
 import { showToast, formatHours } from './utils';
 import { getSubjectColor } from './calendar_colors';
 import { overlapsRecess } from './calendar_events';
+import { isValidTimeRange, calculateSlotCount, parseTimeParts } from './calendar_validation';
 
 export function updateModalTeacherOptions(preferredTeacherId: string | null = null): void {
     const teacherSelect = document.getElementById('modal-teacher') as HTMLSelectElement;
@@ -275,19 +276,14 @@ export async function saveNewClass(onSavedCallback?: () => void): Promise<void> 
         return;
     }
 
-    const [sH, sM] = startStr.split(':').map(Number);
-    const [eH, eM] = endStr.split(':').map(Number);
-
-    const startTotalMins = sH * 60 + sM;
-    const endTotalMins = eH * 60 + eM;
-
-    if (endTotalMins <= startTotalMins) {
+    if (!isValidTimeRange(startStr, endStr)) {
         showToast("Error de Validación", "La hora de fin debe ser posterior a la de inicio.", "warning");
         return;
     }
 
-    const durationHours = (endTotalMins - startTotalMins) / 60;
-    const numSlots = Math.round(durationHours / 0.5);
+    const numSlots = calculateSlotCount(startStr, endStr, 30);
+    const { hours: sH, minutes: sM } = parseTimeParts(startStr);
+    const { hours: eH, minutes: eM } = parseTimeParts(endStr);
 
     const now = new Date();
     const currentDay = now.getDay();
