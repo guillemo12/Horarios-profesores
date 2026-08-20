@@ -2433,7 +2433,9 @@
     const currentCourseValue = courseSelect.value;
     const currentValue = entitySelect.value;
     if (type === "group") {
+      courseSelect.style.display = "";
       courseSelect.classList.remove("hidden");
+      courseSeparator.style.display = "";
       courseSeparator.classList.remove("hidden");
       courseSelect.innerHTML = AppData.courses.map((c) => `<option value="${c.id}">${c.name}</option>`).join("");
       if (currentCourseValue && Array.from(courseSelect.options).some((opt) => opt.value === currentCourseValue)) {
@@ -2441,11 +2443,19 @@
       }
       onHeaderCourseChange(currentValue);
     } else {
+      courseSelect.style.display = "none";
       courseSelect.classList.add("hidden");
+      courseSeparator.style.display = "none";
       courseSeparator.classList.add("hidden");
-      entitySelect.innerHTML = AppData.teachers.map((t) => `<option value="${t.id}">${t.name}</option>`).join("");
+      if (AppData.teachers.length === 0) {
+        entitySelect.innerHTML = `<option value="">Sin profesores</option>`;
+      } else {
+        entitySelect.innerHTML = AppData.teachers.map((t) => `<option value="${t.id}">${t.name}</option>`).join("");
+      }
       if (currentValue && Array.from(entitySelect.options).some((opt) => opt.value === currentValue)) {
         entitySelect.value = currentValue;
+      } else if (AppData.teachers.length > 0) {
+        entitySelect.value = AppData.teachers[0].id;
       }
       refreshCalendarView();
     }
