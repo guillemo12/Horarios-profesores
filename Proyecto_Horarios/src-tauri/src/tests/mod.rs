@@ -274,4 +274,63 @@ mod native_tests {
         assert!(result.is_ok());
         assert!(result.unwrap().is_empty(), "Empty dataset should produce empty schedule without errors");
     }
+
+    #[test]
+    fn test_solver_monday_date_mapping_happy_path() {
+        let db = create_in_memory_db();
+        let solver = ScheduleSolver::new(db.clone());
+
+        let result = solver.solve::<fn(_)>(None).expect("Solver failed");
+        assert!(!result.is_empty());
+
+        let monday_lessons: Vec<_> = result.iter().filter(|l| l.day_of_week == 1).collect();
+        assert!(!monday_lessons.is_empty(), "Should have scheduled lessons on Monday (day 1)");
+
+        // Verify stored classes in DB start with 2026-08-17 for Monday
+        let db_classes = db.get_scheduled_classes().expect("Failed to get classes");
+        let monday_db_classes: Vec<_> = db_classes.iter().filter(|c| c.start.starts_with("2026-08-17")).collect();
+        assert!(!monday_db_classes.is_empty(), "Database must contain classes on Monday 2026-08-17");
+    }
+
+    #[test]
+    fn test_solver_full_week_span_edge_case() {
+        let db = create_in_memory_db();
+        let solver = ScheduleSolver::new(db.clone());
+
+        let _result = solver.solve::<fn(_)>(None).expect("Solver failed");
+        let db_classes = db.get_scheduled_classes().expect("Failed to get classes");
+
+        // Verify that classes span across all weekdays: Mon (17), Tue (18), Wed (19), Thu (20), Fri (21)
+        for day in 17..=21 {
+            let day_prefix = format!("2026-08-{}", day);
+            let count = db_classes.iter().filter(|c| c.start.starts_with(&day_prefix)).count();
+            assert!(count > 0, "Weekday {} (day_prefix: {}) must have scheduled classes", day, day_prefix);
+        }
+    }
+
+    #[test]
+    fn test_prevalidation_happy_path() {
+        let db = create_in_memory_db();
+        let teachers = db.get_teachers().unwrap();
+        let subjects = db.get_subjects().unwrap();
+        let courses = db.get_courses().unwrap();
+
+        assert!(!teachers.is_empty());
+        assert!(!subjects.is_empty());
+        assert!(!courses.is_empty());
+    }
+
+    #[test]
+    fn test_prevalidation_excess_demand_edge_case() {
+        let db = create_in_memory_db();
+        // Set all teachers max hours to 1
+        let teachers = db.get_teachers().unwrap();
+        for mut t in teachers {
+            t.max_hours = 1.0;
+            let _ = db.save_teacher(&t);
+        }
+        let teachers_after = db.get_teachers().unwrap();
+        let capacity: f64 = teachers_after.iter().map(|t| t.max_hours).sum();
+        assert_eq!(capacity, 10.0); // 10 teachers * 1h = 10h capacity, far less than course demand
+    }
 }

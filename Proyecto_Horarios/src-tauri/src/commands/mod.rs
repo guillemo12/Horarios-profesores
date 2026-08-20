@@ -1,6 +1,6 @@
 use tauri::{AppHandle, Emitter, State};
 use crate::db::Database;
-use crate::models::{Config, Course, PrevalidationResult, ScheduledClass, SolvedLessonDto, Subject, Teacher};
+use crate::models::{Config, Course, PrevalidationCheck, PrevalidationResult, ScheduledClass, SolvedLessonDto, Subject, Teacher};
 use crate::solver::ScheduleSolver;
 
 #[tauri::command]
@@ -114,13 +114,15 @@ pub fn run_prevalidation(db: State<'_, Database>) -> Result<PrevalidationResult,
     let teachers = db.get_teachers().map_err(|e| e.to_string())?;
     let subjects = db.get_subjects().map_err(|e| e.to_string())?;
     let courses = db.get_courses().map_err(|e| e.to_string())?;
+    let config = db.get_config().map_err(|e| e.to_string())?;
 
+    let mut checks = Vec::new();
+    let mut is_viable = true;
+
+    // 1. Capacidad Horaria Total Docente vs Demanda
     let total_capacity: f64 = teachers.iter().map(|t| t.max_hours).sum();
     let mut total_demanded: f64 = 0.0;
-    let mut unassigned_hours: f64 = 0.0;
-    let mut critical_errors = Vec::new();
-    let mut warnings = Vec::new();
-    let mut recommendations = Vec::new();
+    let mut unassigned_details = Vec::new();
 
     for course in &courses {
         for group in &course.groups {
@@ -128,8 +130,7 @@ pub fn run_prevalidation(db: State<'_, Database>) -> Result<PrevalidationResult,
                 if let Some(subject) = subjects.iter().find(|s| &s.id == s_id) {
                     total_demanded += subject.hours;
                     if !group.assignments.contains_key(s_id) {
-                        unassigned_hours += subject.hours;
-                        warnings.push(format!("El grupo {} en {} tiene la asignatura '{}' sin profesor asignado.", group.name, course.name, subject.name));
+                        unassigned_details.push(format!("Grupo {} ({}): Asignatura '{}' ({:.1}h) sin docente explícito (asignada al tutor).", group.name, course.name, subject.name, subject.hours));
                     }
                 }
             }
@@ -137,29 +138,76 @@ pub fn run_prevalidation(db: State<'_, Database>) -> Result<PrevalidationResult,
     }
 
     if total_demanded > total_capacity {
-        critical_errors.push(format!(
-            "La demanda total de horas ({:.1}h) supera la capacidad máxima de la plantilla ({:.1}h).",
-            total_demanded, total_capacity
-        ));
+        is_viable = false;
+        checks.push(PrevalidationCheck {
+            name: "Balance Horario Global".to_string(),
+            status: "error".to_string(),
+            message: format!("La demanda lectiva total ({:.1}h) supera la capacidad máxima de la plantilla ({:.1}h).", total_demanded, total_capacity),
+            details: vec![format!("Déficit: {:.1} horas semanales", total_demanded - total_capacity)],
+        });
+    } else {
+        checks.push(PrevalidationCheck {
+            name: "Balance Horario Global".to_string(),
+            status: "ok".to_string(),
+            message: format!("Capacidad suficiente: plantilla ({:.1}h) cubre la demanda de los cursos ({:.1}h).", total_capacity, total_demanded),
+            details: vec![],
+        });
     }
 
-    if unassigned_hours > 0.0 {
-        recommendations.push(format!(
-            "Hay {:.1} horas lectivas sin reparto docente explícito que usarán al tutor por defecto.",
-            unassigned_hours
-        ));
+    // 2. Reparto Docente y Asignaciones
+    if unassigned_details.is_empty() {
+        checks.push(PrevalidationCheck {
+            name: "Reparto Docente Curricular".to_string(),
+            status: "ok".to_string(),
+            message: "Todas las asignaturas de todos los grupos tienen un docente titular asignado.".to_string(),
+            details: vec![],
+        });
+    } else {
+        checks.push(PrevalidationCheck {
+            name: "Reparto Docente Curricular".to_string(),
+            status: "warning".to_string(),
+            message: format!("Hay {} asignaturas sin profesor explícito que se asignarán al tutor por defecto.", unassigned_details.len()),
+            details: unassigned_details,
+        });
     }
 
-    let is_viable = critical_errors.is_empty();
+    // 3. Verificación de Franjas y Recreo
+    let parse_time = |t_str: &str| -> i32 {
+        let parts: Vec<&str> = t_str.split(':').collect();
+        if parts.len() >= 2 {
+            let h: i32 = parts[0].parse().unwrap_or(9);
+            let m: i32 = parts[1].parse().unwrap_or(0);
+            h * 60 + m
+        } else {
+            540
+        }
+    };
+
+    let start_min = parse_time(&config.hora_inicio_clases);
+    let end_min = parse_time(&config.hora_fin_clases);
+    let rec_start = parse_time(&config.hora_inicio_recreo);
+    let rec_end = rec_start + config.duracion_recreo;
+
+    if end_min <= start_min || rec_start < start_min || rec_end > end_min {
+        is_viable = false;
+        checks.push(PrevalidationCheck {
+            name: "Configuración Horaria y Recreo".to_string(),
+            status: "error".to_string(),
+            message: "Los horarios de inicio/fin de clases o recreo son inconsistentes.".to_string(),
+            details: vec![format!("Jornada: {} - {}, Recreo: {} ({}m)", config.hora_inicio_clases, config.hora_fin_clases, config.hora_inicio_recreo, config.duracion_recreo)],
+        });
+    } else {
+        checks.push(PrevalidationCheck {
+            name: "Configuración Horaria y Recreo".to_string(),
+            status: "ok".to_string(),
+            message: format!("Jornada de {} a {} con recreo a las {} ({} min) configurada correctamente.", config.hora_inicio_clases, config.hora_fin_clases, config.hora_inicio_recreo, config.duracion_recreo),
+            details: vec![],
+        });
+    }
 
     Ok(PrevalidationResult {
-        is_viable,
-        total_demanded_hours: total_demanded,
-        total_teacher_capacity_hours: total_capacity,
-        unassigned_subject_hours: unassigned_hours,
-        critical_errors,
-        warnings,
-        recommendations,
+        viable: is_viable,
+        checks,
     })
 }
 

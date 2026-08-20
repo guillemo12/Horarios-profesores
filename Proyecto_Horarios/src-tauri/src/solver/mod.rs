@@ -174,8 +174,8 @@ impl ScheduleSolver {
             let end_time = if end_parts.len() > 1 { &end_parts[1][..5] } else { "10:00" };
 
             let date_parts: Vec<&str> = start_parts[0].split('-').collect();
-            let day_num: i32 = date_parts.get(2).and_then(|d| d.parse().ok()).unwrap_or(18);
-            let day_of_week = ((day_num - 17).rem_euclid(7)).max(1).min(5);
+            let day_num: i32 = date_parts.get(2).and_then(|d| d.parse().ok()).unwrap_or(17);
+            let day_of_week = ((day_num - 16).rem_euclid(7)).max(1).min(5);
 
             solved_dtos.push(SolvedLessonDto {
                 id: cls.id,
@@ -506,8 +506,8 @@ impl ScheduleSolver {
 
                 result.push(ScheduledClass {
                     id,
-                    start: format!("2026-08-{:02}T{}:00", 17 + day_of_week, start_time),
-                    end: format!("2026-08-{:02}T{}:00", 17 + day_of_week, end_time),
+                    start: format!("2026-08-{:02}T{}:00", 16 + day_of_week, start_time),
+                    end: format!("2026-08-{:02}T{}:00", 16 + day_of_week, end_time),
                     duration: duration_hours,
                     subject_id: subject_id.clone(),
                     group_id: group_id.clone(),
@@ -528,7 +528,7 @@ impl ScheduleSolver {
         if date_parts.len() < 3 || time_parts.len() < 2 { return None; }
 
         let day_num: i32 = date_parts[2].parse().ok()?;
-        let day_of_week = ((day_num - 17).rem_euclid(7)).max(1).min(5);
+        let day_of_week = ((day_num - 16).rem_euclid(7)).max(1).min(5);
 
         let hour: i32 = time_parts[0].parse().ok()?;
         let min: i32 = time_parts[1].parse().ok()?;

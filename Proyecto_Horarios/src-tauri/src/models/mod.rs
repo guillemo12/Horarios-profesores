@@ -148,14 +148,18 @@ impl Default for Config {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
+pub struct PrevalidationCheck {
+    pub name: String,
+    pub status: String,
+    pub message: String,
+    pub details: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
 pub struct PrevalidationResult {
-    pub is_viable: bool,
-    pub total_demanded_hours: f64,
-    pub total_teacher_capacity_hours: f64,
-    pub unassigned_subject_hours: f64,
-    pub critical_errors: Vec<String>,
-    pub warnings: Vec<String>,
-    pub recommendations: Vec<String>,
+    pub viable: bool,
+    pub checks: Vec<PrevalidationCheck>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
