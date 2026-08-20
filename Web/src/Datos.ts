@@ -30,6 +30,9 @@ export const AppData: AppDataState = {
 
 // ── Interceptor global de errores → reenvía al servidor para verlos en la terminal ──
 function sendErrorToServer(level: string, message: string, source: string = '', line: number = 0, stack: string = '') {
+    if (AppData.API.isTauri()) {
+        return;
+    }
     fetch('/api/v1/log', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -57,6 +60,9 @@ console.error = (...args: any[]) => {
 };
 
 async function waitForBackend(maxRetries: number = 15, delayMs: number = 1000): Promise<boolean> {
+    if (AppData.API.isTauri()) {
+        return true;
+    }
     const loaderText = document.getElementById('loader-text');
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
         try {
