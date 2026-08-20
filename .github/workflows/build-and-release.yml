@@ -145,11 +145,15 @@ jobs:
           mkdir -p Proyecto_Horarios/src-tauri/backend_ktor
           cp build/libs/horarios-profesores-all.jar Proyecto_Horarios/src-tauri/backend_ktor/horarios-profesores-all.jar
           jlink --add-modules java.se,jdk.unsupported,jdk.crypto.ec,jdk.zipfs,jdk.charsets,jdk.localedata,jdk.management --output Proyecto_Horarios/src-tauri/backend_ktor/runtime --strip-debug --no-man-pages --no-header-files
+          if [ -f "Proyecto_Horarios/src-tauri/backend_ktor/runtime/lib/server/libjvm.so" ]; then
+            ln -sf server/libjvm.so Proyecto_Horarios/src-tauri/backend_ktor/runtime/lib/libjvm.so
+          fi
           chmod -R 755 Proyecto_Horarios/src-tauri/backend_ktor
 
       - name: Build Tauri Desktop App (Linux)
         if: matrix.platform == 'linux'
         working-directory: Proyecto_Horarios
+        shell: bash
         env:
           ARCH: x86_64
           NO_STRIP: "true"
@@ -157,7 +161,10 @@ jobs:
           APPIMAGE_EXTRACT_AND_RUN: "1"
           CARGO_INCREMENTAL: "0"
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: deno run -A npm:@tauri-apps/cli build --ci --bundles deb,appimage --verbose
+        run: |
+          RUNTIME_LIB="$PWD/src-tauri/backend_ktor/runtime/lib"
+          export LD_LIBRARY_PATH="$RUNTIME_LIB:$RUNTIME_LIB/server:${LD_LIBRARY_PATH:-}"
+          deno run -A npm:@tauri-apps/cli build --ci --bundles deb,appimage --verbose
 
       - name: Build Tauri Desktop App (Windows)
         if: matrix.platform == 'windows'
