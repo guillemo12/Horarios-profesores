@@ -5,6 +5,19 @@
     constructor() {
       this.baseUrl = "/api/v1";
     }
+    isTauri() {
+      return typeof window !== "undefined" && (!!window.__TAURI_INTERNALS__ || !!window.__TAURI__);
+    }
+    async invokeNative(cmd, args = {}) {
+      const w = window;
+      if (w.__TAURI__?.core?.invoke) {
+        return await w.__TAURI__.core.invoke(cmd, args);
+      }
+      if (w.__TAURI_INTERNALS__?.invoke) {
+        return await w.__TAURI_INTERNALS__.invoke(cmd, args);
+      }
+      throw new Error("Tauri IPC invoke not found in window");
+    }
     async _fetch(endpoint, method = "GET", payload = null) {
       const url = `${this.baseUrl}/${endpoint}`;
       const options = {
@@ -26,58 +39,159 @@
       return await response.json();
     }
     async getConfig() {
+      if (this.isTauri()) {
+        return await this.invokeNative("get_config");
+      }
       return this._fetch("config");
     }
     async saveConfig(c) {
+      if (this.isTauri()) {
+        await this.invokeNative("save_config", { config: c });
+        return c;
+      }
       return this._fetch("config", "PUT", c);
     }
     async getSubjects() {
+      if (this.isTauri()) {
+        return await this.invokeNative("get_subjects");
+      }
       return this._fetch("subjects");
     }
     async saveSubject(s) {
+      if (this.isTauri()) {
+        const subjectPayload = {
+          id: s.id || "",
+          name: s.name || "",
+          hours: s.hours || 0,
+          courseId: s.courseId || "1",
+          teachers: s.teachers || []
+        };
+        const id = await this.invokeNative("save_subject", { subject: subjectPayload });
+        subjectPayload.id = id;
+        return subjectPayload;
+      }
       return s.id ? this._fetch("subjects", "PUT", s) : this._fetch("subjects", "POST", s);
     }
     async deleteSubject(id) {
+      if (this.isTauri()) {
+        const ok = await this.invokeNative("delete_subject", { id });
+        return { success: ok };
+      }
       return this._fetch(`subjects/${id}`, "DELETE");
     }
     async getTeachers() {
+      if (this.isTauri()) {
+        return await this.invokeNative("get_teachers");
+      }
       return this._fetch("teachers");
     }
     async saveTeacher(t) {
+      if (this.isTauri()) {
+        const teacherPayload = {
+          id: t.id || "",
+          name: t.name || "",
+          maxHours: t.maxHours || 25,
+          color: t.color || "#4f46e5",
+          subjects: t.subjects || [],
+          availability: t.availability || []
+        };
+        const id = await this.invokeNative("save_teacher", { teacher: teacherPayload });
+        teacherPayload.id = id;
+        return teacherPayload;
+      }
       return t.id ? this._fetch("teachers", "PUT", t) : this._fetch("teachers", "POST", t);
     }
     async deleteTeacher(id) {
+      if (this.isTauri()) {
+        const ok = await this.invokeNative("delete_teacher", { id });
+        return { success: ok };
+      }
       return this._fetch(`teachers/${id}`, "DELETE");
     }
     async getCourses() {
+      if (this.isTauri()) {
+        return await this.invokeNative("get_courses");
+      }
       return this._fetch("courses");
     }
     async saveCourse(c) {
+      if (this.isTauri()) {
+        const coursePayload = {
+          id: c.id || "",
+          name: c.name || "",
+          subjects: c.subjects || [],
+          groups: c.groups || []
+        };
+        const id = await this.invokeNative("save_course", { course: coursePayload });
+        coursePayload.id = id;
+        return coursePayload;
+      }
       return c.id ? this._fetch("courses", "PUT", c) : this._fetch("courses", "POST", c);
     }
     async deleteCourse(id) {
+      if (this.isTauri()) {
+        const ok = await this.invokeNative("delete_course", { id });
+        return { success: ok };
+      }
       return this._fetch(`courses/${id}`, "DELETE");
     }
     async updateCourseGroup(courseId, newGroupsArray) {
+      if (this.isTauri()) {
+        const courses = await this.getCourses();
+        const course = courses.find((c) => c.id === courseId);
+        if (course) {
+          course.groups = newGroupsArray;
+          await this.saveCourse(course);
+          return course;
+        }
+      }
       return this._fetch(`courses/${courseId}/groups`, "PUT", newGroupsArray);
     }
     async getSchedule() {
+      if (this.isTauri()) {
+        return await this.invokeNative("get_schedule");
+      }
       return this._fetch("scheduledClasses");
     }
     async saveClass(cls) {
+      if (this.isTauri()) {
+        await this.invokeNative("save_class", { classItem: cls });
+        return cls;
+      }
       return this._fetch("scheduledClasses", "POST", cls);
     }
     async updateClass(cls) {
+      if (this.isTauri()) {
+        await this.invokeNative("save_class", { classItem: cls });
+        return cls;
+      }
       return this._fetch("scheduledClasses", "PUT", cls);
     }
     async deleteClass(id) {
+      if (this.isTauri()) {
+        const ok = await this.invokeNative("delete_class", { id });
+        return { success: ok };
+      }
       return this._fetch(`scheduledClasses/${id}`, "DELETE");
     }
     async deleteGroupSchedule(groupId) {
+      if (this.isTauri()) {
+        await this.invokeNative("clear_group_schedule", { groupId });
+        return { success: true };
+      }
       return this._fetch(`scheduledClasses/group/${groupId}`, "DELETE");
     }
     async getPrevalidation() {
+      if (this.isTauri()) {
+        return await this.invokeNative("run_prevalidation");
+      }
       return this._fetch("prevalidation");
+    }
+    async startSolver() {
+      if (this.isTauri()) {
+        return await this.invokeNative("start_solver");
+      }
+      throw new Error("Solver can only be invoked in native desktop mode");
     }
   };
 
@@ -2737,4 +2851,3 @@ Esta acci\xF3n reemplazar\xE1 la base de datos actual y actualizar\xE1 toda la i
     handleImportDatabaseFile
   });
 })();
-//# sourceMappingURL=Datos.js.map

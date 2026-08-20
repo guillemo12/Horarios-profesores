@@ -4,7 +4,6 @@
   "version": "0.0.10",
   "identifier": "com.guill.eduschedule",
   "build": {
-    "devUrl": "http://localhost:8080",
     "frontendDist": "../../src/main/resources/static"
   },
   "app": {
@@ -14,7 +13,7 @@
         "title": "EduSchedule",
         "width": 1200,
         "height": 800,
-        "url": "http://localhost:8080",
+        "url": "index.html",
         "visible": true,
         "center": true,
         "resizable": true
@@ -37,9 +36,7 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
-    "resources": [
-      "backend_ktor/**/*"
-    ],
+    "resources": [],
     "windows": {
       "wix": {
         "language": "es-ES"

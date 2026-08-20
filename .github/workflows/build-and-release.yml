@@ -1,4 +1,4 @@
-name: Build and Release EduSchedule
+name: Build and Release EduSchedule (100% Native Rust)
 
 on:
   push:
@@ -18,8 +18,6 @@ jobs:
   build:
     name: Build on ${{ matrix.platform }}
     runs-on: ${{ matrix.os }}
-    env:
-      GRADLE_OPTS: "-Dorg.gradle.internal.http.connectionTimeout=120000 -Dorg.gradle.internal.http.socketTimeout=120000"
     strategy:
       fail-fast: false
       matrix:
@@ -32,15 +30,6 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-
-      - name: Setup Java 21
-        uses: actions/setup-java@v4
-        with:
-          distribution: 'temurin'
-          java-version: '21'
-
-      - name: Setup Gradle Cache
-        uses: gradle/actions/setup-gradle@v4
 
       - name: Setup Deno
         uses: denoland/setup-deno@v2
@@ -113,42 +102,11 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev patchelf libssl-dev binutils fakeroot squashfs-tools desktop-file-utils libxdo-dev build-essential libfuse2 curl wget file
 
-      - name: Make gradlew executable (Linux only)
-        if: matrix.platform == 'linux'
-        run: chmod +x ./gradlew
-
       - name: Bundle Frontend TypeScript with Deno
+        shell: bash
         run: |
           deno run -A npm:esbuild Web/src/Datos.ts --bundle --outfile=src/main/resources/static/Datos.js --minify --sourcemap --target=es2020
           cp Web/src/eduschedule.html src/main/resources/static/index.html || copy Web\src\eduschedule.html src\main\resources\static\index.html
-        shell: bash
-
-      - name: Build Fat JAR with Gradle
-        run: ./gradlew shadowJar --no-daemon --build-cache --parallel
-
-      - name: Create Embedded JVM Runtime with jlink (Windows)
-        if: matrix.platform == 'windows'
-        shell: pwsh
-        run: |
-          if (Test-Path "Proyecto_Horarios\src-tauri\backend_ktor") {
-            Remove-Item "Proyecto_Horarios\src-tauri\backend_ktor" -Recurse -Force
-          }
-          New-Item -ItemType Directory -Path "Proyecto_Horarios\src-tauri\backend_ktor" -Force
-          Copy-Item "build\libs\horarios-profesores-all.jar" -Destination "Proyecto_Horarios\src-tauri\backend_ktor\horarios-profesores-all.jar" -Force
-          jlink --add-modules java.se,jdk.unsupported,jdk.crypto.ec,jdk.crypto.mscapi,jdk.zipfs,jdk.charsets,jdk.localedata,jdk.management --output "Proyecto_Horarios\src-tauri\backend_ktor\runtime" --strip-debug --no-man-pages --no-header-files
-
-      - name: Create Embedded JVM Runtime with jlink (Linux)
-        if: matrix.platform == 'linux'
-        shell: bash
-        run: |
-          rm -rf Proyecto_Horarios/src-tauri/backend_ktor
-          mkdir -p Proyecto_Horarios/src-tauri/backend_ktor
-          cp build/libs/horarios-profesores-all.jar Proyecto_Horarios/src-tauri/backend_ktor/horarios-profesores-all.jar
-          jlink --add-modules java.se,jdk.unsupported,jdk.crypto.ec,jdk.zipfs,jdk.charsets,jdk.localedata,jdk.management --output Proyecto_Horarios/src-tauri/backend_ktor/runtime --strip-debug --no-man-pages --no-header-files
-          if [ -f "Proyecto_Horarios/src-tauri/backend_ktor/runtime/lib/server/libjvm.so" ]; then
-            ln -sf server/libjvm.so Proyecto_Horarios/src-tauri/backend_ktor/runtime/lib/libjvm.so
-          fi
-          chmod -R 755 Proyecto_Horarios/src-tauri/backend_ktor
 
       - name: Build Tauri Desktop App (Linux)
         if: matrix.platform == 'linux'
@@ -161,10 +119,7 @@ jobs:
           APPIMAGE_EXTRACT_AND_RUN: "1"
           CARGO_INCREMENTAL: "0"
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          RUNTIME_LIB="$PWD/src-tauri/backend_ktor/runtime/lib"
-          export LD_LIBRARY_PATH="$RUNTIME_LIB:$RUNTIME_LIB/server:${LD_LIBRARY_PATH:-}"
-          deno run -A npm:@tauri-apps/cli build --ci --bundles deb,appimage --verbose
+        run: deno run -A npm:@tauri-apps/cli build --ci --bundles deb,appimage --verbose
 
       - name: Build Tauri Desktop App (Windows)
         if: matrix.platform == 'windows'
@@ -172,28 +127,15 @@ jobs:
         env:
           CARGO_INCREMENTAL: "0"
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: deno run -A npm:@tauri-apps/cli build --ci --bundles msi,nsis --ignore-version-mismatches
-
-      - name: Build Portable Single EXE (Windows only)
-        if: matrix.platform == 'windows'
-        shell: pwsh
-        run: |
-          New-Item -ItemType Directory -Path "dist\EduSchedule" -Force
-          $builtExe = Get-ChildItem -Path "Proyecto_Horarios\src-tauri\target\release" -Filter "*.exe" | Where-Object { $_.Name -ne "backend_ktor.exe" } | Select-Object -First 1
-          Copy-Item $builtExe.FullName -Destination "dist\EduSchedule\EduSchedule.exe" -Force
-          Copy-Item "Proyecto_Horarios\src-tauri\target\release\backend_ktor" -Destination "dist\EduSchedule\backend_ktor" -Recurse -Force
-          if (Test-Path "Proyecto_Horarios\src-tauri\target\release\resources") {
-            Copy-Item "Proyecto_Horarios\src-tauri\target\release\resources" -Destination "dist\EduSchedule\resources" -Recurse -Force
-          }
-          powershell -ExecutionPolicy Bypass -File .\build_single_exe.ps1
+        run: deno run -A npm:@tauri-apps/cli build --ci --bundles msi,nsis
 
       - name: Stage Windows Release Files
         if: matrix.platform == 'windows'
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Path "dist\windows_release" -Force
-          if (Test-Path "EduSchedule_Unico.exe") {
-            Copy-Item "EduSchedule_Unico.exe" -Destination "dist\windows_release\" -Force
+          if (Test-Path "Proyecto_Horarios\src-tauri\target\release\eduschedule.exe") {
+            Copy-Item "Proyecto_Horarios\src-tauri\target\release\eduschedule.exe" -Destination "dist\windows_release\EduSchedule_Portable.exe" -Force
           }
           Get-ChildItem -Path "Proyecto_Horarios\src-tauri\target\release\bundle\nsis" -Filter "*.exe" -ErrorAction SilentlyContinue | ForEach-Object {
             Copy-Item $_.FullName -Destination "dist\windows_release\" -Force
