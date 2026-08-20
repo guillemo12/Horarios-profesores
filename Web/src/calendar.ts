@@ -159,7 +159,6 @@ export function initCalendar(): void {
             cls.duration = slotDurationHours;
 
             await AppData.API.updateClass(cls);
-            AppData.WS.sendCommand('MANUAL_EDIT', { id: cls.id, action: 'moved' });
 
             currentSlotStart = slotEnd;
         }
@@ -294,7 +293,6 @@ export async function clearGroupSchedule(): Promise<void> {
         refreshCalendarView();
 
         showToast("Éxito", "El horario del grupo se ha vaciado.", "success");
-        AppData.WS.sendCommand('MANUAL_EDIT', { action: 'cleared', groupId });
     } catch (err) {
         console.error("Error clearing schedule:", err);
         showToast("Error", "No se pudo limpiar el horario.", "error");

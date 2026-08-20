@@ -321,7 +321,6 @@ export async function saveNewClass(onSavedCallback?: () => void): Promise<void> 
 
         await AppData.API.saveClass(nuevaClase);
         AppData.scheduledClasses.push(nuevaClase);
-        AppData.WS.sendCommand('MANUAL_EDIT', { id: nuevaClase.id });
     }
 
     closeAddClassModal();
@@ -391,7 +390,6 @@ export function openEventDetail(event: any, onActionCallback?: () => void): void
                 } catch (err) {
                     console.error("Error al actualizar estado del pin:", err);
                 }
-                AppData.WS.sendCommand('PIN_UPDATE', { id: cls.id, state: cls.isPinned });
             }
             closeEventDetail();
             if (typeof onActionCallback === 'function') onActionCallback();
@@ -404,7 +402,6 @@ export function openEventDetail(event: any, onActionCallback?: () => void): void
             for (const cls of constituentClasses) {
                 await AppData.API.deleteClass(cls.id);
                 AppData.scheduledClasses = AppData.scheduledClasses.filter(c => c.id !== cls.id);
-                AppData.WS.sendCommand('MANUAL_EDIT', { delete: cls.id });
             }
             closeEventDetail();
             if (typeof onActionCallback === 'function') onActionCallback();

@@ -1,5 +1,4 @@
 import type { ApiService } from './api';
-import type { EngineWebSocket } from './websocket';
 
 export interface Subject {
     id: string;
@@ -115,7 +114,6 @@ export interface TuiCalendarInstance {
 
 export interface AppDataState {
     API: ApiService;
-    WS: EngineWebSocket;
     subjects: Subject[];
     teachers: Teacher[];
     courses: Course[];

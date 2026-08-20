@@ -10,6 +10,16 @@ use db::Database;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    std::panic::set_hook(Box::new(|info| {
+        let msg = format!("PANIC: {:?}", info);
+        if let Ok(current_exe) = std::env::current_exe() {
+            if let Some(exe_dir) = current_exe.parent() {
+                let _ = std::fs::write(exe_dir.join("crash.log"), &msg);
+            }
+        }
+        let _ = std::fs::write("eduschedule_crash.log", &msg);
+    }));
+
     #[cfg(target_os = "windows")]
     {
         std::env::set_var(

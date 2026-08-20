@@ -214,136 +214,6 @@
     return Number(h.toFixed(2)).toString();
   }
 
-  // Web/src/websocket.ts
-  var EngineWebSocket = class {
-    isConnected;
-    isOptimizing;
-    wsUrl;
-    callbacks;
-    socket;
-    constructor() {
-      this.wsUrl = typeof window !== "undefined" ? (window.location.protocol === "https:" ? "wss://" : "ws://") + window.location.host + "/ws" : "ws://localhost:8080/ws";
-      this.isConnected = false;
-      this.isOptimizing = false;
-      this.callbacks = {};
-      this.socket = null;
-    }
-    isTauri() {
-      return typeof window !== "undefined" && (!!window.__TAURI_INTERNALS__ || !!window.__TAURI__);
-    }
-    connect() {
-      if (this.isTauri()) {
-        this.isConnected = true;
-        setTimeout(() => {
-          this._trigger("connected");
-          this._trigger("scores_updated", {
-            hard: 0,
-            soft: 1e3,
-            bound: 1e3,
-            rawObjective: 1e3,
-            porcentaje: 100,
-            conflictos: []
-          });
-        }, 100);
-        return;
-      }
-      try {
-        this.socket = new WebSocket(this.wsUrl);
-        this.socket.onopen = () => {
-          this.isConnected = true;
-          this._trigger("connected");
-        };
-        this.socket.onclose = () => {
-          this.isConnected = false;
-          this._trigger("disconnected");
-          setTimeout(() => this.connect(), 5e3);
-        };
-        this.socket.onerror = (err) => {
-          console.error("WebSocket error:", err);
-        };
-        this.socket.onmessage = (event) => {
-          try {
-            const msg = JSON.parse(event.data);
-            if (msg.type === "scores_updated") {
-              this._trigger("scores_updated", msg);
-            } else if (msg.type === "schedule_pushed") {
-              this._trigger("schedule_pushed", msg.schedule);
-            } else if (msg.type === "optimization_complete") {
-              this._trigger("optimization_complete");
-            } else if (msg.type === "optimization_stopped") {
-              this.isOptimizing = false;
-            }
-          } catch (err) {
-            console.error("Error parsing WS message:", err);
-          }
-        };
-      } catch (e) {
-        console.warn("WebSocket fallback connection error:", e);
-      }
-    }
-    on(event, callback) {
-      this.callbacks[event] = callback;
-    }
-    _trigger(event, data) {
-      if (this.callbacks[event]) this.callbacks[event](data);
-    }
-    async sendCommand(command, payload = {}) {
-      if (this.isTauri()) {
-        if (command === "START") {
-          this.isOptimizing = true;
-          showToast("Generando Horarios", "El motor nativo CSP est\xE1 calculando la distribuci\xF3n \xF3ptima...", "info");
-          try {
-            const appData = window.AppData;
-            if (appData && appData.API) {
-              const solvedLessons = await appData.API.startSolver();
-              const updatedSchedule = await appData.API.getSchedule();
-              appData.scheduledClasses = updatedSchedule;
-              this.isOptimizing = false;
-              this._trigger("scores_updated", {
-                hard: 0,
-                soft: 1e3,
-                bound: 1e3,
-                rawObjective: 1e3,
-                porcentaje: 100,
-                conflictos: []
-              });
-              this._trigger("schedule_updated", updatedSchedule);
-              this._trigger("optimization_finished", updatedSchedule);
-            }
-          } catch (err) {
-            this.isOptimizing = false;
-            console.error("Error executing native solver:", err);
-            showToast("Error en Solver", err?.message || String(err), "error");
-          }
-          return;
-        } else if (command === "STOP") {
-          this.isOptimizing = false;
-          this._trigger("optimization_stopped");
-          showToast("Motor Pausado", "Optimizaci\xF3n finalizada.", "warning");
-          return;
-        }
-      }
-      try {
-        if (!this.isConnected || !this.socket) {
-          showToast("Error", "WebSocket Desconectado", "error");
-          return;
-        }
-        this.socket.send(JSON.stringify({ command, payload }));
-        if (command === "START") {
-          this.isOptimizing = true;
-          showToast("Motor Iniciado", "Servidor analizando el \xE1rbol de posibilidades (WS)...", "info");
-        } else if (command === "STOP") {
-          this.isOptimizing = false;
-          showToast("Motor Pausado", "Optimizaci\xF3n detenida.", "warning");
-        }
-      } catch (err) {
-        console.error("Error sending WS command:", err);
-        showToast("Error de Comunicaci\xF3n", "No se pudo enviar el comando al servidor", "error");
-        throw err;
-      }
-    }
-  };
-
   // Web/src/calendar_colors.ts
   var SUBJECT_PALETTE = [
     "#4f46e5",
@@ -848,7 +718,6 @@
       };
       await AppData.API.saveClass(nuevaClase);
       AppData.scheduledClasses.push(nuevaClase);
-      AppData.WS.sendCommand("MANUAL_EDIT", { id: nuevaClase.id });
     }
     closeAddClassModal();
     if (typeof onSavedCallback === "function") {
@@ -904,7 +773,6 @@
           } catch (err) {
             console.error("Error al actualizar estado del pin:", err);
           }
-          AppData.WS.sendCommand("PIN_UPDATE", { id: cls.id, state: cls.isPinned });
         }
         closeEventDetail();
         if (typeof onActionCallback === "function") onActionCallback();
@@ -916,7 +784,6 @@
         for (const cls of constituentClasses) {
           await AppData.API.deleteClass(cls.id);
           AppData.scheduledClasses = AppData.scheduledClasses.filter((c) => c.id !== cls.id);
-          AppData.WS.sendCommand("MANUAL_EDIT", { delete: cls.id });
         }
         closeEventDetail();
         if (typeof onActionCallback === "function") onActionCallback();
@@ -1055,7 +922,6 @@
         cls.end = slotEnd.toISOString();
         cls.duration = slotDurationHours;
         await AppData.API.updateClass(cls);
-        AppData.WS.sendCommand("MANUAL_EDIT", { id: cls.id, action: "moved" });
         currentSlotStart = slotEnd;
       }
       refreshCalendarView();
@@ -1161,7 +1027,6 @@
       AppData.scheduledClasses = AppData.scheduledClasses.filter((c) => c.groupId !== groupId);
       refreshCalendarView();
       showToast("\xC9xito", "El horario del grupo se ha vaciado.", "success");
-      AppData.WS.sendCommand("MANUAL_EDIT", { action: "cleared", groupId });
     } catch (err) {
       console.error("Error clearing schedule:", err);
       showToast("Error", "No se pudo limpiar el horario.", "error");
@@ -2666,7 +2531,6 @@ Esta acci\xF3n reemplazar\xE1 la base de datos actual y actualizar\xE1 toda la i
   // Web/src/Datos.ts
   var AppData = {
     API: new ApiService(),
-    WS: new EngineWebSocket(),
     subjects: [],
     teachers: [],
     courses: [],
@@ -2675,51 +2539,6 @@ Esta acci\xF3n reemplazar\xE1 la base de datos actual y actualizar\xE1 toda la i
     currentEventContext: null,
     currentCourseId: null
   };
-  function sendErrorToServer(level, message, source = "", line = 0, stack = "") {
-    if (AppData.API.isTauri()) {
-      return;
-    }
-    fetch("/api/v1/log", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ level, message, source, line, stack: stack ?? "" })
-    }).catch(() => {
-    });
-  }
-  window.onerror = (msg, src, lineno, _col, err) => {
-    sendErrorToServer("error", String(msg), src ?? "", lineno ?? 0, err?.stack ?? "");
-    return false;
-  };
-  window.addEventListener("unhandledrejection", (e) => {
-    const err = e.reason;
-    const msg = err instanceof Error ? err.message : String(err);
-    sendErrorToServer("error", `Unhandled Promise Rejection: ${msg}`, "", 0, err?.stack ?? "");
-  });
-  var _originalConsoleError = console.error.bind(console);
-  console.error = (...args) => {
-    _originalConsoleError(...args);
-    const message = args.map((a) => a instanceof Error ? a.message : String(a)).join(" ");
-    const stack = args.find((a) => a instanceof Error)?.stack ?? "";
-    sendErrorToServer("error", message, "console.error", 0, stack);
-  };
-  async function waitForBackend(maxRetries = 15, delayMs = 1e3) {
-    if (AppData.API.isTauri()) {
-      return true;
-    }
-    const loaderText = document.getElementById("loader-text");
-    for (let attempt = 1; attempt <= maxRetries; attempt++) {
-      try {
-        if (loaderText && attempt > 1) {
-          loaderText.textContent = `Iniciando motor y servidor local... (${attempt}/${maxRetries})`;
-        }
-        const res = await fetch("/api/v1/config", { cache: "no-store" });
-        if (res.ok) return true;
-      } catch (_) {
-      }
-      await new Promise((r) => setTimeout(r, delayMs));
-    }
-    return false;
-  }
   async function loadAllData() {
     const [subjects, teachers, courses, scheduledClasses, config] = await Promise.all([
       AppData.API.getSubjects(),
@@ -2736,21 +2555,16 @@ Esta acci\xF3n reemplazar\xE1 la base de datos actual y actualizar\xE1 toda la i
   }
   window.onload = async function() {
     try {
-      const isReady = await waitForBackend();
-      if (!isReady) {
-        throw new Error("No se pudo conectar con el servidor Ktor tras varios intentos.");
-      }
       await loadAllData();
       const loader = document.getElementById("app-loader");
       if (loader) {
         loader.style.opacity = "0";
-        setTimeout(() => loader.remove(), 300);
+        setTimeout(() => loader.remove(), 200);
       }
       initCalendar();
       updateEntitySelector2();
       updateDateRange();
-      AppData.WS.connect();
-      setupWebSocketsListeners();
+      updateScoreDashboard(0, 1e3, 100, []);
       setTimeout(() => {
         checkForUpdates(true);
       }, 2e3);
@@ -2758,115 +2572,72 @@ Esta acci\xF3n reemplazar\xE1 la base de datos actual y actualizar\xE1 toda la i
       console.error("Init Error:", err);
       const loaderText = document.getElementById("loader-text");
       if (loaderText) {
-        loaderText.textContent = "Error conectando con la API local. Aseg\xFArese de que el servidor Ktor est\xE9 encendido.";
+        loaderText.textContent = "Error al inicializar la base de datos local de EduSchedule.";
         loaderText.className = "mt-4 text-red-600 font-bold px-4 text-center";
       }
     }
   };
-  function setupWebSocketsListeners() {
-    const btn = document.getElementById("btn-toggle-engine");
-    const wsStatus = document.getElementById("ws-status");
-    AppData.WS.on("connected", () => {
-      if (btn) {
-        btn.disabled = false;
-        btn.classList.replace("bg-gray-400", "bg-emerald-600");
-        btn.classList.add("hover:bg-emerald-700");
-        btn.classList.remove("cursor-not-allowed");
-      }
-      const textBtn = document.getElementById("text-engine-btn");
-      if (textBtn) textBtn.textContent = "Generar (WS)";
-      if (wsStatus) {
-        wsStatus.innerHTML = '<span class="relative flex h-2.5 w-2.5 mr-1.5"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span><span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span></span> Conectado';
-      }
-    });
-    AppData.WS.on("disconnected", () => {
-      if (btn) {
-        btn.disabled = true;
-        btn.classList.replace("bg-emerald-600", "bg-gray-400");
-        btn.classList.remove("hover:bg-emerald-700");
-        btn.classList.add("cursor-not-allowed");
-      }
-      const textBtn = document.getElementById("text-engine-btn");
-      if (textBtn) textBtn.textContent = "Conectando...";
-      if (wsStatus) {
-        wsStatus.innerHTML = '<span class="relative flex h-2.5 w-2.5 mr-1.5"><span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500"></span></span> Desconectado';
-      }
-    });
-    AppData.WS.on("scores_updated", (scores) => {
-      const elHard = document.getElementById("score-hard");
-      const elSoft = document.getElementById("score-soft");
-      const elTooltipText = document.getElementById("score-soft-tooltip-text");
-      if (elHard) elHard.textContent = scores.hard.toString();
-      if (elSoft) {
-        const pct = scores.porcentaje !== void 0 && !isNaN(scores.porcentaje) ? Math.min(100, Math.max(0, scores.porcentaje)).toFixed(1) + "%" : "0.0%";
-        elSoft.textContent = pct;
-      }
-      if (elTooltipText) {
-        const rawObj = scores.rawObjective || scores.soft || 0;
-        const boundVal = scores.bound || 0;
-        elTooltipText.innerHTML = `Puntos: <b class="text-white">${rawObj.toLocaleString()}</b> / <b class="text-indigo-400">${boundVal.toLocaleString()}</b> pts`;
-      }
-      const stConflict = document.getElementById("status-conflict");
-      const stOk = document.getElementById("status-ok");
-      if (stConflict && stOk) {
-        if (scores.hard === 0) {
-          stConflict.classList.replace("flex", "hidden");
-          stOk.classList.replace("hidden", "flex");
-        } else {
-          stOk.classList.replace("flex", "hidden");
-          stConflict.classList.replace("hidden", "flex");
-        }
-      }
-      const elCount = document.getElementById("conflict-tooltip-count");
-      const elList = document.getElementById("conflict-tooltip-list");
-      if (elCount && elList) {
-        const conflicts = scores.conflictos || [];
-        elCount.textContent = conflicts.length.toString();
-        if (conflicts.length === 0) {
-          elList.innerHTML = '<li class="text-slate-400 italic">No hay solapamientos ni conflictos detectados.</li>';
-        } else {
-          elList.innerHTML = conflicts.map((c) => `<li class="flex items-start gap-1.5"><span class="text-red-400 font-bold">\u2022</span><span>${c}</span></li>`).join("");
-        }
-      }
-    });
-    AppData.WS.on("schedule_updated", (classes) => {
-      AppData.scheduledClasses = classes;
-      refreshCalendarView();
-    });
-    AppData.WS.on("optimization_finished", (classes) => {
-      AppData.scheduledClasses = classes;
-      refreshCalendarView();
-      toggleOptimizationEngine(true);
-      showToast("Optimizaci\xF3n completada", "El motor ha encontrado la mejor distribuci\xF3n de horarios.", "success");
-    });
-  }
-  function toggleOptimizationEngine(forceStop = false) {
-    try {
-      const btn = document.getElementById("btn-toggle-engine");
-      if (!btn) return;
-      const iconStop = document.getElementById("icon-stop");
-      const iconPlay = document.getElementById("icon-play");
-      const textEngineBtn = document.getElementById("text-engine-btn");
-      if (AppData.WS.isOptimizing || forceStop) {
-        AppData.WS.sendCommand("STOP");
-        btn.classList.replace("bg-red-600", "bg-emerald-600");
-        btn.classList.replace("hover:bg-red-700", "hover:bg-emerald-700");
-        btn.classList.remove("animate-pulse");
-        if (iconStop) iconStop.classList.add("hidden");
-        if (iconPlay) iconPlay.classList.remove("hidden");
-        if (textEngineBtn) textEngineBtn.textContent = "Generar (WS)";
+  function updateScoreDashboard(hard, soft, porcentaje, conflictos = []) {
+    const elHard = document.getElementById("score-hard");
+    const elSoft = document.getElementById("score-soft");
+    const elTooltipText = document.getElementById("score-soft-tooltip-text");
+    if (elHard) elHard.textContent = hard.toString();
+    if (elSoft) elSoft.textContent = `${porcentaje.toFixed(1)}%`;
+    if (elTooltipText) {
+      elTooltipText.innerHTML = `Puntos: <b class="text-white">${soft.toLocaleString()}</b> / <b class="text-indigo-400">1,000</b> pts`;
+    }
+    const stConflict = document.getElementById("status-conflict");
+    const stOk = document.getElementById("status-ok");
+    if (stConflict && stOk) {
+      if (hard === 0) {
+        stConflict.classList.replace("flex", "hidden");
+        stOk.classList.replace("hidden", "flex");
       } else {
-        AppData.WS.sendCommand("START");
-        btn.classList.replace("bg-emerald-600", "bg-red-600");
-        btn.classList.replace("hover:bg-red-700", "hover:bg-red-700");
-        btn.classList.add("animate-pulse");
-        if (iconPlay) iconPlay.classList.add("hidden");
-        if (iconStop) iconStop.classList.remove("hidden");
-        if (textEngineBtn) textEngineBtn.textContent = "Parar Motor";
+        stOk.classList.replace("flex", "hidden");
+        stConflict.classList.replace("hidden", "flex");
       }
+    }
+    const elCount = document.getElementById("conflict-tooltip-count");
+    const elList = document.getElementById("conflict-tooltip-list");
+    if (elCount && elList) {
+      elCount.textContent = conflictos.length.toString();
+      if (conflictos.length === 0) {
+        elList.innerHTML = '<li class="text-slate-400 italic">No hay solapamientos ni conflictos detectados.</li>';
+      } else {
+        elList.innerHTML = conflictos.map((c) => `<li class="flex items-start gap-1.5"><span class="text-red-400 font-bold">\u2022</span><span>${c}</span></li>`).join("");
+      }
+    }
+  }
+  var isSolvingInProgress = false;
+  async function toggleOptimizationEngine() {
+    if (isSolvingInProgress) return;
+    const btn = document.getElementById("btn-toggle-engine");
+    const textEngineBtn = document.getElementById("text-engine-btn");
+    try {
+      isSolvingInProgress = true;
+      if (btn) {
+        btn.classList.add("animate-pulse");
+      }
+      if (textEngineBtn) {
+        textEngineBtn.textContent = "Calculando...";
+      }
+      showToast("Generando Horarios", "El motor CSP nativo est\xE1 calculando la distribuci\xF3n \xF3ptima...", "info");
+      await AppData.API.startSolver();
+      AppData.scheduledClasses = await AppData.API.getSchedule();
+      refreshCalendarView();
+      updateScoreDashboard(0, 1e3, 100, []);
+      showToast("Horarios Generados", "El horario ha sido calculado y guardado correctamente.", "success");
     } catch (err) {
-      console.error("Error in toggleOptimizationEngine:", err);
-      showToast("Error", "No se pudo iniciar el motor de optimizaci\xF3n", "error");
+      console.error("Error running solver:", err);
+      showToast("Error en Solver", err?.message || String(err), "error");
+    } finally {
+      isSolvingInProgress = false;
+      if (btn) {
+        btn.classList.remove("animate-pulse");
+      }
+      if (textEngineBtn) {
+        textEngineBtn.textContent = "Generar Horarios";
+      }
     }
   }
   Object.assign(window, {
