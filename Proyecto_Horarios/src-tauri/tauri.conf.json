@@ -13,7 +13,7 @@
         "title": "EduSchedule",
         "width": 1200,
         "height": 800,
-        "url": "index.html",
+        "url": "/",
         "visible": true,
         "center": true,
         "resizable": true
