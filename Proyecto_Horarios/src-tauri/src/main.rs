@@ -126,6 +126,14 @@ fn wait_for_server(addr: &str, timeout_secs: u64) -> bool {
 }
 
 fn main() {
+    #[cfg(target_os = "windows")]
+    {
+        std::env::set_var(
+            "WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS",
+            "--enable-gpu-rasterization --enable-zero-copy --ignore-gpu-blocklist --disable-features=CalculateNativeWinOcclusion,msEdgeEfficiencyMode,IntensiveWakeUpThrottling --disable-background-timer-throttling --disable-renderer-backgrounding",
+        );
+    }
+
     std::panic::set_hook(Box::new(|info| {
         log(&format!("PANIC OCURRIDO: {:?}", info));
     }));
