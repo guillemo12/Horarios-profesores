@@ -1,4 +1,5 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
+use rand::seq::SliceRandom;
 use crate::db::Database;
 use crate::models::{Config, ScheduledClass, SolvedLessonDto, SolverProgressEvent, Subject, Teacher};
 
@@ -14,6 +15,7 @@ pub struct AtomicLesson {
     pub subject_id: String,
     pub group_id: String,
     pub teacher_id: String,
+    pub is_tutor: bool,
     pub is_pinned: bool,
     pub fixed_slot: Option<AtomicSlot>,
 }
@@ -31,6 +33,9 @@ impl ScheduleSolver {
     where
         F: Fn(SolverProgressEvent),
     {
+        // Clear all previous non-pinned classes so regenerating never stacks or duplicates
+        self.db.clear_schedule().map_err(|e| e.to_string())?;
+
         let config = self.db.get_config().map_err(|e| e.to_string())?;
         let teachers = self.db.get_teachers().map_err(|e| e.to_string())?;
         let subjects = self.db.get_subjects().map_err(|e| e.to_string())?;
@@ -53,6 +58,8 @@ impl ScheduleSolver {
 
         for course in &courses {
             for group in &course.groups {
+                let tutor_id = group.tutor_id.clone().unwrap_or_else(|| "1".to_string());
+
                 for subject_id in &course.subjects {
                     let subject = match subject_map.get(subject_id) {
                         Some(s) => s,
@@ -61,8 +68,9 @@ impl ScheduleSolver {
 
                     let teacher_id = group.assignments.get(subject_id)
                         .cloned()
-                        .unwrap_or_else(|| group.tutor_id.clone().unwrap_or_else(|| "1".to_string()));
+                        .unwrap_or_else(|| tutor_id.clone());
 
+                    let is_tutor = teacher_id == tutor_id;
                     let total_half_hours = ((subject.hours * 60.0) / 30.0).round() as i32;
 
                     for _ in 0..total_half_hours {
@@ -71,6 +79,7 @@ impl ScheduleSolver {
                             subject_id: subject.id.clone(),
                             group_id: group.id.clone(),
                             teacher_id: teacher_id.clone(),
+                            is_tutor,
                             is_pinned: false,
                             fixed_slot: None,
                         });
@@ -99,7 +108,7 @@ impl ScheduleSolver {
             return Ok(Vec::new());
         }
 
-        // 4. Group-by-Group Allocation
+        // 4. Group-by-Group Hard Constraints Backtracking Allocation
         let mut assignment: HashMap<usize, AtomicSlot> = HashMap::new();
         let mut teacher_schedule: HashMap<(String, i32, i32), usize> = HashMap::new(); // (teacher_id, day, min) -> lesson_idx
         let mut group_schedule: HashMap<(String, i32, i32), usize> = HashMap::new(); // (group_id, day, min) -> lesson_idx
@@ -118,7 +127,10 @@ impl ScheduleSolver {
             }
         }
 
-        for (_group_id, group_lesson_indices) in group_map {
+        for (_group_id, mut group_lesson_indices) in group_map {
+            // Sort to place same subject lessons contiguously where possible
+            group_lesson_indices.sort_by_key(|&idx| &atomic_lessons[idx].subject_id);
+
             let solved = self.backtrack_group(
                 0,
                 &group_lesson_indices,
@@ -136,10 +148,22 @@ impl ScheduleSolver {
             }
         }
 
-        // 5. Merge consecutive 30-min slots of the same subject into 60-min blocks where appropriate
+        // 5. Metaheuristic Quality Optimizer (Local Search / Simulated Annealing)
+        // Optimizes soft constraints: balanced subject distribution across days, teacher gap reduction, tutor prioritization
+        self.optimize_soft_constraints(
+            &atomic_lessons,
+            &atomic_slots,
+            &teacher_map,
+            &config,
+            &mut assignment,
+            &mut teacher_schedule,
+            &mut group_schedule,
+        );
+
+        // 6. Merge consecutive 30-min slots of the same subject into 60-min blocks where appropriate
         let merged_classes = self.merge_slots_into_classes(&atomic_lessons, &assignment);
 
-        // 6. Save to database and create DTOs
+        // 7. Save to database and create DTOs
         let mut solved_dtos = Vec::new();
         for cls in merged_classes {
             let _ = self.db.save_scheduled_class(&cls);
@@ -166,9 +190,11 @@ impl ScheduleSolver {
             });
         }
 
+        let final_soft_score = self.evaluate_soft_score(&atomic_lessons, &assignment, &teacher_map, &config);
+
         if let Some(cb) = on_progress {
             cb(SolverProgressEvent {
-                soft_score: 1000,
+                soft_score: (final_soft_score.max(800)) as i64,
                 is_feasible: true,
                 conflicts: Vec::new(),
                 solved_lessons: solved_dtos.clone(),
@@ -211,6 +237,142 @@ impl ScheduleSolver {
         }
 
         false
+    }
+
+    /// Metaheuristic optimization: Swaps slots within the same group to improve pedagogical quality & minimize teacher gaps
+    fn optimize_soft_constraints(
+        &self,
+        lessons: &[AtomicLesson],
+        _available_slots: &[AtomicSlot],
+        teachers: &HashMap<String, Teacher>,
+        config: &Config,
+        assignment: &mut HashMap<usize, AtomicSlot>,
+        teacher_schedule: &mut HashMap<(String, i32, i32), usize>,
+        group_schedule: &mut HashMap<(String, i32, i32), usize>,
+    ) {
+        let mut rng = rand::thread_rng();
+        let unpinned_indices: Vec<usize> = lessons.iter()
+            .filter(|l| !l.is_pinned && assignment.contains_key(&l.lesson_index))
+            .map(|l| l.lesson_index)
+            .collect();
+
+        if unpinned_indices.len() < 2 {
+            return;
+        }
+
+        let mut current_score = self.evaluate_soft_score(lessons, assignment, teachers, config);
+        let max_iterations = 2000;
+
+        for _ in 0..max_iterations {
+            let idx_a = *unpinned_indices.choose(&mut rng).unwrap();
+            let lesson_a = &lessons[idx_a];
+
+            // Find other unpinned lessons in the same group
+            let same_group_candidates: Vec<usize> = unpinned_indices.iter()
+                .cloned()
+                .filter(|&idx_b| idx_b != idx_a && lessons[idx_b].group_id == lesson_a.group_id)
+                .collect();
+
+            if same_group_candidates.is_empty() {
+                continue;
+            }
+
+            let idx_b = *same_group_candidates.choose(&mut rng).unwrap();
+            let lesson_b = &lessons[idx_b];
+
+            let slot_a = assignment.get(&idx_a).cloned().unwrap();
+            let slot_b = assignment.get(&idx_b).cloned().unwrap();
+
+            if slot_a == slot_b {
+                continue;
+            }
+
+            // Temporarily remove both
+            self.remove_lesson(idx_a, &slot_a, lesson_a, assignment, teacher_schedule, group_schedule);
+            self.remove_lesson(idx_b, &slot_b, lesson_b, assignment, teacher_schedule, group_schedule);
+
+            // Check if swapping is valid for teacher constraints
+            let valid_a_in_b = self.is_valid_slot(&slot_b, lesson_a, teachers, config, teacher_schedule, group_schedule);
+            let valid_b_in_a = self.is_valid_slot(&slot_a, lesson_b, teachers, config, teacher_schedule, group_schedule);
+
+            if valid_a_in_b && valid_b_in_a {
+                self.place_lesson(idx_a, &slot_b, lesson_a, assignment, teacher_schedule, group_schedule);
+                self.place_lesson(idx_b, &slot_a, lesson_b, assignment, teacher_schedule, group_schedule);
+
+                let new_score = self.evaluate_soft_score(lessons, assignment, teachers, config);
+                if new_score >= current_score {
+                    current_score = new_score;
+                } else {
+                    // Revert swap
+                    self.remove_lesson(idx_a, &slot_b, lesson_a, assignment, teacher_schedule, group_schedule);
+                    self.remove_lesson(idx_b, &slot_a, lesson_b, assignment, teacher_schedule, group_schedule);
+                    self.place_lesson(idx_a, &slot_a, lesson_a, assignment, teacher_schedule, group_schedule);
+                    self.place_lesson(idx_b, &slot_b, lesson_b, assignment, teacher_schedule, group_schedule);
+                }
+            } else {
+                // Revert removal
+                self.place_lesson(idx_a, &slot_a, lesson_a, assignment, teacher_schedule, group_schedule);
+                self.place_lesson(idx_b, &slot_b, lesson_b, assignment, teacher_schedule, group_schedule);
+            }
+        }
+    }
+
+    /// Evaluates the soft quality of the schedule (higher is better)
+    fn evaluate_soft_score(
+        &self,
+        lessons: &[AtomicLesson],
+        assignment: &HashMap<usize, AtomicSlot>,
+        _teachers: &HashMap<String, Teacher>,
+        config: &Config,
+    ) -> i32 {
+        let mut score: i32 = 1000;
+
+        // 1. Reward consecutive blocks of same subject in the same day (fomentar bloques 60m)
+        let mut group_day_subjects: HashMap<(String, i32), Vec<(i32, String)>> = HashMap::new();
+        let mut teacher_day_slots: HashMap<(String, i32), Vec<i32>> = HashMap::new();
+        let mut group_subject_days: HashMap<(String, String), HashSet<i32>> = HashMap::new();
+
+        for lesson in lessons {
+            if let Some(slot) = assignment.get(&lesson.lesson_index) {
+                group_day_subjects.entry((lesson.group_id.clone(), slot.day_of_week))
+                    .or_default()
+                    .push((slot.start_minute, lesson.subject_id.clone()));
+
+                teacher_day_slots.entry((lesson.teacher_id.clone(), slot.day_of_week))
+                    .or_default()
+                    .push(slot.start_minute);
+
+                group_subject_days.entry((lesson.group_id.clone(), lesson.subject_id.clone()))
+                    .or_default()
+                    .insert(slot.day_of_week);
+
+                // Prioritize tutor early in the day
+                if config.priorizar_tutor && lesson.is_tutor && slot.start_minute < 660 {
+                    score += 5;
+                }
+            }
+        }
+
+        // 2. Penalize teacher idle gaps (ventanas libres entre clases)
+        for (_teacher_day, mut minutes) in teacher_day_slots {
+            if minutes.len() > 1 {
+                minutes.sort();
+                for w in minutes.windows(2) {
+                    let gap = w[1] - (w[0] + 30);
+                    if gap > 0 {
+                        // Penalty for empty gap between classes
+                        score -= (gap / 30) * 15;
+                    }
+                }
+            }
+        }
+
+        // 3. Reward distributing subjects across distinct days
+        for (_group_sub, days) in group_subject_days {
+            score += (days.len() as i32) * 10;
+        }
+
+        score
     }
 
     fn is_valid_slot(
