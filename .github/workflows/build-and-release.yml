@@ -18,6 +18,8 @@ jobs:
   build:
     name: Build on ${{ matrix.platform }}
     runs-on: ${{ matrix.os }}
+    env:
+      GRADLE_OPTS: "-Dorg.gradle.internal.http.connectionTimeout=120000 -Dorg.gradle.internal.http.socketTimeout=120000"
     strategy:
       fail-fast: false
       matrix:
@@ -38,7 +40,7 @@ jobs:
           java-version: '21'
 
       - name: Setup Gradle Cache
-        uses: gradle/actions/setup-gradle@v3
+        uses: gradle/actions/setup-gradle@v4
 
       - name: Setup Deno
         uses: denoland/setup-deno@v2
