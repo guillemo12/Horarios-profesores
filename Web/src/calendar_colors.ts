@@ -27,7 +27,7 @@ export function getSubjectColor(subjectId: string): string {
     return SUBJECT_PALETTE[index];
 }
 
-export function generateHSLColor(name: string): string {
+export function generateHSLColor(name?: string | null): string {
     if (!name || typeof name !== 'string') return '#4f46e5';
     let hash = 0;
     for (let i = 0; i < name.length; i++) {
