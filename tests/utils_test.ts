@@ -1,17 +1,36 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
+interface MockElement {
+    className: string;
+    innerHTML: string;
+}
+
+interface MockContainer {
+    appendChild: (el: MockElement) => void;
+}
+
+interface MockDocument {
+    getElementById: (id: string) => MockContainer | null;
+    createElement: (tag: string) => MockElement;
+}
+
 // Funciones puras e implementaciones para test en aislamiento ESM
-function formatHours(h) {
+function formatHours(h: unknown): string {
     if (typeof h !== 'number' || isNaN(h)) return '0';
     return Number(h.toFixed(2)).toString();
 }
 
-function showToast(title, message, type = 'info', documentMock = null) {
-    const doc = documentMock || globalThis.document;
-    if (!doc) return;
+function showToast(
+    title: string,
+    message: string,
+    type: string = 'info',
+    documentMock: MockDocument | null = null
+): MockElement | undefined {
+    const doc = documentMock || (globalThis as unknown as { document?: MockDocument }).document;
+    if (!doc) return undefined;
     const container = doc.getElementById('toast-container');
-    if (!container) return;
+    if (!container) return undefined;
 
     const toast = doc.createElement('div');
     const bgClass = type === 'error' ? 'border-red-500 text-red-500'
@@ -51,30 +70,30 @@ test('formatHours - Test 2 (Edge Case): Maneja valores flotantes con imprecision
 // 2. showToast - Mínimo 2 Tests
 // -------------------------------------------------------------
 test('showToast - Test 1 (Happy Path): Agrega el toast al contenedor DOM con los estilos de tipo correctos', () => {
-    const children = [];
-    const container = { appendChild: (el) => children.push(el) };
-    const mockDoc = {
-        getElementById: (id) => (id === 'toast-container' ? container : null),
-        createElement: (tag) => ({ className: '', innerHTML: '' })
+    const children: MockElement[] = [];
+    const container: MockContainer = { appendChild: (el: MockElement) => children.push(el) };
+    const mockDoc: MockDocument = {
+        getElementById: (id: string) => (id === 'toast-container' ? container : null),
+        createElement: (_tag: string) => ({ className: '', innerHTML: '' })
     };
 
     const toastInfo = showToast('Título Info', 'Mensaje Info', 'info', mockDoc);
-    assert.ok(toastInfo.className.includes('border-blue-500 text-blue-500'));
-    assert.ok(toastInfo.innerHTML.includes('Título Info'));
+    assert.ok(toastInfo?.className.includes('border-blue-500 text-blue-500'));
+    assert.ok(toastInfo?.innerHTML.includes('Título Info'));
 
     const toastSuccess = showToast('Éxito', 'Guardado', 'success', mockDoc);
-    assert.ok(toastSuccess.className.includes('border-green-500 text-green-500'));
+    assert.ok(toastSuccess?.className.includes('border-green-500 text-green-500'));
 
     const toastError = showToast('Error', 'Falló', 'error', mockDoc);
-    assert.ok(toastError.className.includes('border-red-500 text-red-500'));
+    assert.ok(toastError?.className.includes('border-red-500 text-red-500'));
 
     assert.strictEqual(children.length, 3);
 });
 
 test('showToast - Test 2 (Edge Case): Retorna de forma segura y sin excepciones cuando no existe #toast-container o document', () => {
-    const mockDocSinContenedor = {
+    const mockDocSinContenedor: MockDocument = {
         getElementById: () => null,
-        createElement: () => ({})
+        createElement: () => ({ className: '', innerHTML: '' })
     };
 
     // No debe lanzar error si falta el contenedor
