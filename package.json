@@ -3,8 +3,9 @@
   "version": "0.0.10",
   "description": "EduSchedule School Timetable & Teachers Management System",
   "main": "index.js",
+  "type": "module",
   "scripts": {
-    "test": "node --test tests/*.mjs",
+    "test": "node --experimental-strip-types --test tests/*.mjs tests/*.ts",
     "test:backend": "./gradlew test --no-daemon"
   },
   "keywords": [],
