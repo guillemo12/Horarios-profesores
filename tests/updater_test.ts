@@ -1,12 +1,17 @@
 import test from 'node:test';
 import assert from 'node:assert';
 
-function parseVersion(versionStr) {
+interface Asset {
+    name: string;
+    browser_download_url: string;
+}
+
+function parseVersion(versionStr: string): number[] {
     const clean = versionStr.replace(/^v/, '').trim();
     return clean.split('.').map(n => parseInt(n, 10) || 0);
 }
 
-function isNewerVersion(latestTag, currentVersion = "0.0.6") {
+function isNewerVersion(latestTag: string, currentVersion: string = "0.0.6"): boolean {
     const latest = parseVersion(latestTag);
     const current = parseVersion(currentVersion);
     const maxLen = Math.max(latest.length, current.length);
@@ -20,7 +25,7 @@ function isNewerVersion(latestTag, currentVersion = "0.0.6") {
     return false;
 }
 
-function getBestAssetForPlatform(assets, platform = 'win32') {
+function getBestAssetForPlatform(assets: Asset[], platform: 'win32' | 'linux' = 'win32'): Asset | null {
     if (!assets || assets.length === 0) return null;
 
     if (platform === 'win32') {
@@ -54,23 +59,25 @@ test('Comparación de versiones semánticas', () => {
 });
 
 test('Selección óptima de binarios por plataforma (Windows)', () => {
-    const assets = [
+    const assets: Asset[] = [
         { name: 'EduSchedule_0.0.7.msi', browser_download_url: 'http://example.com/msi' },
         { name: 'EduSchedule_0.0.7_x64-setup.exe', browser_download_url: 'http://example.com/setup' },
         { name: 'EduSchedule_0.0.7_amd64.AppImage', browser_download_url: 'http://example.com/appimage' }
     ];
 
     const bestWin = getBestAssetForPlatform(assets, 'win32');
+    assert.ok(bestWin);
     assert.strictEqual(bestWin.name, 'EduSchedule_0.0.7_x64-setup.exe');
 });
 
 test('Selección óptima de binarios por plataforma (Linux)', () => {
-    const assets = [
+    const assets: Asset[] = [
         { name: 'EduSchedule_0.0.7_x64-setup.exe', browser_download_url: 'http://example.com/setup' },
         { name: 'EduSchedule_0.0.7_amd64.deb', browser_download_url: 'http://example.com/deb' },
         { name: 'EduSchedule_0.0.7_amd64.AppImage', browser_download_url: 'http://example.com/appimage' }
     ];
 
     const bestLinux = getBestAssetForPlatform(assets, 'linux');
+    assert.ok(bestLinux);
     assert.strictEqual(bestLinux.name, 'EduSchedule_0.0.7_amd64.AppImage');
 });
