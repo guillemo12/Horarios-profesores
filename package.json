@@ -2,9 +2,10 @@
   "name": "horarios-profesores",
   "version": "0.0.10",
   "description": "EduSchedule School Timetable & Teachers Management System",
+  "type": "module",
   "main": "index.js",
   "scripts": {
-    "test": "node --test tests/*.mjs",
+    "test": "node --experimental-strip-types --test tests/*.ts tests/*.mjs",
     "test:backend": "./gradlew test --no-daemon"
   },
   "keywords": [],
