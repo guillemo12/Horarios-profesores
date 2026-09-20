@@ -1,14 +1,26 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
+type ToastType = 'info' | 'success' | 'warning' | 'error';
+
+interface MockDocument {
+    getElementById: (id: string) => any;
+    createElement: (tag: string) => any;
+}
+
 // Funciones puras e implementaciones para test en aislamiento ESM
-function formatHours(h) {
+function formatHours(h: number | null | undefined): string {
     if (typeof h !== 'number' || isNaN(h)) return '0';
     return Number(h.toFixed(2)).toString();
 }
 
-function showToast(title, message, type = 'info', documentMock = null) {
-    const doc = documentMock || globalThis.document;
+function showToast(
+    title: string,
+    message: string,
+    type: ToastType = 'info',
+    documentMock: MockDocument | null = null
+): any {
+    const doc = documentMock || (globalThis as any).document;
     if (!doc) return;
     const container = doc.getElementById('toast-container');
     if (!container) return;
@@ -43,7 +55,7 @@ test('formatHours - Test 2 (Edge Case): Maneja valores flotantes con imprecision
     assert.strictEqual(formatHours(-1.5), '-1.5');
     assert.strictEqual(formatHours(null), '0');
     assert.strictEqual(formatHours(undefined), '0');
-    assert.strictEqual(formatHours('invalido'), '0');
+    assert.strictEqual(formatHours('invalido' as any), '0');
     assert.strictEqual(formatHours(NaN), '0');
 });
 
@@ -51,11 +63,11 @@ test('formatHours - Test 2 (Edge Case): Maneja valores flotantes con imprecision
 // 2. showToast - Mínimo 2 Tests
 // -------------------------------------------------------------
 test('showToast - Test 1 (Happy Path): Agrega el toast al contenedor DOM con los estilos de tipo correctos', () => {
-    const children = [];
-    const container = { appendChild: (el) => children.push(el) };
-    const mockDoc = {
-        getElementById: (id) => (id === 'toast-container' ? container : null),
-        createElement: (tag) => ({ className: '', innerHTML: '' })
+    const children: any[] = [];
+    const container = { appendChild: (el: any) => children.push(el) };
+    const mockDoc: MockDocument = {
+        getElementById: (id: string) => (id === 'toast-container' ? container : null),
+        createElement: (tag: string) => ({ className: '', innerHTML: '' })
     };
 
     const toastInfo = showToast('Título Info', 'Mensaje Info', 'info', mockDoc);
@@ -72,7 +84,7 @@ test('showToast - Test 1 (Happy Path): Agrega el toast al contenedor DOM con los
 });
 
 test('showToast - Test 2 (Edge Case): Retorna de forma segura y sin excepciones cuando no existe #toast-container o document', () => {
-    const mockDocSinContenedor = {
+    const mockDocSinContenedor: MockDocument = {
         getElementById: () => null,
         createElement: () => ({})
     };
