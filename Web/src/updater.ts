@@ -1,4 +1,4 @@
-import { showToast } from './utils';
+import { showToast } from './utils.ts';
 
 export const CURRENT_VERSION = "0.0.9";
 export const GITHUB_REPO = "guillemo12/Horarios-profesores";
@@ -18,7 +18,7 @@ export interface GitHubRelease {
     assets: GitHubReleaseAsset[];
 }
 
-function parseVersion(versionStr: string): number[] {
+export function parseVersion(versionStr: string): number[] {
     const clean = versionStr.replace(/^v/, '').trim();
     return clean.split('.').map(n => parseInt(n, 10) || 0);
 }
@@ -37,11 +37,11 @@ export function isNewerVersion(latestTag: string, currentVersion: string = CURRE
     return false;
 }
 
-function getBestAssetForPlatform(assets: GitHubReleaseAsset[]): GitHubReleaseAsset | null {
+export function getBestAssetForPlatform(assets: GitHubReleaseAsset[], targetPlatform?: string): GitHubReleaseAsset | null {
     if (!assets || assets.length === 0) return null;
 
-    const isWin = navigator.userAgent.includes('Windows') || navigator.platform.includes('Win');
-    const isLinux = navigator.userAgent.includes('Linux');
+    const isWin = targetPlatform === 'win32' || (typeof navigator !== 'undefined' && (navigator.userAgent.includes('Windows') || navigator.platform.includes('Win')));
+    const isLinux = targetPlatform === 'linux' || (typeof navigator !== 'undefined' && navigator.userAgent.includes('Linux'));
 
     if (isWin) {
         // Priorizar el instalador setup.exe o el exe único
