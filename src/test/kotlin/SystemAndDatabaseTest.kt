@@ -4,6 +4,9 @@ import com.colegio.modelos.entities.ProfesorEntity
 import com.colegio.routing.DatabaseOperationResponse
 import com.colegio.routing.InstallUpdateRequest
 import com.colegio.routing.InstallUpdateResponse
+import com.colegio.routing.isUpdateAuthorized
+import com.colegio.routing.isValidUpdateUrl
+import com.colegio.routing.sanitizeAndValidateFileName
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import org.jetbrains.exposed.sql.transactions.transaction
@@ -12,6 +15,7 @@ import java.io.FileInputStream
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertFailsWith
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
@@ -113,5 +117,65 @@ class SystemAndDatabaseTest {
         val decoded = Json.decodeFromString<DatabaseOperationResponse>(json)
         assertTrue(decoded.success)
         assertEquals("Base de datos restaurada correctamente.", decoded.message)
+    }
+
+    // --- SECURITY TESTS FOR UPDATE ENDPOINT ---
+
+    @Test
+    fun `test isValidUpdateUrl accepts official repository releases`() {
+        val validUrl1 = "https://github.com/guillemo12/Horarios-profesores/releases/download/v0.0.9/EduSchedule.exe"
+        val validUrl2 = "https://objects.githubusercontent.com/github-production-release-asset-26543/12345"
+
+        assertTrue(isValidUpdateUrl(validUrl1, isRedirect = false), "Debe aceptar URLs oficiales de descarga de la versión")
+        assertTrue(isValidUpdateUrl(validUrl2, isRedirect = true), "Debe aceptar URLs de redirección de assets de producción de GitHub")
+    }
+
+    @Test
+    fun `test isValidUpdateUrl rejects insecure or untrusted URLs`() {
+        val httpUrl = "http://github.com/guillemo12/Horarios-profesores/releases/download/v0.0.9/EduSchedule.exe"
+        val untrustedHost = "https://evil.com/guillemo12/Horarios-profesores/releases/download/v0.0.9/EduSchedule.exe"
+        val wrongRepo = "https://github.com/attacker/malware/releases/download/v1.0/malware.exe"
+        val rawAttackerUrl = "https://raw.githubusercontent.com/attacker/malware-repo/main/exploit.exe"
+        val initialObjectsUrl = "https://objects.githubusercontent.com/attacker/malware.exe"
+
+        assertFalse(isValidUpdateUrl(httpUrl, isRedirect = false), "Debe rechazar URLs que no usan HTTPS")
+        assertFalse(isValidUpdateUrl(untrustedHost, isRedirect = false), "Debe rechazar dominios no pertenecientes a GitHub")
+        assertFalse(isValidUpdateUrl(wrongRepo, isRedirect = false), "Debe rechazar URLs de repositorios ajenos")
+        assertFalse(isValidUpdateUrl(rawAttackerUrl, isRedirect = false), "Debe rechazar URLs de raw.githubusercontent.com de repositorios ajenos")
+        assertFalse(isValidUpdateUrl(initialObjectsUrl, isRedirect = false), "Debe rechazar URLs iniciales directas a objects.githubusercontent.com")
+    }
+
+    @Test
+    fun `test sanitizeAndValidateFileName accepts valid installer file names`() {
+        assertEquals("EduSchedule_v0.0.9.exe", sanitizeAndValidateFileName("EduSchedule_v0.0.9.exe"))
+        assertEquals("setup.msi", sanitizeAndValidateFileName("setup.msi"))
+        assertEquals("app.AppImage", sanitizeAndValidateFileName("app.AppImage"))
+    }
+
+    @Test
+    fun `test sanitizeAndValidateFileName rejects path traversal and dangerous extensions`() {
+        assertFailsWith<IllegalArgumentException> {
+            sanitizeAndValidateFileName("script.sh")
+        }
+        assertFailsWith<IllegalArgumentException> {
+            sanitizeAndValidateFileName("../../../etc/passwd")
+        }
+        assertFailsWith<IllegalArgumentException> {
+            sanitizeAndValidateFileName("payload.bat")
+        }
+    }
+
+    @Test
+    fun `test isUpdateAuthorized enforces secret token check when configured`() {
+        val secret = "super-secret-update-token-123"
+
+        // Con token configurado
+        assertTrue(isUpdateAuthorized(secret, secret, null), "Debe autorizar si el token coincide en X-Update-Token")
+        assertTrue(isUpdateAuthorized(secret, null, "Bearer $secret"), "Debe autorizar si el token coincide en Authorization header")
+        assertFalse(isUpdateAuthorized(secret, "wrong-token", null), "Debe denegar con token incorrecto")
+        assertFalse(isUpdateAuthorized(secret, null, null), "Debe denegar si falta el token")
+
+        // Sin token configurado
+        assertTrue(isUpdateAuthorized(null, null, null), "Debe permitir por defecto si no hay token configurado en el entorno")
     }
 }
