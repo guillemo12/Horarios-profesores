@@ -40,6 +40,69 @@ data class DatabaseOperationResponse(
     val message: String
 )
 
+private val ALLOWED_EXTENSIONS = listOf(".exe", ".msi", ".appimage", ".deb", ".zip", ".tar.gz", ".jar")
+
+fun isValidUpdateUrl(urlString: String, isRedirect: Boolean = false): Boolean {
+    return try {
+        val uri = URI.create(urlString)
+        if (uri.scheme?.lowercase() != "https") return false
+        val host = uri.host?.lowercase() ?: return false
+        val path = uri.path ?: ""
+
+        val isTrustedHost = host == "github.com" ||
+                host == "objects.githubusercontent.com" ||
+                host == "raw.githubusercontent.com" ||
+                host.endsWith(".github.com") ||
+                host.endsWith(".githubusercontent.com")
+
+        if (!isTrustedHost) return false
+
+        if (host == "github.com") {
+            return path.startsWith("/guillemo12/Horarios-profesores/releases/download/") ||
+                   path.startsWith("/guillemo12/Horarios-profesores/archive/")
+        }
+
+        if (host == "raw.githubusercontent.com" || host.endsWith(".githubusercontent.com")) {
+            if (path.startsWith("/guillemo12/Horarios-profesores/")) {
+                return true
+            }
+            if (isRedirect && host == "objects.githubusercontent.com") {
+                return true
+            }
+            return false
+        }
+
+        false
+    } catch (_: Exception) {
+        false
+    }
+}
+
+fun sanitizeAndValidateFileName(rawFileName: String): String {
+    val simpleName = File(rawFileName).name
+    if (simpleName.isBlank() || simpleName.contains("..") || simpleName.contains("/") || simpleName.contains("\\")) {
+        throw IllegalArgumentException("Nombre de archivo no válido.")
+    }
+    val lower = simpleName.lowercase()
+    if (ALLOWED_EXTENSIONS.none { lower.endsWith(it) }) {
+        throw IllegalArgumentException("Extensión de archivo de actualización no permitida.")
+    }
+    return simpleName
+}
+
+fun isUpdateAuthorized(expectedToken: String?, requestTokenHeader: String?, requestAuthHeader: String?): Boolean {
+    val configuredToken = expectedToken
+        ?: System.getenv("EDUSCHEDULE_UPDATE_TOKEN")
+        ?: System.getProperty("EDUSCHEDULE_UPDATE_TOKEN")
+
+    if (!configuredToken.isNullOrBlank()) {
+        val tokenFromHeader = requestTokenHeader
+            ?: requestAuthHeader?.removePrefix("Bearer ")?.trim()
+        return tokenFromHeader == configuredToken
+    }
+    return true
+}
+
 fun Route.systemRoutes() {
     val logger = LoggerFactory.getLogger("SystemRoutes")
 
@@ -47,27 +110,53 @@ fun Route.systemRoutes() {
         // --- 1. INSTALACIÓN DE ACTUALIZACIONES EN 1 CLIC ---
         post("/update/install") {
             try {
+                val tokenHeader = call.request.headers["X-Update-Token"]
+                val authHeader = call.request.headers[HttpHeaders.Authorization]
+                if (!isUpdateAuthorized(null, tokenHeader, authHeader)) {
+                    call.respond(HttpStatusCode.Unauthorized, InstallUpdateResponse(false, "Acceso no autorizado para instalar actualizaciones."))
+                    return@post
+                }
+
                 val req = call.receive<InstallUpdateRequest>()
                 if (req.downloadUrl.isBlank()) {
                     call.respond(HttpStatusCode.BadRequest, InstallUpdateResponse(false, "URL de descarga no proporcionada."))
                     return@post
                 }
 
-                logger.info("Iniciando descarga de actualización desde: ${req.downloadUrl}")
+                if (!isValidUpdateUrl(req.downloadUrl, isRedirect = false)) {
+                    logger.warn("Intento de actualización rechazado por URL no autorizada: ${req.downloadUrl}")
+                    call.respond(HttpStatusCode.BadRequest, InstallUpdateResponse(false, "La URL de descarga no es una fuente oficial autorizada."))
+                    return@post
+                }
+
+                val safeFileName = try {
+                    sanitizeAndValidateFileName(if (req.fileName.isNotBlank()) req.fileName else "EduSchedule_update.exe")
+                } catch (e: IllegalArgumentException) {
+                    call.respond(HttpStatusCode.BadRequest, InstallUpdateResponse(false, e.message ?: "Nombre de archivo inválido."))
+                    return@post
+                }
 
                 val tempDir = File(System.getProperty("java.io.tmpdir"), "EduScheduleUpdates")
                 if (!tempDir.exists()) {
                     tempDir.mkdirs()
                 }
 
-                val safeFileName = if (req.fileName.isNotBlank()) req.fileName else "EduSchedule_update.exe"
                 val targetFile = File(tempDir, safeFileName)
+                if (!targetFile.canonicalPath.startsWith(tempDir.canonicalPath)) {
+                    call.respond(HttpStatusCode.BadRequest, InstallUpdateResponse(false, "Ruta de destino inválida."))
+                    return@post
+                }
+
+                logger.info("Iniciando descarga de actualización desde: ${req.downloadUrl}")
 
                 withContext(Dispatchers.IO) {
                     var currentUrl = req.downloadUrl
                     var connection: HttpURLConnection
                     var redirects = 0
                     while (true) {
+                        if (!isValidUpdateUrl(currentUrl, isRedirect = (redirects > 0))) {
+                            throw SecurityException("Redirección a URL no autorizada: $currentUrl")
+                        }
                         val uri = URI.create(currentUrl)
                         connection = uri.toURL().openConnection() as HttpURLConnection
                         connection.instanceFollowRedirects = false
