@@ -1,48 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert';
-
-function parseVersion(versionStr) {
-    const clean = versionStr.replace(/^v/, '').trim();
-    return clean.split('.').map(n => parseInt(n, 10) || 0);
-}
-
-function isNewerVersion(latestTag, currentVersion = "0.0.6") {
-    const latest = parseVersion(latestTag);
-    const current = parseVersion(currentVersion);
-    const maxLen = Math.max(latest.length, current.length);
-
-    for (let i = 0; i < maxLen; i++) {
-        const l = latest[i] ?? 0;
-        const c = current[i] ?? 0;
-        if (l > c) return true;
-        if (l < c) return false;
-    }
-    return false;
-}
-
-function getBestAssetForPlatform(assets, platform = 'win32') {
-    if (!assets || assets.length === 0) return null;
-
-    if (platform === 'win32') {
-        const nsis = assets.find(a => a.name.endsWith('-setup.exe'));
-        if (nsis) return nsis;
-        const exeUnico = assets.find(a => a.name.includes('Unico') && a.name.endsWith('.exe'));
-        if (exeUnico) return exeUnico;
-        const exe = assets.find(a => a.name.endsWith('.exe'));
-        if (exe) return exe;
-        const msi = assets.find(a => a.name.endsWith('.msi'));
-        if (msi) return msi;
-    }
-
-    if (platform === 'linux') {
-        const appImage = assets.find(a => a.name.endsWith('.AppImage'));
-        if (appImage) return appImage;
-        const deb = assets.find(a => a.name.endsWith('.deb'));
-        if (deb) return deb;
-    }
-
-    return assets[0] || null;
-}
+import { parseVersion, isNewerVersion, getBestAssetForPlatform, isDevEnvironment } from '../Web/src/updater.ts';
 
 test('Comparación de versiones semánticas', () => {
     assert.strictEqual(isNewerVersion('v0.0.7', '0.0.6'), true);
@@ -73,4 +31,63 @@ test('Selección óptima de binarios por plataforma (Linux)', () => {
 
     const bestLinux = getBestAssetForPlatform(assets, 'linux');
     assert.strictEqual(bestLinux.name, 'EduSchedule_0.0.7_amd64.AppImage');
+});
+
+test('isDevEnvironment - Test 1 (Happy Path): Detecta correctamente entornos de desarrollo local', () => {
+    const originalWindow = globalThis.window;
+    try {
+        // Localhost
+        globalThis.window = { location: { hostname: 'localhost' } };
+        assert.strictEqual(isDevEnvironment(), true);
+
+        // 127.0.0.1
+        globalThis.window = { location: { hostname: '127.0.0.1' } };
+        assert.strictEqual(isDevEnvironment(), true);
+
+        // Host vacío
+        globalThis.window = { location: { hostname: '' } };
+        assert.strictEqual(isDevEnvironment(), true);
+
+        // IP red local 192.168.x.x
+        globalThis.window = { location: { hostname: '192.168.1.50' } };
+        assert.strictEqual(isDevEnvironment(), true);
+    } finally {
+        globalThis.window = originalWindow;
+    }
+});
+
+test('isDevEnvironment - Test 2 (Edge Case): Identifica dominios de producción e infraestructuras Tauri', () => {
+    const originalWindow = globalThis.window;
+    try {
+        // Dominio web de producción
+        globalThis.window = { location: { hostname: 'horarios.colegio.es' } };
+        assert.strictEqual(isDevEnvironment(), false);
+
+        // IP de producción no local
+        globalThis.window = { location: { hostname: '10.0.0.1' } };
+        assert.strictEqual(isDevEnvironment(), false);
+
+        // Entorno Tauri Desktop con __TAURI__
+        globalThis.window = {
+            location: { hostname: 'localhost' },
+            __TAURI__: {}
+        };
+        assert.strictEqual(isDevEnvironment(), false);
+
+        // Entorno Tauri Desktop con __TAURI_INTERNALS__
+        globalThis.window = {
+            location: { hostname: 'localhost' },
+            __TAURI_INTERNALS__: {}
+        };
+        assert.strictEqual(isDevEnvironment(), false);
+
+        // Entorno Tauri Desktop con __TAURI_METADATA__
+        globalThis.window = {
+            location: { hostname: 'localhost' },
+            __TAURI_METADATA__: {}
+        };
+        assert.strictEqual(isDevEnvironment(), false);
+    } finally {
+        globalThis.window = originalWindow;
+    }
 });
