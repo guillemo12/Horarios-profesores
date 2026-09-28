@@ -8,6 +8,7 @@ import java.util.UUID
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 class PrevalidationTest {
@@ -211,5 +212,100 @@ class PrevalidationTest {
         val config = Configuracion(respetarEspecialidad = true)
 
         assertFalse(Prevalidation.isTeacherQualified(teacher, "Matemáticas", config))
+    }
+
+    @Test
+    fun `specialty coverage check - happy path with multiple subjects and groups`() {
+        val slots = createStandardSlots()
+        val t1 = Profesor(nombre = "Prof 1", asignaturas = listOf("Matemáticas", "Física"), asignaturasPreferidas = emptyList(), minutosMaximos = 3000)
+        val t2 = Profesor(nombre = "Prof 2", asignaturas = listOf("Lengua", "Inglés"), asignaturasPreferidas = emptyList(), minutosMaximos = 3000)
+        val g1 = Grupo(curso = "1º", nombre = "A", tutor = t1)
+        val g2 = Grupo(curso = "2º", nombre = "B", tutor = t2)
+
+        val lessons = listOf(
+            Leccion(id = "L1", asignatura = "Matemáticas", grupo = g1, minutosSemanales = 30),
+            Leccion(id = "L2", asignatura = "Física", grupo = g1, minutosSemanales = 30),
+            Leccion(id = "L3", asignatura = "Lengua", grupo = g2, minutosSemanales = 30),
+            Leccion(id = "L4", asignatura = "Inglés", grupo = g2, minutosSemanales = 30)
+        )
+
+        val config = Configuracion(tiempoMinimo = 30, respetarEspecialidad = true, respetarLimiteHoras = true)
+        val report = Prevalidation.generarReportePrevalidacion(lessons, slots, listOf(t1, t2), config)
+
+        val specCheck = report.checks.find { it.name.contains("Cobertura de Especialidades") }
+        assertNotNull(specCheck)
+        assertEquals("ok", specCheck.status)
+        assertTrue(specCheck.details.isEmpty())
+    }
+
+    @Test
+    fun `specialty coverage check - edge path with multiple uncovered subjects and affected groups`() {
+        val slots = createStandardSlots()
+        val t1 = Profesor(nombre = "Prof 1", asignaturas = listOf("Matemáticas"), asignaturasPreferidas = emptyList(), minutosMaximos = 3000)
+        val g1 = Grupo(curso = "1º", nombre = "A", tutor = t1)
+        val g2 = Grupo(curso = "2º", nombre = "B", tutor = t1)
+
+        val lessons = listOf(
+            Leccion(id = "L1", asignatura = "Matemáticas", grupo = g1, minutosSemanales = 30),
+            Leccion(id = "L2", asignatura = "Robótica Advanced", grupo = g1, minutosSemanales = 30),
+            Leccion(id = "L3", asignatura = "Robótica Advanced", grupo = g2, minutosSemanales = 30)
+        )
+
+        val config = Configuracion(tiempoMinimo = 30, respetarEspecialidad = true, respetarLimiteHoras = true)
+        val report = Prevalidation.generarReportePrevalidacion(lessons, slots, listOf(t1), config)
+
+        val specCheck = report.checks.find { it.name.contains("Cobertura de Especialidades") }
+        assertNotNull(specCheck)
+        assertEquals("error", specCheck.status)
+        assertEquals(1, specCheck.details.size)
+        assertTrue(specCheck.details[0].contains("Robótica Advanced"))
+        assertTrue(specCheck.details[0].contains("1º A"))
+        assertTrue(specCheck.details[0].contains("2º B"))
+    }
+
+    @Test
+    fun `benchmark prevalidation teacher qualification performance with large dataset`() {
+        val slots = createStandardSlots()
+        val teachers = (1..100).map { i ->
+            Profesor(
+                nombre = "Profesor $i",
+                asignaturas = listOf("Asignatura_${i % 40}", "Especialidad_${i % 10}"),
+                asignaturasPreferidas = emptyList(),
+                minutosMaximos = 100000
+            )
+        }
+        val groups = (1..20).map { i ->
+            Grupo(curso = "${(i % 4) + 1}º", nombre = "Grupo_$i", tutor = teachers[i % teachers.size])
+        }
+
+        val lessons = (1..5000).map { i ->
+            val group = groups[i % groups.size]
+            val asig = "Asignatura_${i % 50}"
+            Leccion(
+                id = "L_$i",
+                asignatura = asig,
+                grupo = group,
+                minutosSemanales = 30
+            )
+        }
+
+        val config = Configuracion(tiempoMinimo = 30, respetarEspecialidad = true, respetarLimiteHoras = false)
+
+        // Warmup
+        repeat(3) {
+            Prevalidation.generarReportePrevalidacion(lessons, slots, teachers, config)
+        }
+
+        val iterations = 20
+        val startTime = System.currentTimeMillis()
+        repeat(iterations) {
+            Prevalidation.generarReportePrevalidacion(lessons, slots, teachers, config)
+        }
+        val totalMs = System.currentTimeMillis() - startTime
+        val avgMs = totalMs.toDouble() / iterations
+
+        println("=== PREVALIDATION BENCHMARK BASELINE ===")
+        println("Dataset: 5000 lessons, 50 subjects, 100 teachers, 20 groups")
+        println("Executed $iterations iterations in ${totalMs}ms (Avg: ${avgMs}ms / iter)")
     }
 }
