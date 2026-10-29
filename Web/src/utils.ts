@@ -20,6 +20,7 @@ export function showToast(title: string, message: string, type: 'info' | 'error'
     }, 4000);
 }
 
-export function formatHours(h: number): string {
+export function formatHours(h: number | unknown): string {
+    if (typeof h !== 'number' || isNaN(h)) return '0';
     return Number(h.toFixed(2)).toString();
 }
