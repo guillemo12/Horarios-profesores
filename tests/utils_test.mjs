@@ -1,11 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-// Funciones puras e implementaciones para test en aislamiento ESM
-function formatHours(h) {
-    if (typeof h !== 'number' || isNaN(h)) return '0';
-    return Number(h.toFixed(2)).toString();
-}
+import { formatHours } from '../Web/src/utils.ts';
 
 function showToast(title, message, type = 'info', documentMock = null) {
     const doc = documentMock || globalThis.document;
