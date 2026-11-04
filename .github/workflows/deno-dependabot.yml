@@ -41,7 +41,7 @@ jobs:
           deno run -A npm:esbuild Web/src/Datos.ts --bundle --outfile=/tmp/Datos.check.js --minify
 
       - name: Crear Pull Request si hay actualizaciones
-        uses: peter-evans/create-pull-request@v6
+        uses: peter-evans/create-pull-request@v8
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           commit-message: "chore(deps-deno): actualizar dependencias de Deno"
