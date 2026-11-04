@@ -21,6 +21,12 @@ updates:
       exposed:
         patterns:
           - "org.jetbrains.exposed:*"
+    ignore:
+      # Ignorar versiones erróneas / inexistentes en Maven Central
+      - dependency-name: "org.jetbrains.exposed:*"
+        versions: ["1.6.0"]
+      - dependency-name: "org.xerial:sqlite-jdbc"
+        versions: ["3.54.1.0"]
 
   # 2. Dependencias de Rust / Cargo (App de escritorio con Tauri 2.0)
   - package-ecosystem: "cargo"
