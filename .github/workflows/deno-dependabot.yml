@@ -1,0 +1,58 @@
+name: Deno Dependabot
+
+on:
+  schedule:
+    # Se ejecuta todos los días a las 06:00 UTC (07:00 / 08:00 hora de España)
+    - cron: '0 6 * * *'
+  workflow_dispatch: # Permite dispararlo manualmente en cualquier momento desde la pestaña Actions
+
+jobs:
+  update-deno-deps:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+
+    steps:
+      - name: Checkout del repositorio
+        uses: actions/checkout@v4
+
+      - name: Configurar Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      - name: Actualizar dependencias de Deno en Web
+        working-directory: ./Web
+        run: |
+          # Actualizar imports en deno.json mediante udd (compatible con JSR, npm y deno.land)
+          deno run -A https://deno.land/x/udd@0.8.2/main.ts deno.json || true
+          
+          # Actualizar dependencias y lockfile con Deno
+          deno outdated --update || true
+          
+          # Regenerar/actualizar lockfile si existe
+          if [ -f deno.lock ]; then
+            deno cache server.ts || true
+          fi
+
+      - name: Validar compilación del frontend tras actualización
+        run: |
+          deno run -A npm:esbuild Web/src/Datos.ts --bundle --outfile=/tmp/Datos.check.js --minify
+
+      - name: Crear Pull Request si hay actualizaciones
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: "chore(deps-deno): actualizar dependencias de Deno"
+          title: "chore(deps-deno): actualizar dependencias de Deno"
+          body: |
+            Actualización automática periódica de dependencias para el módulo `Web` (Deno).
+            
+            Se han actualizado `Web/deno.json` y `Web/deno.lock`.
+          branch: "dependabot/deno"
+          base: "master"
+          delete-branch: true
+          labels: |
+            dependencies
+            deno
