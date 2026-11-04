@@ -176,8 +176,18 @@ fun Route.courseRoutes() {
                 }
 
                 val subjectsList = AsignaturaEntity.find { AsignaturaTable.curso eq c.id }.map { it.id.value.toString() }
-                val groupsList = GruposEntity.find { GruposTable.curso eq c.id }.map { g ->
-                    val repartos = RepartoDocenteTable.selectAll().where { RepartoDocenteTable.grupoId eq g.id.value }
+                val updatedGroups = GruposEntity.find { GruposTable.curso eq c.id }.toList()
+                val groupIds = updatedGroups.map { it.id }
+                val repartosByGroup = if (groupIds.isNotEmpty()) {
+                    RepartoDocenteTable.selectAll().where { RepartoDocenteTable.grupoId inList groupIds }
+                        .groupBy { it[RepartoDocenteTable.grupoId].value.toString() }
+                } else {
+                    emptyMap()
+                }
+
+                val groupsList = updatedGroups.map { g ->
+                    val groupIdStr = g.id.value.toString()
+                    val repartos = repartosByGroup[groupIdStr] ?: emptyList()
                     val assignmentsMap = mutableMapOf<String, String>()
                     repartos.forEach { row ->
                         val subId = row[RepartoDocenteTable.asignaturaId].value.toString()
@@ -186,7 +196,7 @@ fun Route.courseRoutes() {
                             assignmentsMap[subId] = profId
                         }
                     }
-                    CourseGroupDto(g.id.value.toString(), g.nombre, g.tutor.id.value.toString(), assignmentsMap)
+                    CourseGroupDto(groupIdStr, g.nombre, g.tutor.id.value.toString(), assignmentsMap)
                 }
 
                 CourseDto(
