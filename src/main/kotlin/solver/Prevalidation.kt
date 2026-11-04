@@ -75,11 +75,11 @@ object Prevalidation {
 
         // 3. Cobertura de Especialidades
         val specialtyErrors = mutableListOf<String>()
-        val allSubjectsInLessons = lessons.map { it.asignatura }.distinct()
-        for (asig in allSubjectsInLessons) {
-            val validT = teachers.filter { isTeacherQualified(it, asig, config) }
-            val gruposAfectados = lessons.filter { it.asignatura == asig }.map { "${it.grupo.curso} ${it.grupo.nombre}" }.distinct()
-            if (validT.isEmpty()) {
+        val lessonsBySubject = lessons.groupBy { it.asignatura }
+        for ((asig, subjectLessons) in lessonsBySubject) {
+            val hasQualifiedTeacher = teachers.any { isTeacherQualified(it, asig, config) }
+            if (!hasQualifiedTeacher) {
+                val gruposAfectados = subjectLessons.map { "${it.grupo.curso} ${it.grupo.nombre}" }.distinct()
                 specialtyErrors.add("Asignatura '$asig' (presente en: ${gruposAfectados.joinToString(", ")}): No tiene ningún profesor con esa especialidad en su ficha.")
             }
         }
