@@ -48,7 +48,7 @@ dependencies {
     // Google OR-Tools (Motor de optimización matemática y viabilidad)
     implementation("com.google.ortools:ortools-java:9.11.4210")
 
-    implementation("org.apache.poi:poi-ooxml:5.3.0")
+    implementation("org.apache.poi:poi-ooxml:6.0.0")
 
     // WebSocket
     implementation("io.ktor:ktor-server-websockets")
