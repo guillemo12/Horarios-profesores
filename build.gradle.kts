@@ -43,7 +43,7 @@ dependencies {
     implementation("org.jetbrains.exposed:exposed-dao:0.50.1")
     implementation("org.jetbrains.exposed:exposed-jdbc:0.50.1")
     implementation("org.jetbrains.exposed:exposed-java-time:0.50.1")
-    implementation("org.xerial:sqlite-jdbc:3.45.1.0")
+    implementation("org.xerial:sqlite-jdbc:3.54.1.0")
 
     // Google OR-Tools (Motor de optimización matemática y viabilidad)
     implementation("com.google.ortools:ortools-java:9.15.6755")
