@@ -46,7 +46,7 @@ dependencies {
     implementation("org.xerial:sqlite-jdbc:3.45.1.0")
 
     // Google OR-Tools (Motor de optimización matemática y viabilidad)
-    implementation("com.google.ortools:ortools-java:9.11.4210")
+    implementation("com.google.ortools:ortools-java:9.15.6755")
 
     implementation("org.apache.poi:poi-ooxml:6.0.0")
 
