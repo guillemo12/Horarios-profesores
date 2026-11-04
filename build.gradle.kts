@@ -39,10 +39,10 @@ dependencies {
     testImplementation(ktorLibs.server.testHost)
 
     // Exposed (ORM)
-    implementation("org.jetbrains.exposed:exposed-core:0.60.0")
-    implementation("org.jetbrains.exposed:exposed-dao:0.60.0")
-    implementation("org.jetbrains.exposed:exposed-jdbc:0.60.0")
-    implementation("org.jetbrains.exposed:exposed-java-time:0.60.0")
+    implementation("org.jetbrains.exposed:exposed-core:1.5.1")
+    implementation("org.jetbrains.exposed:exposed-dao:1.5.1")
+    implementation("org.jetbrains.exposed:exposed-jdbc:1.5.1")
+    implementation("org.jetbrains.exposed:exposed-java-time:1.5.1")
     implementation("org.xerial:sqlite-jdbc:3.49.1.0")
 
     // Google OR-Tools (Motor de optimización matemática y viabilidad)
