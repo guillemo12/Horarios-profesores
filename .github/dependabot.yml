@@ -16,6 +16,11 @@ updates:
     labels:
       - "dependencies"
       - "gradle"
+    groups:
+      # Agrupar las librerías de Exposed para que siempre se actualicen juntas
+      exposed:
+        patterns:
+          - "org.jetbrains.exposed:*"
 
   # 2. Dependencias de Rust / Cargo (App de escritorio con Tauri 2.0)
   - package-ecosystem: "cargo"
